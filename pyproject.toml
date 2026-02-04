@@ -11,6 +11,15 @@ dependencies = [
     "myproject-cli",
 ]
 
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "ruff>=0.15.0",
+]
+
+[project.scripts]
+myproject = "myproject.main:start"
+
 [build-system]
 requires = ["uv_build>=0.9.27,<0.10.0"]
 build-backend = "uv_build"
@@ -25,3 +34,10 @@ members = [
 
 [tool.uv.sources]
 myproject-cli = { workspace = true }
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"] # Error, Pyflakes, Isort
