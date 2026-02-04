@@ -1,0 +1,27 @@
+[project]
+name = "myproject"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "nguyentran0212", email = "gen.tran.1991@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "myproject-cli",
+]
+
+[build-system]
+requires = ["uv_build>=0.9.27,<0.10.0"]
+build-backend = "uv_build"
+
+[tool.uv.workspace]
+members = [
+    "myproject-core",
+    "myproject-cli",
+    "myproject-tui",
+    "myproject-server",
+]
+
+[tool.uv.sources]
+myproject-cli = { workspace = true }

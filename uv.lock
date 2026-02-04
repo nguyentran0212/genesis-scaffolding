@@ -1,0 +1,61 @@
+version = 1
+revision = 3
+requires-python = ">=3.11"
+
+[manifest]
+members = [
+    "myproject",
+    "myproject-cli",
+    "myproject-core",
+    "myproject-server",
+    "myproject-tui",
+]
+
+[[package]]
+name = "myproject"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "myproject-cli" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "myproject-cli", editable = "myproject-cli" }]
+
+[[package]]
+name = "myproject-cli"
+version = "0.1.0"
+source = { editable = "myproject-cli" }
+dependencies = [
+    { name = "myproject-core" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "myproject-core", editable = "myproject-core" }]
+
+[[package]]
+name = "myproject-core"
+version = "0.1.0"
+source = { editable = "myproject-core" }
+
+[[package]]
+name = "myproject-server"
+version = "0.1.0"
+source = { editable = "myproject-server" }
+dependencies = [
+    { name = "myproject-core" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "myproject-core", editable = "myproject-core" }]
+
+[[package]]
+name = "myproject-tui"
+version = "0.1.0"
+source = { editable = "myproject-tui" }
+dependencies = [
+    { name = "myproject-core" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "myproject-core", editable = "myproject-core" }]
