@@ -1,29 +1,55 @@
 #!/bin/bash
-OLD_NAME="skel"
-NEW_NAME=$1 # e.g. "my-app"
+
+# --- CONFIGURATION ---
+OLD_NAME="myproject"
+NEW_NAME=$1
+SCRIPT_NAME=$(basename "$0")
 
 if [ -z "$NEW_NAME" ]; then
-    echo "Usage: ./rename.sh new-name"
+    echo "Usage: ./scripts/$SCRIPT_NAME new-name"
     exit 1
 fi
 
-# Create underscore version for Python imports
+# Create underscore versions
 OLD_UNDERSCORE=${OLD_NAME//-/_}
 NEW_UNDERSCORE=${NEW_NAME//-/_}
 
-# 1. Rename files and directories
-# Using tac (reverse) to rename children before parents
-find . -name "*$OLD_NAME*" | sort -r | while read -r file; do
-    new_file=$(echo "$file" | sed "s/$OLD_NAME/$NEW_NAME/g")
-    mv "$file" "$new_file"
-done
+echo "Step 1: Renaming directories and files..."
 
-# 2. Replace strings in files
-# First, replace underscore versions (imports/packages)
-find . -type f -not -path '*/.*' -exec sed -i "s/$OLD_UNDERSCORE/$NEW_UNDERSCORE/g" {} +
-# Second, replace dash versions (toml names)
-find . -type f -not -path '*/.*' -exec sed -i "s/$OLD_NAME/$NEW_NAME/g" {} +
+# Use -path and -prune to skip .git and this script itself
+# We use -depth to ensure we rename children before parents
+find . -depth \
+    \( -path "./.git" -o -name "$SCRIPT_NAME" \) -prune \
+    -o -name "*$OLD_NAME*" -exec bash -c '
+        new_file=$(echo "$1" | sed "s/'$OLD_NAME'/'$NEW_NAME'/g")
+        mv "$1" "$new_file"
+    ' _ {} \;
 
-# 3. Cleanup
-rm -rf .venv uv.lock
+find . -depth \
+    \( -path "./.git" -o -name "$SCRIPT_NAME" \) -prune \
+    -o -name "*$OLD_UNDERSCORE*" -exec bash -c '
+        new_file=$(echo "$1" | sed "s/'$OLD_UNDERSCORE'/'$NEW_UNDERSCORE'/g")
+        mv "$1" "$new_file"
+    ' _ {} \;
+
+echo "Step 2: Replacing text inside files..."
+
+# Use grep to find files containing the strings, excluding binary/git/lock files
+# Then run sed only on those files
+find . -type f \
+    -not -path "./.git/*" \
+    -not -name "$SCRIPT_NAME" \
+    -not -name "uv.lock" \
+    -exec sed -i "s/$OLD_UNDERSCORE/$NEW_UNDERSCORE/g" {} +
+
+find . -type f \
+    -not -path "./.git/*" \
+    -not -name "$SCRIPT_NAME" \
+    -not -name "uv.lock" \
+    -exec sed -i "s/$OLD_NAME/$NEW_NAME/g" {} +
+
+echo "Step 3: Refreshing environment..."
+rm -rf .venv
 uv sync
+
+echo "Done! Renamed $OLD_NAME ($OLD_UNDERSCORE) to $NEW_NAME ($NEW_UNDERSCORE)."
