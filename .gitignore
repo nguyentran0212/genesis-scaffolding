@@ -8,3 +8,9 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Ignore any .env file in any directory
+**/.env*
+
+# Exception: Do NOT ignore any .env.example in any directory
+!**/.env.example
