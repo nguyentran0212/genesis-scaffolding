@@ -7,12 +7,14 @@ def prestart():
     """
     pass
 
+
 def start():
     """
     Logic for starting the code
     """
     prestart()
     cli_app()
+
 
 if __name__ == "__main__":
     start()
