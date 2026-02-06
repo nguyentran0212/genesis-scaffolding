@@ -14,6 +14,7 @@ class LLMConfig(BaseModel):
 class PathConfigs(BaseModel):
     working_directory: Path = Path(".")
     workspace_directory: Path = Path("./workspaces/")
+    workflow_directory: Path = Path("./workflows/")
 
     @model_validator(mode="after")
     def resolve_paths(self) -> "PathConfigs":
@@ -23,11 +24,13 @@ class PathConfigs(BaseModel):
         else:
             self.working_directory = self.working_directory.resolve()
 
-        # 2. Force Workspace to be a child of Working Dir
+        # 2. Create workspace and workflow directories underneath working directory
         self.workspace_directory = self.working_directory / "workspaces"
+        self.workflow_directory = self.working_directory / "workflows"
 
         # 3. Side-effect: Ensure they exist
         self.workspace_directory.mkdir(parents=True, exist_ok=True)
+        self.workflow_directory.mkdir(parents=True, exist_ok=True)
         return self
 
 
