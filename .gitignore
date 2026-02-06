@@ -14,3 +14,6 @@ wheels/
 
 # Exception: Do NOT ignore any .env.example in any directory
 !**/.env.example
+
+# Ignore the workspaces directory where tmp inputs and outputs are stored
+workspaces/
