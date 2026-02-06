@@ -13,6 +13,9 @@ setup: ## Initial project setup (uv sync)
 backend-lint: ## Run Ruff linter on backend
 	$(UV) ruff check $(BACKEND_DIRS)
 
+backend-lint-fix: ## Run Ruff linter on backend and fix all fixable problems
+	$(UV) ruff check --fix $(BACKEND_DIRS)
+
 backend-format: ## Auto-format backend code
 	$(UV) ruff format $(BACKEND_DIRS)
 

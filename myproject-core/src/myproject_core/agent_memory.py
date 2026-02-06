@@ -2,11 +2,8 @@ from typing import Any
 
 
 class AgentMemory:
-    def __init__(self, messages: list[Any] | None) -> None:
-        if messages:
-            self.messages = messages
-        else:
-            self.messages = []
+    def __init__(self, messages: list[Any] | None = None) -> None:
+        self.messages = messages if messages else []
 
     def append_memory(self, message: Any):
         self.messages.append(message)

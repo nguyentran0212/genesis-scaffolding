@@ -36,8 +36,11 @@ members = [
 myproject-cli = { workspace = true }
 
 [tool.ruff]
-line-length = 88
+line-length = 108
 target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I"] # Error, Pyflakes, Isort
+ignore = [
+    "E501", # Traditionally, many developers let the IDE handle wrapping and ignore E501
+]
