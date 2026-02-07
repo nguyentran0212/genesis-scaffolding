@@ -1,32 +1,75 @@
 from abc import ABC, abstractmethod
+from typing import Any, Generic, Type, TypeVar
 
 from pydantic import BaseModel, ConfigDict
 
+from .agent import Agent
+from .configs import settings
+from .schemas import LLMModel, LLMProvider
 from .workspace import JobContext
 
 
-class BaseTask(ABC):
-    class Params(BaseModel):
-        """
-        Params class defines the schema of the parameters that a step accept.
-        This is used for validating the task's inputs defined in a workflow manifest yaml
-        """
+class TaskParams(BaseModel):
+    """Common schema for all workflow task parameters."""
 
-        model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="ignore")
+
+
+class TaskOutput(BaseModel):
+    """Common schema for all workflow task output."""
+
+    model_config = ConfigDict(extra="ignore")
+
+
+TParams = TypeVar("TParams", bound=TaskParams)
+TOutput = TypeVar("TOutput", bound=TaskOutput)
+
+
+class BaseTask(ABC, Generic[TParams, TOutput]):
+    params_model: Type[TParams]
+    output_model: Type[TOutput]
 
     @abstractmethod
-    def run(self, context: JobContext, params: dict):
+    async def run(self, context: JobContext, params: dict) -> Any:
         pass
 
 
 class IngestTask(BaseTask):
-    def run(self, context: JobContext, params: dict):
+    async def run(self, context: JobContext, params: dict):
         print(f"Ingesting files using method: {params.get('method')}")
 
 
+class AgentTaskParams(TaskParams):
+    prompt: str
+    output_filename: str = "response.txt"
+
+
+class AgentTaskOutput(TaskOutput):
+    content: str
+    file_path: str | None = None
+
+
 class AgentTask(BaseTask):
-    def run(self, context: JobContext, params: dict):
-        print(f"Calling LLM with prompt: {params.get('prompt')}")
+    params_model = AgentTaskParams
+    output_model = AgentTaskOutput
+
+    async def run(self, context: JobContext, params: dict) -> dict:
+        # args = self.params_model(**params)
+        args = self.params_model.model_validate(params)
+
+        # 1. Initialize Agent (Using your provided snippet logic)
+        provider = LLMProvider(base_url=settings.llm.base_url, api_key=settings.llm.api_key)
+        model = LLMModel(provider=provider, model=settings.llm.model)
+        agent = Agent(llm=model)
+
+        # 2. Execute
+        response_text = await agent.step(args.prompt)
+
+        # 3. Write to Output Directory
+        output_path = context.output / args.output_filename
+        output_path.write_text(str(response_text))
+
+        return self.output_model(content=str(response_text), file_path=str(output_path))
 
 
 # This dictionary is what the Registry will use to verify YAMLs

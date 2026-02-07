@@ -1,0 +1,24 @@
+name: "Sample Agent Workflow"
+description: "A simple one-step workflow to test agent integration."
+version: "1.0"
+
+inputs:
+  user_query:
+    type: "string"
+    description: "The question you want to ask the agent."
+    default: "Hello! Tell me a joke about research papers."
+
+steps:
+  - id: "agent_step"
+    type: "prompt_agent"
+    params:
+      prompt: "{{ inputs.user_query }}"
+      output_filename: "agent_response.md"
+
+outputs:
+  output_content:
+    description: "Output response from the agent"
+    value: "{{ steps.agent_step.content }}"
+  output_path:
+    description: "File path to the output from agent"
+    value: "{{ steps.agent_step.file_path }}"

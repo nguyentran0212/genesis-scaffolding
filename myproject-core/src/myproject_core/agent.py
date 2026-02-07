@@ -71,7 +71,7 @@ class Agent:
             )
         )
         # Return the latest response from the model as next step
-        return self.memory.get_messages()[-1]
+        return self.memory.get_messages()[-1]["content"]
 
 
 async def main():

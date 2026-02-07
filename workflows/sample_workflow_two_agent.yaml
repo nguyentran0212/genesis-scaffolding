@@ -1,0 +1,57 @@
+name: "Sample Multi-Step Agent Workflow"
+description: "A simple multi-step workflow to test agent integration."
+version: "1.0"
+
+inputs:
+  writing_topic:
+    type: "string"
+    description: "The topic you want the agent to write about."
+    default: "Python monorepo."
+  content_length:
+    type: "int"
+    description: "Target word count."
+    default: 500
+
+steps:
+  - id: "agent_outline"
+    type: "prompt_agent"
+    params:
+      prompt: |
+        Create a detailed outline for a technical article about {{ inputs.writing_topic }}.
+        Break it down into an introduction, 3 main sections, and a conclusion.
+        Ensure it is structured for a {{ inputs.content_length }} word article.
+        Only write the content of the outline in your output.
+      output_filename: "agent_outline.md"
+
+  - id: "agent_drafting"
+    type: "prompt_agent"
+    params:
+      prompt: |
+        Using the following outline, write a full technical draft:
+        
+        {{ steps.agent_outline.content }}
+        
+        Target length is {{ inputs.content_length }} words. 
+        Maintain a professional, developer-focused tone.
+        Only write the content of the draft in your output. DO NOT provide commentary or metadata beyond the content.
+      output_filename: "agent_draft.md"
+
+  - id: "agent_editing"
+    type: "prompt_agent"
+    params:
+      prompt: |
+        You are a senior technical editor. Review and polish the following draft:
+        
+        {{ steps.agent_drafting.content }}
+        
+        Fix any grammatical errors and improve the flow between paragraphs and output an edited version.
+        Only write the output content of the article. DO NOT provide commentary or metadata beyond the content.
+      output_filename: "agent_final.md"
+
+outputs:
+  output_content:
+    description: "The final edited version of the article."
+    value: "{{ steps.agent_editing.content }}"
+  output_path:
+    description: "File path to the final markdown file."
+    value: "{{ steps.agent_editing.file_path }}"

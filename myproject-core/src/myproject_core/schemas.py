@@ -1,8 +1,9 @@
+from enum import Enum
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Dict, List, Optional, Set
+from typing import Any, Awaitable, Callable, Dict, List, Optional
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
 
 ### LLM Configs
@@ -27,10 +28,38 @@ StreamCallback = Callable[[str], Awaitable[None]]
 
 
 ### Schema for workflow manifest yamls
+class WorkflowInputType(str, Enum):
+    """
+    Data types of workflow inputs for the workflow manifests
+    """
+
+    STRING = "string"
+    INT = "int"
+    FLOAT = "float"
+    BOOL = "bool"
+    FILE = "file"
+    DIR = "dir"
+    LIST_STRING = "list[string]"
+    LIST_FILE = "list[file]"
+
+
+# Map our WorkflowInputType Enum to actual Python types for Pydantic to do run-time validation
+TYPE_MAP: Dict[WorkflowInputType, Any] = {
+    WorkflowInputType.STRING: str,
+    WorkflowInputType.INT: int,
+    WorkflowInputType.FLOAT: float,
+    WorkflowInputType.BOOL: bool,
+    WorkflowInputType.FILE: Path,
+    WorkflowInputType.DIR: Path,
+    WorkflowInputType.LIST_STRING: List[str],
+    WorkflowInputType.LIST_FILE: List[Path],
+}
+
+
 class InputDefinition(BaseModel):
     """Defines a variable that the user must provide before the workflow starts."""
 
-    type: str  # e.g., "string", "int", "file_list"
+    type: WorkflowInputType
     description: str = Field(..., description="Help text for the user")
     default: Optional[Any] = None
     required: bool = False
@@ -49,12 +78,14 @@ class StepDefinition(BaseModel):
         None, description="A Jinja2 expression. If False, the step is skipped."
     )
 
-    # We can add a method to validate the type later in the registry
-    def validate_type(self, allowed_types: Set[str]):
-        if self.type not in allowed_types:
-            raise ValueError(
-                f"Step '{self.id}' has unknown type '{self.type}'. Available types: {allowed_types}"
-            )
+
+class OutputDefinition(BaseModel):
+    """Defines an output from the workflow."""
+
+    description: str = Field(..., description="Help text for the user")
+    value: str = Field(
+        ..., description="Contain {{ placeholders }} that specifies data source for this output."
+    )
 
 
 class WorkflowManifest(BaseModel):
@@ -67,13 +98,51 @@ class WorkflowManifest(BaseModel):
     version: str = "1.0"
 
     # Map of input_name -> definition
-    inputs: Dict[str, InputDefinition] = Field(default_factory=dict)
+    inputs: dict[str, InputDefinition] = Field(default_factory=dict)
 
     # Ordered list of execution steps
-    steps: List[StepDefinition]
+    steps: list[StepDefinition]
+
+    # Map of output_name -> definition
+    outputs: dict[str, OutputDefinition]
+
+    def validate_runtime_inputs(self, raw_data: dict) -> dict:
+        validated = {}
+        for name, defn in self.inputs.items():
+            raw_val = raw_data.get(name, defn.default)
+
+            if raw_val is None:
+                if defn.required:
+                    raise ValueError(f"Input '{name}' is required.")
+                validated[name] = None
+                continue
+
+            # 🚀 The Magic: Use Pydantic's TypeAdapter
+            target_type = TYPE_MAP.get(defn.type, str)
+            try:
+                # This automatically handles:
+                # - Path conversion
+                # - String to Int/Bool
+                # - List element validation
+                adapter = TypeAdapter(target_type)
+                validated[name] = adapter.validate_python(raw_val)
+
+                # Extra check for Files/Dirs
+                if defn.type == WorkflowInputType.FILE and not validated[name].is_file():
+                    print(f"Warning: {name} path exists but is not a file.")
+                if defn.type == WorkflowInputType.DIR and not validated[name].is_dir():
+                    print(f"Warning: {name} path exists but is not a directory.")
+
+            except Exception as e:
+                raise TypeError(f"Input '{name}' failed validation for type {defn.type}: {e}")
+
+        return validated
 
     @classmethod
     def from_yaml(cls, path: Path) -> "WorkflowManifest":
+        """
+        Utility function to create a WorkflowManifest object directly from reading a YAML file
+        """
         with open(path, "r") as f:
             data = yaml.safe_load(f)
         return cls(**data)
