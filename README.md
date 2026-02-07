@@ -4,7 +4,14 @@
   <img src="assets/logo.png" alt="Genesis Scaffolding Logo" width="100%">
 </p>
 
-A standardized Python monorepo scaffolding for LLM-based projects. It provides a pre-configured workspace for a CLI, TUI, RESTful API, and a core logic package.
+A standardized Python monorepo scaffolding for LLM-based projects. It provides a production-ready foundation for building complex agentic systems with a pre-configured workspace for CLI, TUI, and RESTful interfaces.
+
+## Key Features
+
+* **Async Streaming LLM Client:** A robust, asynchronous client powered by LiteLLM. Supports real-time token streaming and reasoning-chunk processing out of the box.
+* **YAML-Driven Workflow Engine:** Orchestrate multi-step agentic pipelines without modifying Python code. Define logic, data routing, and execution conditions directly in validated YAML manifests.
+* **Type-Safe Blackboard Architecture:** Standardized data exchange between workflow steps using Pydantic-validated "Blackboards" and Jinja2 templating.
+* **Integrated Workspace Management:** Automated job directory provisioning for every workflow run to isolate inputs, logs, and artifacts.
 
 ## Getting Started
 

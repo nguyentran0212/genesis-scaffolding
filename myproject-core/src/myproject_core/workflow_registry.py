@@ -31,20 +31,6 @@ class WorkflowRegistry:
             except Exception as e:
                 print(f"Error loading workflow '{yaml_file.name}': {e}")
 
-    def _verify_steps(self, manifest: WorkflowManifest):
-        for step in manifest.steps:
-            task_cls = TASK_LIBRARY.get(step.type)
-            if not task_cls:
-                raise ValueError(f"Task type '{step.type}' not found.")
-
-            try:
-                # Check the YAML params against the task's specific model
-                task_cls.params_model(**step.params)
-            except Exception as e:
-                # We ignore errors if Jinja2 tags are present during this 'dry run'
-                if "{{" not in str(step.params):
-                    raise ValueError(f"Validation failed for {step.id}: {e}")
-
     def _verify_logic(self, manifest: WorkflowManifest):
         """Dry-run Jinja2 templates using dummy data from Task models."""
         # 1. Mock the Blackboard

@@ -45,6 +45,7 @@ steps:
         {{ steps.agent_drafting.content }}
         
         Fix any grammatical errors and improve the flow between paragraphs and output an edited version.
+        Remember to remove any metadata or commentary such as number of words or commentary between and after sections.
         Only write the output content of the article. DO NOT provide commentary or metadata beyond the content.
       output_filename: "agent_final.md"
 

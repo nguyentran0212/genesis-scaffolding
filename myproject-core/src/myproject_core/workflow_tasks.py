@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Generic, Type, TypeVar
+from typing import Generic, Type, TypeVar
 
 from pydantic import BaseModel, ConfigDict
 
@@ -30,7 +30,7 @@ class BaseTask(ABC, Generic[TParams, TOutput]):
     output_model: Type[TOutput]
 
     @abstractmethod
-    async def run(self, context: JobContext, params: dict) -> Any:
+    async def run(self, context: JobContext, params: dict) -> TOutput:
         pass
 
 
@@ -49,11 +49,11 @@ class PromptAgentTaskOutput(TaskOutput):
     file_path: str | None = None
 
 
-class PromptAgentTask(BaseTask):
+class PromptAgentTask(BaseTask[PromptAgentTaskParams, PromptAgentTaskOutput]):
     params_model = PromptAgentTaskParams
     output_model = PromptAgentTaskOutput
 
-    async def run(self, context: JobContext, params: dict) -> dict:
+    async def run(self, context: JobContext, params: dict) -> PromptAgentTaskOutput:
         # args = self.params_model(**params)
         args = self.params_model.model_validate(params)
 
