@@ -39,19 +39,19 @@ class IngestTask(BaseTask):
         print(f"Ingesting files using method: {params.get('method')}")
 
 
-class AgentTaskParams(TaskParams):
+class PromptAgentTaskParams(TaskParams):
     prompt: str
     output_filename: str = "response.txt"
 
 
-class AgentTaskOutput(TaskOutput):
+class PromptAgentTaskOutput(TaskOutput):
     content: str
     file_path: str | None = None
 
 
-class AgentTask(BaseTask):
-    params_model = AgentTaskParams
-    output_model = AgentTaskOutput
+class PromptAgentTask(BaseTask):
+    params_model = PromptAgentTaskParams
+    output_model = PromptAgentTaskOutput
 
     async def run(self, context: JobContext, params: dict) -> dict:
         # args = self.params_model(**params)
@@ -75,5 +75,5 @@ class AgentTask(BaseTask):
 # This dictionary is what the Registry will use to verify YAMLs
 TASK_LIBRARY = {
     "file_ingest": IngestTask,
-    "prompt_agent": AgentTask,
+    "prompt_agent": PromptAgentTask,
 }

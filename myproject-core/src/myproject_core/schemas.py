@@ -117,7 +117,6 @@ class WorkflowManifest(BaseModel):
                 validated[name] = None
                 continue
 
-            # 🚀 The Magic: Use Pydantic's TypeAdapter
             target_type = TYPE_MAP.get(defn.type, str)
             try:
                 # This automatically handles:

@@ -2,8 +2,8 @@ import asyncio
 from typing import Any
 
 from .configs import settings
-from .schemas import WorkflowManifest
-from .utils import evaluate_condition, resolve_placeholders
+from .schemas import StreamCallback, WorkflowManifest
+from .utils import evaluate_condition, resolve_placeholders, streamcallback_simple_print
 from .workflow_registry import WorkflowRegistry
 from .workflow_tasks import TASK_LIBRARY
 from .workspace import JobContext, WorkspaceManager
@@ -13,7 +13,12 @@ class WorkflowEngine:
     def __init__(self, workspace_manager: WorkspaceManager):
         self.workspace = workspace_manager
 
-    async def run(self, manifest: WorkflowManifest, user_inputs: dict[str, Any]) -> dict[str, Any]:
+    async def run(
+        self,
+        manifest: WorkflowManifest,
+        user_inputs: dict[str, Any],
+        step_callbacks: list[StreamCallback] | None,
+    ) -> dict[str, Any]:
         """Executes a validated workflow manifest."""
         # Validate runtime input from user. Throw if validation fails
         validated_inputs = manifest.validate_runtime_inputs(user_inputs)
@@ -37,6 +42,11 @@ class WorkflowEngine:
             task_class = TASK_LIBRARY[step_def.type]
             task_instance = task_class()
 
+            # Use callback to communicate step starting
+            if step_callbacks:
+                tasks = [cb(f"Starting step: {step_def.id}\n\n") for cb in step_callbacks]
+                await asyncio.gather(*tasks)
+
             # Execute Task
             # We pass the job_context for file access and the resolved params for logic
             # Result output object is a pydantic object that matches the TaskOutput schema that a task define
@@ -47,6 +57,14 @@ class WorkflowEngine:
 
             # Checkpoint: Optional - save state to internal/state.json
             self._checkpoint(job_context, state)
+
+            # Use callback to communicate step results
+            if step_callbacks:
+                tasks = [
+                    cb(f"Finished step: {step_def.id}\nOutputs:{output}=====\n\n\n")
+                    for cb in step_callbacks
+                ]
+                await asyncio.gather(*tasks)
 
         # Create outputs
         raw_outputs = {k: v.value for k, v in manifest.outputs.items()}
@@ -71,17 +89,19 @@ async def main():
     engine = WorkflowEngine(wm)
 
     # 2. Pick the sample workflow
-    manifest = reg.get_workflow("sample_workflow_two_agent")
+    manifest = reg.get_workflow("sample_workflow_multi_agent")
     if not manifest:
         print("Error: sample_workflow.yaml not found in registry.")
         return
 
     # 3. Simulate user input
-    user_data = {"user_query": "Explain the importance of reproducibility in 100 words."}
-
+    user_data = {
+        "writing_topic": "An introduction to python monorepo, including concepts, benefits, and detailed guideline using uv",
+        "content_length": 2000,
+    }
     # 4. RUN
     print(f"Running workflow: {manifest.name}...")
-    workflow_output = await engine.run(manifest, user_data)
+    workflow_output = await engine.run(manifest, user_data, [streamcallback_simple_print])
 
     print("Workflow Complete!")
     print(f"{workflow_output}")

@@ -48,10 +48,54 @@ steps:
         Only write the output content of the article. DO NOT provide commentary or metadata beyond the content.
       output_filename: "agent_final.md"
 
+  - id: "agent_twitter"
+    type: "prompt_agent"
+    params:
+      prompt: |
+        You are a social media strategist specializing in technical "Threads" for X/Twitter.
+        
+        Source Material:
+        {{ steps.agent_editing.content }}
+        
+        Task: 
+        Convert the technical article above into a compelling 5-8 tweet thread.
+        - Tweet 1 must be a "hook" that identifies a problem and promises a solution.
+        - Use bullet points for readability.
+        - End with a "Call to Action" or a summary thought.
+        - DO NOT use hashtags or emojis unless they add technical clarity.
+        
+        Output only the thread content, with tweets separated by "---".
+      output_filename: "twitter_thread.md"
+
+  - id: "agent_linkedin"
+    type: "prompt_agent"
+    params:
+      prompt: |
+        You are a Thought Leader on LinkedIn focusing on Engineering Culture and Software Architecture.
+        
+        Source Material:
+        {{ steps.agent_editing.content }}
+        
+        Task:
+        Summarize the key takeaways of this article into a single LinkedIn post.
+        - Start with a strong, punchy opening line.
+        - Use a "Listicle" format for the middle section to highlight 3 key benefits of {{ inputs.writing_topic }}.
+        - The tone should be authoritative yet accessible.
+        - Conclude with a question to encourage comments and engagement.
+        
+        Output only the post content. No meta-commentary.
+      output_filename: "linkedin_post.md"
+
 outputs:
-  output_content:
+  blog_post:
     description: "The final edited version of the article."
     value: "{{ steps.agent_editing.content }}"
-  output_path:
+  blog_post_output_path:
     description: "File path to the final markdown file."
     value: "{{ steps.agent_editing.file_path }}"
+  twitter_thread:
+    description: "Twitter thread of the article."
+    value: "{{ steps.agent_twitter.content }}"
+  linkedin_post:
+    description: "LinkedIn post of the article."
+    value: "{{ steps.agent_linkedin.content }}"
