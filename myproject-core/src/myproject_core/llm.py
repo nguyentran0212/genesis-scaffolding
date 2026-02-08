@@ -1,11 +1,14 @@
 import asyncio
 from typing import Any, cast
 
+import litellm
 from litellm import CustomStreamWrapper, ModelResponse, acompletion
 from litellm.types.utils import Choices, StreamingChoices
 
 from .configs import settings
 from .schemas import LLMModel, LLMProvider, LLMResponse, StreamCallback
+
+litellm.suppress_debug_info = True  # Silences provider suggestion logs
 
 
 async def get_llm_response(

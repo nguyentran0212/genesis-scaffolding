@@ -61,3 +61,6 @@ class WorkflowRegistry:
 
     def get_workflow(self, name: str) -> WorkflowManifest | None:
         return self.workflows.get(name)
+
+    def get_all_workflows(self) -> dict[str, WorkflowManifest]:
+        return self.workflows

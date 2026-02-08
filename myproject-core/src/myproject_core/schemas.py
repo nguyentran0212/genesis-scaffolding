@@ -27,6 +27,24 @@ class LLMResponse(BaseModel):
 StreamCallback = Callable[[str], Awaitable[None]]
 
 
+### Schema for workflow events to use with callbacks to communicate events happening during workflow runs
+class WorkflowEventType(str, Enum):
+    STEP_START = "step_start"
+    STEP_COMPLETED = "step_completed"
+    LOG = "log"
+    ERROR = "error"
+
+
+class WorkflowEvent(BaseModel):
+    event_type: WorkflowEventType
+    step_id: Optional[str] = None
+    message: str
+    data: Any | None = None  # Holds the output object or specific metadata
+
+
+WorkflowCallback = Callable[[WorkflowEvent], Awaitable[None]]
+
+
 ### Schema for workflow manifest yamls
 class WorkflowInputType(str, Enum):
     """

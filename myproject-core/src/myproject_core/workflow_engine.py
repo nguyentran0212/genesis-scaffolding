@@ -2,7 +2,7 @@ import asyncio
 from typing import Any
 
 from .configs import settings
-from .schemas import StreamCallback, WorkflowManifest
+from .schemas import WorkflowCallback, WorkflowEvent, WorkflowEventType, WorkflowManifest
 from .utils import evaluate_condition, resolve_placeholders, streamcallback_simple_print
 from .workflow_registry import WorkflowRegistry
 from .workflow_tasks import TASK_LIBRARY
@@ -17,7 +17,7 @@ class WorkflowEngine:
         self,
         manifest: WorkflowManifest,
         user_inputs: dict[str, Any],
-        step_callbacks: list[StreamCallback] | None,
+        step_callbacks: list[WorkflowCallback] | None = None,
     ) -> dict[str, Any]:
         """Executes a validated workflow manifest."""
         # Validate runtime input from user. Throw if validation fails
@@ -44,8 +44,12 @@ class WorkflowEngine:
 
             # Use callback to communicate step starting
             if step_callbacks:
-                tasks = [cb(f"Starting step: {step_def.id}\n\n") for cb in step_callbacks]
-                await asyncio.gather(*tasks)
+                event = WorkflowEvent(
+                    event_type=WorkflowEventType.STEP_START,
+                    step_id=step_def.id,
+                    message=f"Starting step: {step_def.id}",
+                )
+                await asyncio.gather(*(cb(event) for cb in step_callbacks))
 
             # Execute Task
             # We pass the job_context for file access and the resolved params for logic
@@ -60,11 +64,13 @@ class WorkflowEngine:
 
             # Use callback to communicate step results
             if step_callbacks:
-                tasks = [
-                    cb(f"Finished step: {step_def.id}\nOutputs:{output}=====\n\n\n")
-                    for cb in step_callbacks
-                ]
-                await asyncio.gather(*tasks)
+                event = WorkflowEvent(
+                    event_type=WorkflowEventType.STEP_COMPLETED,
+                    step_id=step_def.id,
+                    message=f"Finished step: {step_def.id}",
+                    data=output.model_dump(),  # Pass the actual output data
+                )
+                await asyncio.gather(*(cb(event) for cb in step_callbacks))
 
         # Create outputs
         raw_outputs = {k: v.value for k, v in manifest.outputs.items()}
@@ -101,7 +107,7 @@ async def main():
     }
     # 4. RUN
     print(f"Running workflow: {manifest.name}...")
-    workflow_output = await engine.run(manifest, user_data, [streamcallback_simple_print])
+    workflow_output = await engine.run(manifest, user_data)
 
     print("Workflow Complete!")
     print(f"{workflow_output}")

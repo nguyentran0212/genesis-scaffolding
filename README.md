@@ -1,28 +1,124 @@
-# Genesis' Scaffolding
+# Genesis Scaffolding
 
 <p align="center">
   <img src="assets/logo.png" alt="Genesis Scaffolding Logo" width="100%">
 </p>
 
-A standardized Python monorepo scaffolding for LLM-based projects. It provides a production-ready foundation for building complex agentic systems with a pre-configured workspace for CLI, TUI, and RESTful interfaces.
+Genesis Scaffolding is a clean, pre-configured scaffolding to build LLM-based applications.
 
-## Key Features
+It is also a toolkit for doing useful stuffs with locally deployed small language models (SLMs).
 
-* **Async Streaming LLM Client:** A robust, asynchronous client powered by LiteLLM. Supports real-time token streaming and reasoning-chunk processing out of the box.
-* **YAML-Driven Workflow Engine:** Orchestrate multi-step agentic pipelines without modifying Python code. Define logic, data routing, and execution conditions directly in validated YAML manifests.
-* **Type-Safe Blackboard Architecture:** Standardized data exchange between workflow steps using Pydantic-validated "Blackboards" and Jinja2 templating.
-* **Integrated Workspace Management:** Automated job directory provisioning for every workflow run to isolate inputs, logs, and artifacts.
+## Project Goals
 
-## Getting Started
+### For Developers: The Scaffolding
+
+The goal of Genesis Scaffolding project is to give you a foundational codebase so that you can start building your application that involves large language models. This codebase aims to be understandable and maintainable by both human developers and LLM-based coding agents.
+
+The codebase of this scaffolding is designed according to the following principles:
+
+- **Clarity over Abstraction:** The architecture is designed to be thin and close to the logic. We don't want to go through layers and layers of useless abstraction and generics to get to the implementation logic.
+- **Well-defined Dependencies:** No circular dependencies. Every package and module has a narrowly defined purpose.
+- **Canonical Tooling:** The project utilizes modern, standard Python practices and libraries (e.g., `uv`, `Pydantic`, `pydantic-settings`, `Typer`, `Textual`, `FastAPI`) to ensure the codebase is both learnable and useful.
+
+Out of the box, Genesis Scaffolding provides a pre-configured monorepo structure, configuration management, LLM client with asynchronous streaming, workflow engine, CLI, TUI, and RESTful API server.
+
+### For Users: A toolkit for using SLM
+
+The goal of Genesis Scaffolding is to provide a tailored toolkit for Small Language Models (4B-12B dense models, or up-to 30B sparse MoE models). We specifically optimize for environments where models are served via OpenAI-compatible endpoints, such as a local `llama-cpp` server.
+
+Our approach to maximizing the utility of SLMs is based on the following ideas:
+
+- **Instruction Following over Planning:** Modern SLMs are highly capable of following instructions and handling long contexts. However, they struggle with reliable multi-step planning and complex tool-use (such as file editing). These gaps often lead to high latency and unreliable outcome of tasks.
+- **Offloading Orchestration to the Framework:** In many real-world tasks, the optimal execution path is already known. By defining this process as a deterministic workflow, we remove the burden of planning from the model. This allows the SLM to focus entirely on the content of the task rather than the management of the process.
+- **Native Terminal Integration:** By making workflows executable from the CLI, the project enables advanced use cases such as batch processing of documents or scheduling recurring tasks via `cron`.
+
+Out of the box, Genesis Scaffolding provides a clean CLI to trigger workflows. You can define workflows with YAML files.
+
+
+## User Guide
+
+Follow these steps to set up Genesis Scaffolding and run your first local workflow.
+
+### 1. Prerequisites
+
+Ensure you have the following installed on your system:
+
+* **Git**: For cloning the repository.
+* **uv**: The high-performance Python package manager used for environment and dependency management.
+
+### 2. Installation
+
+Clone the repository and synchronize the environment:
+
+```bash
+git clone https://github.com/your-repo/genesis-scaffolding.git
+cd genesis-scaffolding
+uv sync
+
+```
+
+### 3. Configure the LLM Backend
+
+Genesis Scaffolding relies on an OpenAI-compatible endpoint. You have two primary options:
+
+#### Option A: Fully Local (Recommended)
+
+Use a local backend to run Small Language Models (SLMs) privately on your hardware.
+
+* **llama.cpp**: Build and deploy [llama.cpp](https://github.com/ggml-org/llama.cpp). Run the server and ensure your model's context window is set to at least **16k tokens**.
+* **LMStudio**: Alternatively, use LMStudio to load a model and toggle the "Local Server" option.
+* **Environment Setup**: Copy `.env.example` to `.env`. Update the following:
+* `MYPROJECT_LLM_BASE_URL`: Set to your local path (e.g., `http://localhost:8080/v1`).
+* `MYPROJECT_LLM_MODEL`: Set to your model identifier (e.g., `local-model`).
+
+
+
+#### Option B: Hosted (OpenRouter)
+
+If you do not wish to host a model locally, you can use OpenRouter.
+
+* The project defaults to `nvidia/nemotron-3-nano-30b-a3b:free`.
+* Obtain an API key from [OpenRouter](https://openrouter.ai/).
+* In your `.env` file, set `MYPROJECT_LLM_API_KEY` to your key.
+
+### 4. Running the CLI
+
+Use the `uv run` command to interact with the system.
+
+* **List all available workflows**:
+```bash
+uv run myproject run --list
+
+```
+
+
+* **View input requirements for a specific workflow**:
+```bash
+uv run myproject run <WORKFLOW_ID> --help
+
+```
+
+
+* **Execute a workflow**:
+```bash
+uv run myproject run <WORKFLOW_ID> --input_name "value"
+
+```
+
+
+
+### 5. Create Your Own Workflows
+
+Workflows are defined in YAML and stored in the `workflows/` directory. For instructions on defining inputs, steps, and logic, see [docs/workflow_architecture.md](https://www.google.com/search?q=docs/workflow_architecture.md).
+
+## Developer Guide
 
 ### 1. Project Initialization
 
 1. **Clone & Reset:** Shallow clone this repo, delete the `.git` directory, and run `git init` to start a fresh history.
 2. **Rename Project:** Run `./scripts/rename.sh` immediately.
-* This script performs a global search-and-replace (e.g., changing `myproject` to `myai`).
-* **Note:** Rename before making logic changes to avoid breaking imports. All package names (e.g., `myproject-cli` -> `myai-cli`) will update accordingly.
-
-
+  - This script performs a global search-and-replace (e.g., changing `myproject` to `myai`).
+  - **Note:** Rename before making logic changes to avoid breaking imports. All package names (e.g., `myproject-cli` -> `myai-cli`) will update accordingly.
 3. **Sync Environment:** Run `uv sync` to install dependencies and set up the workspace.
 4. **Verify:** Run `uv tree` to inspect the dependency graph and ensure sub-repos are correctly linked.
 
@@ -34,7 +130,6 @@ Use `uv` to ensure the correct virtual environment and interpreter are used.
 * **Help / Commands:** `uv run myproject --help`
 * **Flow:** The main module initializes the system and launches the CLI. The CLI launches the TUI by default unless a specific subcommand is used.
 
----
 
 ## Configuration
 
@@ -60,7 +155,6 @@ myproject_llm_api_key="sk1234"
 These are parsed into a nested structure: `llm = {"base_url": "...", "api_key": "..."}`.
 **Modify Schema:** Edit `myproject-core/src/myproject_core/configs.py`.
 
----
 
 ## Development Workflow
 
@@ -77,7 +171,6 @@ All backend tasks are prefixed to distinguish them from future frontend componen
 | `make backend-test` | Executes Pytest across all workspace members |
 | `make backend-check-all` | Sequential lint, type-check, and test |
 
----
 
 ### Managing Dependencies
 
@@ -96,7 +189,6 @@ uv add --package myproject-server requests
 uv add --dev debugpy
 ```
 
----
 
 ### Expanding the Monorepo (Adding Sub-repos)
 
@@ -128,7 +220,6 @@ uv add --package myproject-gui myproject-core
 4. **Finalize:**
 Run `uv sync`. The new package is now "editable," meaning changes made in `myproject-core` are instantly available in `myproject-gui` without a reinstall.
 
----
 
 ### Important: Imports vs. Project Names
 
@@ -140,7 +231,6 @@ A common point of confusion in this monorepo is the difference between the **Pro
 If you add a sub-repo and cannot import it, check that you are using underscores in your `import` statements.
 
 
----
 
 ## Architecture
 
@@ -174,7 +264,4 @@ members = [
 
 [tool.uv.sources]
 myproject-cli = { workspace = true }
-
-```
-
-Would you like me to help you draft the `rename.sh` script logic to ensure it handles those underscores and hyphens correctly?
+``

@@ -1,18 +1,20 @@
-from myproject_cli.main import app as cli_app
-
-
-def prestart():
-    """
-    Hook for logic before starting the main part of the code
-    """
-    pass
+from myproject_cli.main import GenesisCLI
+from myproject_core.configs import settings
+from myproject_core.workflow_engine import WorkflowEngine
+from myproject_core.workflow_registry import WorkflowRegistry
+from myproject_core.workspace import WorkspaceManager
 
 
 def start():
     """
     Logic for starting the code
     """
-    prestart()
+
+    wm = WorkspaceManager(settings)
+    registry = WorkflowRegistry(settings)
+    engine = WorkflowEngine(wm)
+    cli_app = GenesisCLI(settings, wm, registry, engine)
+
     cli_app()
 
 
