@@ -39,14 +39,14 @@ Out of the box, Genesis Scaffolding provides a clean CLI to trigger workflows. Y
 
 Follow these steps to set up Genesis Scaffolding and run your first local workflow.
 
-### 1. Prerequisites
+### Prerequisites
 
 Ensure you have the following installed on your system:
 
 * **Git**: For cloning the repository.
 * **uv**: The high-performance Python package manager used for environment and dependency management.
 
-### 2. Installation
+### Installation
 
 Clone the repository and synchronize the environment:
 
@@ -57,7 +57,7 @@ uv sync
 
 ```
 
-### 3. Configure the LLM Backend
+### Configure the LLM Backend
 
 Genesis Scaffolding relies on an OpenAI-compatible endpoint. You have two primary options:
 
@@ -81,7 +81,7 @@ If you do not wish to host a model locally, you can use OpenRouter.
 * Obtain an API key from [OpenRouter](https://openrouter.ai/).
 * In your `.env` file, set `MYPROJECT_LLM_API_KEY` to your key.
 
-### 4. Running the CLI
+### Running the CLI
 
 Use the `uv run` command to interact with the system.
 
@@ -107,13 +107,13 @@ uv run myproject run <WORKFLOW_ID> --input_name "value"
 
 
 
-### 5. Create Your Own Workflows
+### Create Your Own Workflows
 
 Workflows are defined in YAML and stored in the `workflows/` directory. For instructions on defining inputs, steps, and logic, see [docs/workflow_architecture.md](https://www.google.com/search?q=docs/workflow_architecture.md).
 
 ## Developer Guide
 
-### 1. Project Initialization
+### Project Initialization
 
 1. **Clone & Reset:** Shallow clone this repo, delete the `.git` directory, and run `git init` to start a fresh history.
 2. **Rename Project:** Run `./scripts/rename.sh` immediately.
@@ -122,7 +122,7 @@ Workflows are defined in YAML and stored in the `workflows/` directory. For inst
 3. **Sync Environment:** Run `uv sync` to install dependencies and set up the workspace.
 4. **Verify:** Run `uv tree` to inspect the dependency graph and ensure sub-repos are correctly linked.
 
-### 2. Running the Application
+### Running the Application
 
 Use `uv` to ensure the correct virtual environment and interpreter are used.
 
@@ -131,34 +131,9 @@ Use `uv` to ensure the correct virtual environment and interpreter are used.
 * **Flow:** The main module initializes the system and launches the CLI. The CLI launches the TUI by default unless a specific subcommand is used.
 
 
-## Configuration
+### Development Workflow
 
-The backend uses `pydantic-settings` to manage configuration via environment variables or `.env` files.
-
-### Resolution Priority
-
-1. Explicit arguments passed to the `Settings` class.
-2. Environment variables.
-3. `.env` / `.env.prod` files (loaded from the current working directory).
-4. Default values in the Pydantic model.
-
-### Environment Variables & Nesting
-
-The system supports 1-level nested variables using a `_` delimiter and a `myproject_` prefix.
-
-```bash
-myproject_llm_base_url="https://openrouter.ai/api/v1"
-myproject_llm_api_key="sk1234"
-
-```
-
-These are parsed into a nested structure: `llm = {"base_url": "...", "api_key": "..."}`.
-**Modify Schema:** Edit `myproject-core/src/myproject_core/configs.py`.
-
-
-## Development Workflow
-
-### Standard Commands (Makefile)
+#### Standard Commands (Makefile)
 
 All backend tasks are prefixed to distinguish them from future frontend components.
 
@@ -172,7 +147,7 @@ All backend tasks are prefixed to distinguish them from future frontend componen
 | `make backend-check-all` | Sequential lint, type-check, and test |
 
 
-### Managing Dependencies
+#### Managing Dependencies
 
 In a monorepo, dependencies are managed at the package level, but synchronized at the root.
 
@@ -190,7 +165,7 @@ uv add --dev debugpy
 ```
 
 
-### Expanding the Monorepo (Adding Sub-repos)
+#### Expanding the Monorepo (Adding Sub-repos)
 
 The workspace architecture allows you to add new projects (like a GUI or a worker) while sharing the same core logic.
 
@@ -221,7 +196,7 @@ uv add --package myproject-gui myproject-core
 Run `uv sync`. The new package is now "editable," meaning changes made in `myproject-core` are instantly available in `myproject-gui` without a reinstall.
 
 
-### Important: Imports vs. Project Names
+#### Important: Imports vs. Project Names
 
 A common point of confusion in this monorepo is the difference between the **Project Name** (used by `uv`) and the **Package Name** (used in Python code).
 
