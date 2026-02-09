@@ -14,7 +14,7 @@ def start():
     wm = WorkspaceManager(settings)
     registry = WorkflowRegistry(settings)
     agent_registry = AgentRegistry(settings)
-    engine = WorkflowEngine(wm)
+    engine = WorkflowEngine(wm, agent_registry)
     cli_app = GenesisCLI(settings, wm, registry, agent_registry, engine)
 
     cli_app()

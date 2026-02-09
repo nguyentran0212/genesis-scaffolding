@@ -1,17 +1,19 @@
 import asyncio
 from typing import Any
 
+from .agent_registry import AgentRegistry
 from .configs import settings
 from .schemas import WorkflowCallback, WorkflowEvent, WorkflowEventType, WorkflowManifest
-from .utils import evaluate_condition, resolve_placeholders, streamcallback_simple_print
+from .utils import evaluate_condition, resolve_placeholders
 from .workflow_registry import WorkflowRegistry
 from .workflow_tasks import TASK_LIBRARY
 from .workspace import JobContext, WorkspaceManager
 
 
 class WorkflowEngine:
-    def __init__(self, workspace_manager: WorkspaceManager):
-        self.workspace = workspace_manager
+    def __init__(self, workspace_manager: WorkspaceManager, agent_registry: AgentRegistry):
+        self.workspace_manager = workspace_manager
+        self.agent_registry = agent_registry
 
     async def run(
         self,
@@ -24,7 +26,7 @@ class WorkflowEngine:
         validated_inputs = manifest.validate_runtime_inputs(user_inputs)
 
         # Initialize Workspace/Job
-        job_context = self.workspace.create_job(manifest.name)
+        job_context = self.workspace_manager.create_job(manifest.name)
 
         # Initialize the "Blackboard" State
         state = {"inputs": validated_inputs, "steps": {}}
@@ -54,7 +56,7 @@ class WorkflowEngine:
             # Execute Task
             # We pass the job_context for file access and the resolved params for logic
             # Result output object is a pydantic object that matches the TaskOutput schema that a task define
-            output = await task_instance.run(job_context, resolved_params)
+            output = await task_instance.run(job_context, self.agent_registry, resolved_params)
 
             # Update State
             state["steps"][step_def.id] = output.model_dump()
@@ -92,7 +94,8 @@ async def main():
     # 1. Setup managers
     wm = WorkspaceManager(settings)
     reg = WorkflowRegistry(settings)
-    engine = WorkflowEngine(wm)
+    agent_reg = AgentRegistry(settings)
+    engine = WorkflowEngine(wm, agent_reg)
 
     # 2. Pick the sample workflow
     manifest = reg.get_workflow("sample_workflow_multi_agent")

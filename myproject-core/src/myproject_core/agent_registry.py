@@ -33,10 +33,9 @@ class AgentRegistry:
 
                 # Use model_validate to convert the dict into the AgentConfig object
                 agent_config = AgentConfig.model_validate(raw_data)
-                agent_config.name = slugify(agent_config.name)
 
                 # Create the agent object
-                self.agents[agent_config.name] = Agent(agent_config=agent_config)
+                self.agents[md_file.stem] = Agent(agent_config=agent_config)
 
             except Exception as e:
                 print(f"Error loading agent manifest '{md_file.name}': {e}")

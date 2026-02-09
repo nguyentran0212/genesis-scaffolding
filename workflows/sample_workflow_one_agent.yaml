@@ -12,7 +12,10 @@ steps:
   - id: "agent_step"
     type: "prompt_agent"
     params:
+      agent: "simple_agent"
       prompt: "{{ inputs.user_query }}"
+      write_file: True
+      write_to_output: True
       output_filename: "agent_response.md"
 
 outputs:
