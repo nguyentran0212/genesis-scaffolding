@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict
 
 from .agent import Agent
 from .configs import settings
-from .schemas import LLMModel, LLMProvider
+from .schemas import AgentConfig, LLMModel, LLMProvider
 from .workspace import JobContext
 
 
@@ -60,7 +60,8 @@ class PromptAgentTask(BaseTask[PromptAgentTaskParams, PromptAgentTaskOutput]):
         # 1. Initialize Agent (Using your provided snippet logic)
         provider = LLMProvider(base_url=settings.llm.base_url, api_key=settings.llm.api_key)
         model = LLMModel(provider=provider, model=settings.llm.model)
-        agent = Agent(llm=model)
+        agent_config = AgentConfig(name="my-agent", llm_config=model)
+        agent = Agent(agent_config)
 
         # 2. Execute
         response_text = await agent.step(args.prompt)

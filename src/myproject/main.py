@@ -1,4 +1,5 @@
 from myproject_cli.main import GenesisCLI
+from myproject_core.agent_registry import AgentRegistry
 from myproject_core.configs import settings
 from myproject_core.workflow_engine import WorkflowEngine
 from myproject_core.workflow_registry import WorkflowRegistry
@@ -12,8 +13,9 @@ def start():
 
     wm = WorkspaceManager(settings)
     registry = WorkflowRegistry(settings)
+    agent_registry = AgentRegistry(settings)
     engine = WorkflowEngine(wm)
-    cli_app = GenesisCLI(settings, wm, registry, engine)
+    cli_app = GenesisCLI(settings, wm, registry, agent_registry, engine)
 
     cli_app()
 

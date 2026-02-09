@@ -2,7 +2,11 @@ import asyncio
 from typing import Annotated, Any
 
 import typer
-from myproject_core.utils import streamcallback_simple_print
+from myproject_core.agent_registry import AgentRegistry
+from myproject_core.configs import Config
+from myproject_core.workflow_engine import WorkflowEngine
+from myproject_core.workflow_registry import WorkflowRegistry
+from myproject_core.workspace import WorkspaceManager
 from rich import box, print
 from rich.console import Console
 from rich.panel import Panel
@@ -12,11 +16,19 @@ from .utils import RichWorkflowRenderer
 
 
 class GenesisCLI:
-    def __init__(self, settings, wm, registry, engine):
+    def __init__(
+        self,
+        settings: Config,
+        wm: WorkspaceManager,
+        workflow_registry: WorkflowRegistry,
+        agent_registry: AgentRegistry,
+        engine: WorkflowEngine,
+    ):
         self._console = Console()
         self.settings = settings
         self.wm = wm
-        self.registry = registry
+        self.workflow_registry = workflow_registry
+        self.agent_registry = agent_registry
         self.engine = engine
         self.app = typer.Typer(help="Genesis CLI")
 
@@ -47,8 +59,11 @@ class GenesisCLI:
                 self._print_workflow_list()
                 raise typer.Exit()
 
+            # After this point, the code expect that workflow_id has been provided (no generic help or listing)
+            if not workflow_id:
+                raise typer.Abort("Workflow ID was not provided")
             # Fetch manifest to ensure it exists and to provide help context
-            manifest = self.registry.get_workflow(workflow_id)
+            manifest = self.workflow_registry.get_workflow(workflow_id)
             if not manifest:
                 print(f"Error: Workflow '{workflow_id}' not found.")
                 raise typer.Exit(1)
@@ -146,7 +161,7 @@ class GenesisCLI:
 
     def _print_workflow_list(self):
         """Displays a clean table of all registered workflows."""
-        workflows = self.registry.get_all_workflows()
+        workflows = self.workflow_registry.get_all_workflows()
 
         table = Table(
             title="Available Workflows",

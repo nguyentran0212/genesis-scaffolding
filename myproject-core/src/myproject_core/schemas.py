@@ -13,6 +13,10 @@ class LLMProvider(BaseModel):
 
 
 class LLMModel(BaseModel):
+    """
+    TODO: support other inference parameters such as temperature and repeat penalty
+    """
+
     provider: LLMProvider
     model: str
 
@@ -25,6 +29,67 @@ class LLMResponse(BaseModel):
 
 ### Callback function for handling LLM response chunk
 StreamCallback = Callable[[str], Awaitable[None]]
+
+
+### Agent Configs
+class AgentConfig(BaseModel):
+    # Name of the agent for referring to it in the system
+    name: str
+    # LLM Configuration to be used by this model
+    llm_config: LLMModel | None = None
+    # Only interactive agent can be used in chat
+    interactive: bool = False
+    # System prompt for the agent
+    system_prompt: str = "You are a helpful AI agent."
+    # List of allowed tools
+    allowed_tools: list[Any] = []
+    # List of names of allowed agents for delegation
+    allowed_agents: list[str] = []
+
+
+### Agent's clipboard content
+class AgentClipboardFile(BaseModel):
+    # Path to the file
+    file_path: Path
+    # Content of the file (support textual content only for now)
+    file_content: str
+
+
+class AgentClipboardTodoItem(BaseModel):
+    # Completion status of the task
+    completed: bool = False
+    # Textual description of the task
+    task_desc: str
+
+
+class AgentClipboard(BaseModel):
+    accessed_files: list[AgentClipboardFile] = []
+    todo_list: list[AgentClipboardTodoItem] = []
+
+    def render_to_markdown(self) -> str:
+        """Converts clipboard contents into a structured Markdown string."""
+        sections = []
+
+        # Render Todo List
+        if self.todo_list:
+            todo_section = "### TODO LIST\n"
+            for item in self.todo_list:
+                status = "[x]" if item.completed else "[ ]"
+                todo_section += f"{status} {item.task_desc}\n"
+            sections.append(todo_section)
+
+        # Render Files
+        if self.accessed_files:
+            file_section = "### ACCESSED FILES\n"
+            for file in self.accessed_files:
+                file_section += f"#### File: {file.file_path}\n"
+                file_section += f"```\n{file.file_content}\n```\n"
+            sections.append(file_section)
+
+        if not sections:
+            return "Clipboard is currently empty."
+
+        return "\n\n".join(sections)
 
 
 ### Schema for workflow events to use with callbacks to communicate events happening during workflow runs

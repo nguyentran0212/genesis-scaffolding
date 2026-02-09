@@ -4,6 +4,7 @@ from datetime import datetime
 from pathlib import Path
 
 from .configs import Config, settings
+from .utils import slugify
 
 
 class JobContext:
@@ -28,24 +29,11 @@ class WorkspaceManager:
         # Ensure the base 'workspaces' folder exists immediately
         self.settings.path.workspace_directory.mkdir(parents=True, exist_ok=True)
 
-    def _slugify(self, text: str) -> str:
-        """
-        Transforms user input into a filesystem-safe string.
-        'My Project!!' -> 'my-project'
-        """
-        # Normalize unicode (removes accents)
-        text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
-        # Remove non-word characters and replace spaces/underscores with hyphens
-        text = re.sub(r"[^\w\s-]", "", text).lower()
-        text = re.sub(r"[-\s]+", "-", text).strip("-")
-        # Limit length to keep paths manageable
-        return text[:64] or "untitled-job"
-
     def _generate_unique_path(self, name: str) -> Path:
         """
         Combines slug, timestamp, and collision checks.
         """
-        slug = self._slugify(name)
+        slug = slugify(name)
 
         # Handle Windows reserved names
         reserved = {"con", "prn", "aux", "nul", "com1", "com2", "lpt1"}

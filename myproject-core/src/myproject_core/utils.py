@@ -1,3 +1,5 @@
+import re
+import unicodedata
 from typing import Any, cast
 
 import jinja2
@@ -60,3 +62,17 @@ def evaluate_condition(condition_str: str, state: dict) -> bool:
     except Exception as e:
         print(f"Error evaluating condition '{condition_str}': {e}")
         return False  # Fail safe: skip the step if the condition is broken
+
+
+def slugify(text: str) -> str:
+    """
+    Transforms user input into a filesystem-safe string.
+    'My Project!!' -> 'my-project'
+    """
+    # Normalize unicode (removes accents)
+    text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
+    # Remove non-word characters and replace spaces/underscores with hyphens
+    text = re.sub(r"[^\w\s-]", "", text).lower()
+    text = re.sub(r"[-\s]+", "-", text).strip("-")
+    # Limit length to keep paths manageable
+    return text[:64] or "untitled-job"

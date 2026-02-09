@@ -21,6 +21,8 @@ class PathConfigs(BaseModel):
     workspace_directory: Path = Path("./workspaces/")
     # Path to workflow directory that stores YAML manifest files of workflows
     workflow_directory: Path = Path("./workflows/")
+    # Path to agent directory that stores YAML manifest files of agents
+    agent_directory: Path = Path("./agents/")
     # Path to a directory where user can drop input files for workflows
     inbox_directory: Path = Path("./inbox/")
 
@@ -35,11 +37,13 @@ class PathConfigs(BaseModel):
         # 2. Create workspace and workflow directories underneath working directory
         self.workspace_directory = self.working_directory / "workspaces"
         self.workflow_directory = self.working_directory / "workflows"
-        self.inbox_directory = self.workflow_directory / "inbox"
+        self.agent_directory = self.working_directory / "agents"
+        self.inbox_directory = self.working_directory / "inbox"
 
         # 3. Side-effect: Ensure they exist
         self.workspace_directory.mkdir(parents=True, exist_ok=True)
         self.workflow_directory.mkdir(parents=True, exist_ok=True)
+        self.agent_directory.mkdir(parents=True, exist_ok=True)
         self.inbox_directory.mkdir(parents=True, exist_ok=True)
         return self
 
