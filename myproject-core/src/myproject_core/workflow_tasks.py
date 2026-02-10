@@ -17,7 +17,9 @@ class TaskParams(BaseModel):
 
     model_config = ConfigDict(extra="ignore")
 
-    files_to_read: list[str] = []
+    files_to_read: list[Path] = []
+
+    sub_directory: str | None = None
 
     @field_validator("files_to_read", mode="before")
     @classmethod
@@ -41,6 +43,8 @@ class TaskOutput(BaseModel):
     """Common schema for all workflow task output."""
 
     model_config = ConfigDict(extra="ignore")
+    content: list[str]
+    file_paths: list[Path] | None = None
 
 
 TParams = TypeVar("TParams", bound=TaskParams)
@@ -58,12 +62,11 @@ class BaseTask(ABC, Generic[TParams, TOutput]):
 
 ### CONCRETE TASK CLASSES
 class IngestTaskParams(TaskParams):
-    # Optional sub-directory name; defaults to None (root of context.input)
-    sub_directory: str | None = None
+    pass
 
 
 class IngestTaskOutput(TaskOutput):
-    ingested_files: list[Path] = []
+    pass
 
 
 class IngestTask(BaseTask[IngestTaskParams, IngestTaskOutput]):
@@ -123,7 +126,9 @@ class IngestTask(BaseTask[IngestTaskParams, IngestTaskOutput]):
                 # For now, we'll re-raise to keep the "throw on error" behavior
                 raise e
 
-        return self.output_model(ingested_files=successful_ingests)
+        return self.output_model(
+            content=[f"Ingested these files: {successful_ingests}"], file_paths=successful_ingests
+        )
 
 
 # Prompting an LLM agent
@@ -136,8 +141,7 @@ class PromptAgentTaskParams(TaskParams):
 
 
 class PromptAgentTaskOutput(TaskOutput):
-    content: str
-    file_path: str | None = None
+    pass
 
 
 class PromptAgentTask(BaseTask[PromptAgentTaskParams, PromptAgentTaskOutput]):
@@ -193,7 +197,9 @@ class PromptAgentTask(BaseTask[PromptAgentTaskParams, PromptAgentTaskOutput]):
         # Write to Directory if required
         if args.write_response_to_file:
             # Always write to internal
-            output_paths = [context.internal / args.output_filename]
+            if not args.sub_directory:
+                args.sub_directory = ""  # This simplifies the output paths appending below
+            output_paths = [context.internal / args.sub_directory / args.output_filename]
             if args.write_response_to_output:
                 # If requested to write to output, will also write to output
                 output_paths.append(context.output / args.output_filename)
@@ -201,9 +207,9 @@ class PromptAgentTask(BaseTask[PromptAgentTaskParams, PromptAgentTaskOutput]):
             for output_path in output_paths:
                 output_path.write_text(str(response_text))
             # Return path in output directory if available, otherwise return the internal path
-            return self.output_model(content=str(response_text), file_path=str(output_paths[-1]))
+            return self.output_model(content=[str(response_text)], file_paths=output_paths)
         else:
-            return self.output_model(content=str(response_text))
+            return self.output_model(content=[str(response_text)])
 
 
 # This dictionary is what the Registry will use to verify YAMLs

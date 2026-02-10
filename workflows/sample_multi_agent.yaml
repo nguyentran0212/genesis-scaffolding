@@ -43,6 +43,7 @@ steps:
         Target length is {{ inputs.content_length }} words. 
       output_filename: "agent_draft.md"
 
+
   - id: "agent_editing"
     type: "prompt_agent"
     params:
@@ -55,6 +56,7 @@ steps:
         The draft is supposed to follow the outline, which is also provided in your clipboard
         Target length is {{ inputs.content_length }} words. 
       output_filename: "agent_final.md"
+      write_response_to_output: True
 
   - id: "agent_twitter"
     type: "prompt_agent"
@@ -65,6 +67,7 @@ steps:
       prompt: |
         The blog post that you need to write twitter thread to promote is in your clipboard.
       output_filename: "twitter_thread.md"
+      write_response_to_output: True
 
   - id: "agent_linkedin"
     type: "prompt_agent"
@@ -75,6 +78,7 @@ steps:
       prompt: |
         The blog post that you need to write linkedin post to promote is in your clipboard.
       output_filename: "linkedin_post.md"
+      write_response_to_output: True
 
   - id: "agent_visual"
     type: "prompt_agent"
@@ -85,6 +89,7 @@ steps:
       prompt: |
         The source material you need to work on is provided in your clipboard.
       output_filename: "visual_recommendations.md"
+      write_response_to_output: True
 
 outputs:
   blog_post:
@@ -92,7 +97,7 @@ outputs:
     value: "{{ steps.agent_editing.content }}"
   blog_post_output_path:
     description: "File path to the final markdown file."
-    value: "{{ steps.agent_editing.file_path }}"
+    value: "{{ steps.agent_editing.file_paths }}"
   twitter_thread:
     description: "Twitter thread of the article."
     value: "{{ steps.agent_twitter.content }}"

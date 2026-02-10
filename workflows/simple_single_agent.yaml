@@ -35,4 +35,4 @@ outputs:
     value: "{{ steps.agent_step.content }}"
   output_path:
     description: "File path to the output from agent"
-    value: "{{ steps.agent_step.file_path }}"
+    value: "{{ steps.agent_step.file_paths }}"
