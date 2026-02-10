@@ -2,12 +2,10 @@ import asyncio
 from pathlib import Path
 from typing import Literal
 
-from myproject_core.schemas import LLMModel, LLMProvider
-
 from .agent_memory import AgentMemory
 from .configs import settings
 from .llm import get_llm_response
-from .schemas import AgentConfig, StreamCallback
+from .schemas import AgentConfig, LLMModel, LLMProvider, StreamCallback
 from .utils import streamcallback_simple_print
 
 
@@ -69,6 +67,8 @@ class Agent:
         past_history = history[:-1]
         latest_query = history[-1:]
         clipboard_context = [self.memory.get_clipboard_message()]
+
+        # print(clipboard_context)
 
         full_payload = past_history + clipboard_context + latest_query
         # Call LLM for response

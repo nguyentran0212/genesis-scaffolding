@@ -17,3 +17,6 @@ wheels/
 
 # Ignore the workspaces directory where tmp inputs and outputs are stored
 workspaces/
+
+# Ignore the inbox directory where user drops their input files
+inbox/

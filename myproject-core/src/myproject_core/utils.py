@@ -1,8 +1,11 @@
 import re
 import unicodedata
+from pathlib import Path
 from typing import Any, cast
 
 import jinja2
+
+from .schemas import JobContext
 
 
 async def streamcallback_simple_print(text: str):
@@ -76,3 +79,17 @@ def slugify(text: str) -> str:
     text = re.sub(r"[-\s]+", "-", text).strip("-")
     # Limit length to keep paths manageable
     return text[:64] or "untitled-job"
+
+
+def validate_path_safety(job: JobContext, target_path: Path) -> bool:
+    """
+    Security check: Ensures a file operation is within the job root.
+    Use this before any agent-driven 'write' or 'read' operation.
+    """
+    try:
+        # Resolve to absolute paths to handle '..' tricks
+        abs_job_root = job.root.resolve()
+        abs_target = target_path.resolve()
+        return abs_target.is_relative_to(abs_job_root)
+    except (ValueError, OSError):
+        return False

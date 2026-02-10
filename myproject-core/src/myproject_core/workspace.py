@@ -1,26 +1,9 @@
-import re
-import unicodedata
 from datetime import datetime
 from pathlib import Path
 
 from .configs import Config, settings
+from .schemas import JobContext
 from .utils import slugify
-
-
-class JobContext:
-    """
-    A value object representing an active job session.
-    This is what the agent or workflow logic interacts with.
-    """
-
-    def __init__(self, root: Path):
-        self.root = root
-        self.input = root / "input"
-        self.internal = root / "internal"
-        self.output = root / "output"
-
-    def __repr__(self) -> str:
-        return f"<JobContext {self.root.name}>"
 
 
 class WorkspaceManager:
@@ -64,19 +47,6 @@ class WorkspaceManager:
             f.write(f"Original Name: {name}\nCreated: {datetime.now().isoformat()}")
 
         return JobContext(job_path)
-
-    def validate_path_safety(self, job: JobContext, target_path: Path) -> bool:
-        """
-        Security check: Ensures a file operation is within the job root.
-        Use this before any agent-driven 'write' or 'read' operation.
-        """
-        try:
-            # Resolve to absolute paths to handle '..' tricks
-            abs_job_root = job.root.resolve()
-            abs_target = target_path.resolve()
-            return abs_target.is_relative_to(abs_job_root)
-        except (ValueError, OSError):
-            return False
 
 
 def main():

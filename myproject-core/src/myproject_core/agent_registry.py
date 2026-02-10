@@ -6,7 +6,6 @@ from myproject_core.agent import Agent
 
 from .configs import Config, settings
 from .schemas import AgentConfig, LLMModel, LLMProvider
-from .utils import slugify
 
 
 class AgentRegistry:

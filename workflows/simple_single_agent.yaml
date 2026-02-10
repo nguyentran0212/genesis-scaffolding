@@ -1,5 +1,5 @@
 name: "Sample Agent Workflow"
-description: "A simple one-step workflow to test agent integration."
+description: "Ingest input files to agent to answer question."
 version: "1.0"
 
 inputs:
@@ -7,15 +7,26 @@ inputs:
     type: "string"
     description: "The question you want to ask the agent."
     default: "Hello! Tell me a joke about research papers."
+  input_files:
+    type: "list[string]"
+    description: "List of files to provide to the agent."
+    default: []
 
 steps:
+  - id: "file_ingest_step"
+    type: "file_ingest"
+    params:
+      files_to_read: "{{ inputs.input_files }}"
+
   - id: "agent_step"
     type: "prompt_agent"
     params:
       agent: "simple_agent"
+      files_to_read:
+        - "input"
       prompt: "{{ inputs.user_query }}"
-      write_file: True
-      write_to_output: True
+      write_response_to_file: True
+      write_response_to_output: True
       output_filename: "agent_response.md"
 
 outputs:

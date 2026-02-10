@@ -1,5 +1,5 @@
 name: "Sample Multi-Step Agent Workflow"
-description: "A simple multi-step workflow to test agent integration."
+description: "A sample multi-step writing workflow."
 version: "1.0"
 
 inputs:
@@ -11,8 +11,17 @@ inputs:
     type: "int"
     description: "Target word count."
     default: 500
+  input_files:
+    type: "list[string]"
+    description: "List of files to provide to the agent."
+    default: []
 
 steps:
+  - id: "file_ingest_step"
+    type: "file_ingest"
+    params:
+      files_to_read: "{{ inputs.input_files }}"
+
   - id: "agent_outline"
     type: "prompt_agent"
     params:
@@ -27,21 +36,23 @@ steps:
     type: "prompt_agent"
     params:
       agent: "technical_writer_draft"
+      files_to_read:
+        - "internal/agent_outline.md"
       prompt: |
-        Please write the article based on the outine below. Target length is {{ inputs.content_length }} words. 
-        
-        {{ steps.agent_outline.content }}
+        Please write the article based on the outine provided in your clipboard. 
+        Target length is {{ inputs.content_length }} words. 
       output_filename: "agent_draft.md"
 
   - id: "agent_editing"
     type: "prompt_agent"
     params:
       agent: "technical_writer_editor"
+      files_to_read:
+        - "internal/agent_outline.md"
+        - "internal/agent_draft.md"
       prompt: |
-        Review and polish the following draft:
-        
-        {{ steps.agent_drafting.content }}
-        
+        Review and polish the paper draft provided in your clipboard.
+        The draft is supposed to follow the outline, which is also provided in your clipboard
         Target length is {{ inputs.content_length }} words. 
       output_filename: "agent_final.md"
 
@@ -49,27 +60,30 @@ steps:
     type: "prompt_agent"
     params:
       agent: "technical_writer_twitter"
+      files_to_read:
+        - "internal/agent_final.md"
       prompt: |
-        Source Material:
-        {{ steps.agent_editing.content }}
+        The blog post that you need to write twitter thread to promote is in your clipboard.
       output_filename: "twitter_thread.md"
 
   - id: "agent_linkedin"
     type: "prompt_agent"
     params:
       agent: "technical_writer_linkedin"
+      files_to_read:
+        - "internal/agent_final.md"
       prompt: |
-        Source Material:
-        {{ steps.agent_editing.content }}
+        The blog post that you need to write linkedin post to promote is in your clipboard.
       output_filename: "linkedin_post.md"
 
   - id: "agent_visual"
     type: "prompt_agent"
     params:
       agent: "technical_writer_visual"
+      files_to_read:
+        - "internal/agent_final.md"
       prompt: |
-        Source Material:
-        {{ steps.agent_editing.content }}
+        The source material you need to work on is provided in your clipboard.
       output_filename: "visual_recommendations.md"
 
 outputs:

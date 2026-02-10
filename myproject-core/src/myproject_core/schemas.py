@@ -6,6 +6,23 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
 
+### JobContext object to be used by workspace manager
+class JobContext:
+    """
+    A value object representing an active job session of a workflow
+    This is what the agent or workflow logic interacts with.
+    """
+
+    def __init__(self, root: Path):
+        self.root = root
+        self.input = root / "input"
+        self.internal = root / "internal"
+        self.output = root / "output"
+
+    def __repr__(self) -> str:
+        return f"<JobContext {self.root.name}>"
+
+
 ### LLM Configs
 class LLMProvider(BaseModel):
     base_url: str
@@ -190,15 +207,25 @@ class WorkflowManifest(BaseModel):
     outputs: dict[str, OutputDefinition]
 
     def validate_runtime_inputs(self, raw_data: dict) -> dict:
+        """
+        Validate the raw input data to a workflow against its type definition stored in input dict
+        """
         validated = {}
         for name, defn in self.inputs.items():
             raw_val = raw_data.get(name, defn.default)
 
+            # Handle Required / None
             if raw_val is None:
                 if defn.required:
                     raise ValueError(f"Input '{name}' is required.")
                 validated[name] = None
                 continue
+
+            # Type checking the raw value against the required type of the input
+            # Handle the edge case where the list has only one element
+            list_types = [WorkflowInputType.LIST_STRING, WorkflowInputType.LIST_FILE]
+            if defn.type in list_types and isinstance(raw_val, (str, int, float, Path)):
+                raw_val = [raw_val]
 
             target_type = TYPE_MAP.get(defn.type, str)
             try:
