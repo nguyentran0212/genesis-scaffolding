@@ -30,6 +30,7 @@ members = [
     "myproject-cli",
     "myproject-tui",
     "myproject-server",
+    "myproject-tools",
 ]
 
 [tool.uv.sources]
