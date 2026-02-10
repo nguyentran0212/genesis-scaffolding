@@ -1,0 +1,48 @@
+name: "Summarize Arxiv Paper"
+description: "Download an Arxiv paper and summarize it"
+version: "1.0"
+
+inputs:
+  paper_id:
+    type: "string"
+    description: "ID of the Arxiv paper"
+
+steps:
+  - id: "arxiv_download"
+    type: "arxiv_download"
+    params:
+      arxiv_paper_id: "{{ inputs.paper_id }}"
+
+  - id: "paper_summary"
+    type: "prompt_agent"
+    params:
+      agent: "research_summary"
+      files_to_read:
+        - "{{ steps.arxiv_download.file_paths[1] }}"
+      prompt: "The paper to summary is in your clipboard"
+      write_response_to_file: True
+      write_response_to_output: True
+      output_filename: "paper_summary.md"
+
+  - id: "paper_critic"
+    type: "prompt_agent"
+    params:
+      agent: "research_critic"
+      files_to_read:
+        - "{{ steps.arxiv_download.file_paths[1] }}"
+      prompt: "The paper to analyze and provide critic is in your clipboard"
+      write_response_to_file: True
+      write_response_to_output: True
+      output_filename: "paper_review.md"
+
+
+outputs:
+  paper_summary:
+    description: "Summary of the paper"
+    value: "{{ steps.paper_summary.content }}"
+  paper_critic:
+    description: "Critic of the paper"
+    value: "{{ steps.paper_critic.content }}"
+  output_path:
+    description: "File path to downloaded paper"
+    value: "{{ steps.arxiv_download.file_paths }}"

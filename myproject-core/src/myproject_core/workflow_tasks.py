@@ -10,6 +10,8 @@ from myproject_core.agent_registry import AgentRegistry
 
 from .workspace import JobContext
 
+from myproject_tools.arxiv import get_paper_details
+
 
 ### BASE TASK CLASS
 class TaskParams(BaseModel):
@@ -20,6 +22,9 @@ class TaskParams(BaseModel):
     files_to_read: list[Path] = []
 
     sub_directory: str | None = None
+    write_response_to_file: bool = True
+    write_response_to_output: bool = False
+    output_filename: str = "response.txt"
 
     @field_validator("files_to_read", mode="before")
     @classmethod
@@ -58,6 +63,25 @@ class BaseTask(ABC, Generic[TParams, TOutput]):
     @abstractmethod
     async def run(self, context: JobContext, agent_registry: AgentRegistry, params: dict) -> TOutput:
         pass
+
+
+### SAMPLE TASK
+class SampleTaskParams(TaskParams):
+    pass
+
+
+class SampleTaskOutput(TaskOutput):
+    pass
+
+
+class SampleTask(BaseTask[SampleTaskParams, SampleTaskOutput]):
+    params_model = SampleTaskParams
+    output_model = SampleTaskOutput
+
+    @abstractmethod
+    async def run(self, context: JobContext, agent_registry: AgentRegistry, params: dict) -> output_model:
+        args = self.params_model.model_validate(params)
+        output = self.output_model(content=[""], file_paths=None)
 
 
 ### CONCRETE TASK CLASSES
@@ -135,9 +159,6 @@ class IngestTask(BaseTask[IngestTaskParams, IngestTaskOutput]):
 class PromptAgentTaskParams(TaskParams):
     agent: str
     prompt: str
-    write_response_to_file: bool = True
-    write_response_to_output: bool = False
-    output_filename: str = "response.txt"
 
 
 class PromptAgentTaskOutput(TaskOutput):
@@ -212,8 +233,44 @@ class PromptAgentTask(BaseTask[PromptAgentTaskParams, PromptAgentTaskOutput]):
             return self.output_model(content=[str(response_text)])
 
 
+### Arxiv paper download tasks
+
+
+class ArxivDownloadTaskParams(TaskParams):
+    arxiv_paper_id: str
+
+
+class ArxivDownloadTaskOutput(TaskOutput):
+    pass
+
+
+class ArxivDownloadTask(BaseTask[ArxivDownloadTaskParams, ArxivDownloadTaskOutput]):
+    params_model = ArxivDownloadTaskParams
+    output_model = ArxivDownloadTaskOutput
+
+    async def run(self, context: JobContext, agent_registry: AgentRegistry, params: dict) -> output_model:
+        args = self.params_model.model_validate(params)
+        arxiv_paper_id = args.arxiv_paper_id
+        sub_directory = args.sub_directory
+
+        if not sub_directory:
+            sub_directory = ""
+        download_directory = context.internal / sub_directory
+        paper_details = get_paper_details(
+            paper_id=arxiv_paper_id, download_dir=download_directory, download_pdf=True
+        )
+        if not paper_details:
+            raise ValueError(f"Cannot find the given arxiv paper id: {arxiv_paper_id}")
+        pdf_path = paper_details["pdf_path"]
+        md_path = paper_details["md_path"]
+
+        output = self.output_model(content=[f"{paper_details}"], file_paths=[pdf_path, md_path])
+        return output
+
+
 # This dictionary is what the Registry will use to verify YAMLs
 TASK_LIBRARY = {
     "file_ingest": IngestTask,
     "prompt_agent": PromptAgentTask,
+    "arxiv_download": ArxivDownloadTask,
 }

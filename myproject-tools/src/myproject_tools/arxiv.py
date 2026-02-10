@@ -8,7 +8,12 @@ import httpx
 from .pdf import convert_pdf_to_markdown
 
 
-def _format_result(result: arxiv.Result) -> dict:
+def _format_result(
+    result: arxiv.Result,
+    pdf_path: Path | None = None,
+    md_path: Path | None = None,
+    source_path: Path | None = None,
+) -> dict:
     """Helper to standardize paper metadata output."""
     return {
         "entry_id": result.entry_id,
@@ -24,6 +29,9 @@ def _format_result(result: arxiv.Result) -> dict:
         "categories": result.categories,
         "pdf_url": result.pdf_url,
         "links": [{"title": link.title, "url": link.href} for link in result.links] if result.links else [],
+        "pdf_path": pdf_path,
+        "md_path": md_path,
+        "source_path": source_path,
     }
 
 
@@ -107,7 +115,12 @@ def download_paper_source(paper_id: str, download_dir: Path) -> Path | None:
         return
 
 
-def get_paper_details(paper_id: str) -> dict | None:
+def get_paper_details(
+    paper_id: str,
+    download_dir: Path | None = None,
+    download_pdf: bool = False,
+    download_source: bool = False,
+) -> dict | None:
     """
     Get detailed information about a specific paper by its arXiv ID.
     Optimized to bypass the default library delays by using a custom Client.
@@ -121,7 +134,37 @@ def get_paper_details(paper_id: str) -> dict | None:
         # Use next() to get the first result immediately from the generator
         result = next(client.results(search))
 
-        return _format_result(result)
+        # Download PDF if requested
+        pdf_path: Path | None = None
+        md_path: Path | None = None
+        if download_dir and download_pdf:
+            try:
+                # Extract paper ID from the result's entry_id
+                paper_id = result.entry_id.split("/")[
+                    -1
+                ]  # Handle both arxiv IDs like "1234.56789" and "cs/1234567"
+                pdf_path = download_paper_pdf(paper_id=paper_id, download_dir=download_dir)
+                if not pdf_path:
+                    raise Exception("Cannot download PDF")
+                md_path = pdf_path.with_suffix(".md")
+            except Exception:
+                # Silently handle download errors to prevent interference with agent
+                pass
+
+        # Download source if requested
+        source_path: Path | None = None
+        if download_dir and download_source:
+            try:
+                # Extract paper ID from the result's entry_id
+                paper_id = result.entry_id.split("/")[
+                    -1
+                ]  # Handle both arxiv IDs like "1234.56789" and "cs/1234567"
+                source_path = download_paper_source(paper_id=paper_id, download_dir=download_dir)
+            except Exception:
+                # Silently handle download errors to prevent interference with agent
+                pass
+
+        return _format_result(result, pdf_path=pdf_path, md_path=md_path, source_path=source_path)
 
     except StopIteration:
         print(f"No paper found with ID: {paper_id}")
