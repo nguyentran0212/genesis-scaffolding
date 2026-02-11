@@ -4,13 +4,12 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Generic, Type, TypeVar, Union
 
+from myproject_tools.arxiv import get_paper_details
 from pydantic import BaseModel, ConfigDict, field_validator
 
 from myproject_core.agent_registry import AgentRegistry
 
 from .workspace import JobContext
-
-from myproject_tools.arxiv import get_paper_details
 
 
 ### BASE TASK CLASS

@@ -1,12 +1,19 @@
-name: "Sample Multi-Step Agent Workflow"
+name: "Writing technical blog post about an Arxiv paper"
 description: "A sample multi-step writing workflow."
 version: "1.0"
 
 inputs:
-  writing_topic:
+  writing_instruction:
     type: "string"
-    description: "The topic you want the agent to write about."
-    default: "Python monorepo."
+    description: "Additional instruction to guide the writing."
+    default: | 
+      This article is for promoting a research pre-print that our team has just published.
+      Remember to introduce our paper and provide information for readers to access the paper.
+      The information about the paper should be right at the beginning to emphasise that this is the paper we published.
+  arxiv_paper_id:
+    type: "string"
+    description: "ID of Arxiv paper to use as input"
+    default: 500
   content_length:
     type: "int"
     description: "Target word count."
@@ -22,25 +29,56 @@ steps:
     params:
       files_to_read: "{{ inputs.input_files }}"
 
+  - id: "arxiv_download"
+    type: "arxiv_download"
+    params:
+      arxiv_paper_id: "{{ inputs.arxiv_paper_id }}"
+
   - id: "agent_outline"
     type: "prompt_agent"
     params:
+      files_to_read:
+        - "{{ steps.arxiv_download.file_paths[1] }}"
       agent: "technical_writer_outline"
       prompt: |
-        Create a detailed outline for a technical article about {{ inputs.writing_topic }}.
+        Create a detailed outline for a blog post promoting the research from the paper provided in your clipboard.
+
+        Ensure that you provide an introduction to the paper in the opening hook.
+
+        Don't try to mimic the structure of a research paper. Instead, structure the blog post organically so that it is readable to technical readers.
+
         Ensure it is structured for a {{ inputs.content_length }} word article.
+
+        ## Paper's details
+
+        {{ steps.arxiv_download.content }}
+
+        ## Additional User's Instructions About the Blog Post
+
+        {{ inputs.writing_instruction }}
+
         Only write the content of the outline in your output.
       output_filename: "agent_outline.md"
 
   - id: "agent_drafting"
     type: "prompt_agent"
     params:
-      agent: "technical_writer_draft"
       files_to_read:
+        - "{{ steps.arxiv_download.file_paths[1] }}"
         - "internal/agent_outline.md"
+      agent: "technical_writer_draft"
       prompt: |
-        Please write the article based on the outine provided in your clipboard. 
+        Please write the article about the paper based on the outine. 
+        Both the source paper and the outline are provided in your clipboard.
         Target length is {{ inputs.content_length }} words. 
+        
+        ## Paper's details
+
+        {{ steps.arxiv_download.content }}
+
+        ## Additional User's Instructions About the Blog Post
+
+        {{ inputs.writing_instruction }}
       output_filename: "agent_draft.md"
 
 
@@ -52,9 +90,19 @@ steps:
         - "internal/agent_outline.md"
         - "internal/agent_draft.md"
       prompt: |
-        Review and polish the paper draft provided in your clipboard.
+        Review and polish the blog post draft provided in your clipboard.
         The draft is supposed to follow the outline, which is also provided in your clipboard
         Target length is {{ inputs.content_length }} words. 
+
+        ## Paper's details
+
+        {{ steps.arxiv_download.content }}
+
+        ## Additional User's Instructions About the Blog Post
+
+        {{ inputs.writing_instruction }}
+
+        Remember to remove all the comments, prefix, postfix, and any mentioning of word counts.
       output_filename: "agent_final.md"
       write_response_to_output: True
 
@@ -66,6 +114,14 @@ steps:
         - "internal/agent_final.md"
       prompt: |
         The blog post that you need to write twitter thread to promote is in your clipboard.
+
+        ## Additional User's Instructions
+
+        {{ inputs.writing_instruction }}
+
+        ## Paper's details
+
+        {{ steps.arxiv_download.content }}
       output_filename: "twitter_thread.md"
       write_response_to_output: True
 
@@ -76,7 +132,15 @@ steps:
       files_to_read:
         - "internal/agent_final.md"
       prompt: |
-        The blog post that you need to write linkedin post to promote is in your clipboard.
+        The blog post that you need to write linkedin post to promote is in your clipboard
+
+        ## Additional User's Instructions
+
+        {{ inputs.writing_instruction }}
+
+        ## Paper's details
+
+        {{ steps.arxiv_download.content }}
       output_filename: "linkedin_post.md"
       write_response_to_output: True
 
