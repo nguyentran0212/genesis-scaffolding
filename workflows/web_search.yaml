@@ -1,0 +1,47 @@
+name: "Sample Web Search Workflow"
+description: "Search the web about a topic and write an answer response based on the web search results."
+version: "1.0"
+
+inputs:
+  user_query:
+    type: "string"
+    description: "The question you want to ask the agent."
+    default: "What's the price of RTX 5090?"
+
+steps:
+  - id: "prompt_refinement"
+    type: "prompt_agent"
+    params:
+      agent: "simple_agent"
+      prompt: |
+        Please write a web search string for the user's query below. Write only the search string in your response. Nothing else. 
+
+        {{ inputs.user_query }}
+
+  - id: "web_search"
+    type: "web_search"
+    params:
+      query: "{{ steps.prompt_refinement.content[0] }}"
+
+  - id: "answer_question"
+    type: "prompt_agent"
+    params:
+      agent: "simple_agent"
+      files_to_read: "{{ steps.web_search.file_paths }}"
+      prompt: |
+        Please answer user's questions below based on the relevant web articles in your clipboard 
+
+        {{ inputs.user_query }}
+      output_filename: "answer.md"
+      write_response_to_output: True
+
+outputs:
+  web_search_results:
+    description: "Web Search Results"
+    value: "{{ steps.web_search.content }}"
+  web_search_results_paths:
+    description: "File path to the Web search results"
+    value: "{{ steps.web_search.file_paths }}"
+  answer:
+    description: "Answer to original question"
+    value: "{{ steps.answer_question.content }}"
