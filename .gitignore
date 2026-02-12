@@ -20,3 +20,6 @@ workspaces/
 
 # Ignore the inbox directory where user drops their input files
 inbox/
+
+# Ignore the database directory
+database/

@@ -1,7 +1,8 @@
 import os
+import secrets
 from pathlib import Path
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, computed_field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -25,6 +26,8 @@ class PathConfigs(BaseModel):
     agent_directory: Path = Path("./agents/")
     # Path to a directory where user can drop input files for workflows
     inbox_directory: Path = Path("./inbox/")
+    # Path to a directory where database would be stored
+    db_directory: Path = Path("./database/")
 
     @model_validator(mode="after")
     def resolve_paths(self) -> "PathConfigs":
@@ -39,13 +42,47 @@ class PathConfigs(BaseModel):
         self.workflow_directory = self.working_directory / "workflows"
         self.agent_directory = self.working_directory / "agents"
         self.inbox_directory = self.working_directory / "inbox"
+        self.db_directory = self.working_directory / "database"
 
         # 3. Side-effect: Ensure they exist
         self.workspace_directory.mkdir(parents=True, exist_ok=True)
         self.workflow_directory.mkdir(parents=True, exist_ok=True)
         self.agent_directory.mkdir(parents=True, exist_ok=True)
         self.inbox_directory.mkdir(parents=True, exist_ok=True)
+        self.db_directory.mkdir(parents=True, exist_ok=True)
         return self
+
+
+class ServerConfig(BaseModel):
+    host: str = "0.0.0.0"
+    port: int = 8000
+    cors_origins: list[str] = ["http://localhost:3000"]
+    # Generates a secure 32-byte hex string if not provided
+    jwt_secret_key: str = Field(default_factory=lambda: secrets.token_hex(32))
+    algorithm: str = "HS256"
+    access_token_expire_minutes: int = 30
+    # Initial Admin Account (Optional)
+    admin_username: str | None = None
+    admin_password: str | None = None
+    admin_email: str | None = None
+
+
+class DatabaseConfig(BaseModel):
+    # If this is provided (e.g. postgres://...), we use it directly
+    dsn: str | None = None
+    db_name: str = "myproject.db"
+    echo_sql: bool = False
+
+    # We will pass the working directory here during initialization
+    _work_dir: Path = Path(".")
+
+    @computed_field
+    def connection_string(self) -> str:
+        if self.dsn:
+            return self.dsn
+        # Default to SQLite using the resolved working directory
+        db_path = settings.path.db_directory / self.db_name
+        return f"sqlite:///{db_path.absolute()}"
 
 
 class Config(BaseSettings):
@@ -58,6 +95,14 @@ class Config(BaseSettings):
 
     llm: LLMConfig
     path: PathConfigs = Field(default_factory=PathConfigs)
+    server: ServerConfig = Field(default_factory=ServerConfig)
+    db: DatabaseConfig = Field(default_factory=DatabaseConfig)
+
+    @model_validator(mode="after")
+    def sync_db_path(self) -> "Config":
+        # Inject the resolved working directory into the DB config
+        self.db._work_dir = self.path.working_directory
+        return self
 
 
 # Create the singleton instance
