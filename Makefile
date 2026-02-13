@@ -24,9 +24,12 @@ backend-test: ## Run pytest across backend packages
 
 backend-check-all: backend-lint backend-test ## Run all backend quality checks
 
-clean: clean-workspace-dir ## Clean up caches and build artifacts
+clean: clean-workspace-dir, clean-database ## Clean up caches and build artifacts, workspaces, databases
 	rm -rf .pytest_cache .ruff_cache .pyright_cache .next
 	find . -type d -name "__pycache__" -exec rm -rf {} +
 
 clean-workspace-dir: ## Remove content of workspaces directory
 	rm -rf workspaces/
+
+clean-database: ## Remove content of workspaces directory
+	rm -rf database/

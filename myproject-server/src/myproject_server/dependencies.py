@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Annotated
 
 import jwt
@@ -46,3 +47,15 @@ async def get_current_active_user(
     if current_user.disabled:
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
+
+
+async def get_user_inbox_path(
+    current_user: Annotated[User, Depends(get_current_active_user)],
+) -> Path:
+    """
+    Returns the resolved Path for the user's private inbox.
+    Ensures the directory exists on disk.
+    """
+    user_path = settings.path.inbox_directory / str(current_user.id)
+    user_path.mkdir(parents=True, exist_ok=True)
+    return user_path
