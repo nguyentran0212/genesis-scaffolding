@@ -3,7 +3,7 @@ from typing import Any
 
 from .agent_registry import AgentRegistry
 from .configs import settings
-from .schemas import WorkflowCallback, WorkflowEvent, WorkflowEventType, WorkflowManifest
+from .schemas import WorkflowCallback, WorkflowEvent, WorkflowEventType, WorkflowManifest, WorkflowOutput
 from .utils import evaluate_condition, resolve_placeholders
 from .workflow_registry import WorkflowRegistry
 from .workflow_tasks import TASK_LIBRARY
@@ -20,7 +20,7 @@ class WorkflowEngine:
         manifest: WorkflowManifest,
         user_inputs: dict[str, Any],
         step_callbacks: list[WorkflowCallback] | None = None,
-    ) -> dict[str, Any]:
+    ) -> WorkflowOutput:
         """Executes a validated workflow manifest."""
         # Validate runtime input from user. Throw if validation fails
         validated_inputs = manifest.validate_runtime_inputs(user_inputs)
@@ -78,7 +78,7 @@ class WorkflowEngine:
         raw_outputs = {k: v.value for k, v in manifest.outputs.items()}
         workflow_output = resolve_placeholders(raw_outputs, state)
 
-        return workflow_output
+        return WorkflowOutput(workflow_result=workflow_output, workspace_directory=job_context.root)
 
     def _checkpoint(self, context: JobContext, state: dict[str, Any]):
         """Persists the current state to the job directory for debugging/resume."""

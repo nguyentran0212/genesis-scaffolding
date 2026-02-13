@@ -2,10 +2,14 @@ from pathlib import Path
 from typing import Annotated
 
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
+from myproject_core.agent_registry import AgentRegistry
 from myproject_core.configs import settings
+from myproject_core.workflow_engine import WorkflowEngine
+from myproject_core.workflow_registry import WorkflowRegistry
+from myproject_core.workspace import WorkspaceManager
 from sqlmodel import Session, select
 
 from .database import get_session
@@ -15,6 +19,7 @@ from .schemas.auth import TokenData
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 
+# --- Get current authenticated user ---
 async def get_current_user(
     session: Annotated[Session, Depends(get_session)], token: Annotated[str, Depends(oauth2_scheme)]
 ) -> User:
@@ -49,6 +54,7 @@ async def get_current_active_user(
     return current_user
 
 
+# --- Get the path to user's sandbox directory
 async def get_user_inbox_path(
     current_user: Annotated[User, Depends(get_current_active_user)],
 ) -> Path:
@@ -59,3 +65,41 @@ async def get_user_inbox_path(
     user_path = settings.path.inbox_directory / str(current_user.id)
     user_path.mkdir(parents=True, exist_ok=True)
     return user_path
+
+
+# --- Core Component Getters ---
+
+
+def get_workflow_registry(request: Request) -> WorkflowRegistry:
+    """Returns the registry, falling back to a new instance if not in state."""
+    if hasattr(request.app.state, "workflow_registry"):
+        return request.app.state.workflow_registry
+    return WorkflowRegistry(settings)
+
+
+def get_agent_registry(request: Request) -> AgentRegistry:
+    if hasattr(request.app.state, "agent_registry"):
+        return request.app.state.agent_registry
+    return AgentRegistry(settings)
+
+
+def get_workspace_manager(request: Request) -> WorkspaceManager:
+    if hasattr(request.app.state, "wm"):
+        return request.app.state.wm
+    return WorkspaceManager(settings)
+
+
+def get_workflow_engine(
+    request: Request,
+    wm: Annotated[WorkspaceManager, Depends(get_workspace_manager)],
+    agent_reg: Annotated[AgentRegistry, Depends(get_agent_registry)],
+) -> WorkflowEngine:
+    if hasattr(request.app.state, "engine"):
+        return request.app.state.engine
+    return WorkflowEngine(wm, agent_reg)
+
+
+# --- Type Aliases for Clean Routers ---
+
+WorkflowRegDep = Annotated[WorkflowRegistry, Depends(get_workflow_registry)]
+EngineDep = Annotated[WorkflowEngine, Depends(get_workflow_engine)]

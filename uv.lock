@@ -1875,6 +1875,7 @@ dependencies = [
     { name = "pwdlib", extra = ["argon2"] },
     { name = "pyjwt" },
     { name = "sqlmodel" },
+    { name = "sse-starlette" },
 ]
 
 [package.metadata]
@@ -1885,6 +1886,7 @@ requires-dist = [
     { name = "pwdlib", extras = ["argon2"], specifier = ">=0.3.0" },
     { name = "pyjwt", specifier = ">=2.11.0" },
     { name = "sqlmodel", specifier = ">=0.0.33" },
+    { name = "sse-starlette", specifier = ">=3.2.0" },
 ]
 
 [[package]]
@@ -3085,6 +3087,19 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/c4/62/22c287122598e61d07d005eec0b4eb97e6bde9a1b051bcd66c2bca846ea8/sqlmodel-0.0.33.tar.gz", hash = "sha256:b473544ed5fc2097894d89033049e569e1f138363dd3ec2ed4b6932cc9f29f5f", size = 95578, upload-time = "2026-02-11T15:23:39.504Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/63/39/13891bae4658133b489a4d8b6a2f193d56110e392289560f312748e796dc/sqlmodel-0.0.33-py3-none-any.whl", hash = "sha256:9045bb4d97d2ba099c5a068ee9525af2d106972dda1ff8488e187ce50556bf73", size = 27444, upload-time = "2026-02-11T15:23:38.678Z" },
+]
+
+[[package]]
+name = "sse-starlette"
+version = "3.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "anyio" },
+    { name = "starlette" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/8b/8d/00d280c03ffd39aaee0e86ec81e2d3b9253036a0f93f51d10503adef0e65/sse_starlette-3.2.0.tar.gz", hash = "sha256:8127594edfb51abe44eac9c49e59b0b01f1039d0c7461c6fd91d4e03b70da422", size = 27253, upload-time = "2026-01-17T13:11:05.62Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/96/7f/832f015020844a8b8f7a9cbc103dd76ba8e3875004c41e08440ea3a2b41a/sse_starlette-3.2.0-py3-none-any.whl", hash = "sha256:5876954bd51920fc2cd51baee47a080eb88a37b5b784e615abb0b283f801cdbf", size = 12763, upload-time = "2026-01-17T13:11:03.775Z" },
 ]
 
 [[package]]

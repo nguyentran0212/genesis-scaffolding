@@ -255,3 +255,8 @@ class WorkflowManifest(BaseModel):
         with open(path, "r") as f:
             data = yaml.safe_load(f)
         return cls(**data)
+
+
+class WorkflowOutput(BaseModel):
+    workflow_result: dict[str, Any]
+    workspace_directory: Path
