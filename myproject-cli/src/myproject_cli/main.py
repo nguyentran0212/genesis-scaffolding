@@ -1,4 +1,5 @@
 import asyncio
+from pathlib import Path
 from typing import Annotated, Any
 
 import typer
@@ -13,6 +14,8 @@ from rich.panel import Panel
 from rich.table import Table
 
 from .utils import RichWorkflowRenderer
+from myproject_server.main import app as web_app
+import uvicorn
 
 
 class GenesisCLI:
@@ -90,13 +93,25 @@ class GenesisCLI:
             # - One value: treat as scalar
             # - Multiple values: keep as list
             final_inputs = {}
+            inbox_dir = self.settings.path.inbox_directory
             for k, v in raw_data.items():
+                # 1. Basic Normalization
                 if not v:
-                    final_inputs[k] = True
-                elif len(v) == 1:
-                    final_inputs[k] = v[0]
+                    val = True
+                elif isinstance(v, list) and len(v) == 1:
+                    val = v[0]
                 else:
-                    final_inputs[k] = v
+                    val = v
+
+                # 2. Path Resolution for 'input_files'
+                # We handle both single strings and lists of strings
+                if k == "input_files":
+                    if isinstance(val, list):
+                        val = [str(inbox_dir / p) if not Path(p).is_absolute() else p for p in val]
+                    elif isinstance(val, str):
+                        val = str(inbox_dir / val) if not Path(val).is_absolute() else val
+
+                final_inputs[k] = val
 
             renderer = RichWorkflowRenderer(self._console)
             # Dispatch to Engine
@@ -120,7 +135,13 @@ class GenesisCLI:
 
         @self.app.command()
         def serve():
-            typer.echo("API Server is WIP...")
+            # Inject the core objects into the app state
+            web_app.state.workflow_registry = self.workflow_registry
+            web_app.state.agent_registry = self.agent_registry
+            web_app.state.engine = self.engine
+            web_app.state.wm = self.wm
+
+            uvicorn.run(web_app, host=self.settings.server.host, port=self.settings.server.port)
 
     def _print_workflow_help(self, manifest):
         """Standard output for workflow-specific options."""
