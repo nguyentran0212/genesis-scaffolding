@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from typing import Any, Union
+from typing import Any
 
 import jwt
 from myproject_core.configs import settings
@@ -17,7 +17,7 @@ def get_password_hash(password: str) -> str:
     return password_hash.hash(password)
 
 
-def create_access_token(subject: Union[str, Any], expires_delta: Union[timedelta, None] = None) -> str:
+def create_access_token(subject: str | Any, expires_delta: timedelta | None = None) -> str:
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
@@ -26,3 +26,25 @@ def create_access_token(subject: Union[str, Any], expires_delta: Union[timedelta
     to_encode = {"exp": expire, "sub": str(subject)}
     encoded_jwt = jwt.encode(to_encode, settings.server.jwt_secret_key, algorithm=settings.server.algorithm)
     return encoded_jwt
+
+
+def create_refresh_token(subject: str | Any, expires_delta: timedelta | None = None) -> str:
+    if expires_delta:
+        expire = datetime.now(timezone.utc) + expires_delta + timedelta(days=1)
+    else:
+        expire = datetime.now(timezone.utc) + timedelta(days=7)
+    to_encode = {"exp": expire, "sub": str(subject), "type": "refresh"}
+    encoded_jwt = jwt.encode(to_encode, settings.server.jwt_secret_key, algorithm=settings.server.algorithm)
+    return encoded_jwt
+
+
+def decode_token_payload(refresh_token: str):
+    try:
+        payload = jwt.decode(
+            refresh_token, settings.server.jwt_secret_key, algorithms=[settings.server.algorithm]
+        )
+    except Exception:
+        return [None, None]
+    username: str | None = payload.get("sub")
+    token_type: str | None = payload.get("type")
+    return [username, token_type]
