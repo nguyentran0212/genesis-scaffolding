@@ -6,7 +6,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from myproject_core.configs import settings
 from sqlmodel import Session, select
 
-from ..auth.security import create_access_token, create_refresh_token, verify_password, decode_token_payload
+from ..auth.security import create_access_token, create_refresh_token, decode_token_payload, verify_password
 from ..database import get_session
 from ..models.user import User
 from ..schemas.auth import Token
