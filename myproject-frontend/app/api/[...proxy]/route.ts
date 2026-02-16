@@ -49,5 +49,3 @@ export async function POST(
     );
   }
 }
-
-// Add PUT, DELETE, PATCH as needed

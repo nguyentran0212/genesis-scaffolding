@@ -57,7 +57,14 @@ export async function getCurrentUser(): Promise<User | null> {
     return null;
   }
 
-  return fetchUser(accessToken);
+  const user = await fetchUser(accessToken);
+
+  // If token exists but user fetch fails, token is invalid
+  if (!user) {
+    return null;
+  }
+
+  return user;
 }
 
 export async function isAuthenticated(): Promise<boolean> {

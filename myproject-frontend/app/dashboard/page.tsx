@@ -1,36 +1,32 @@
-import { getCurrentUser } from '@/app/actions/auth';
-import { redirect } from 'next/navigation';
-import LogoutButton from '@/components/auth/logout-button';
-import UserInfoCard from '@/components/dashboard/user-info-card';
+import { getWorkflowsAction } from '@/app/actions/workflow';
+import { WorkflowCard } from '@/components/dashboard/workflow-card';
 
-export default async function DashboardPage() {
-  const user = await getCurrentUser();
-
-  if (!user) {
-    redirect('/login');
-  }
+export default async function CatalogPage() {
+  const workflows = await getWorkflowsAction();
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 justify-between">
-            <div className="flex items-center">
-              <h1 className="text-xl font-bold">Dashboard</h1>
-            </div>
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-700">
-                Welcome, {user.username}
-              </span>
-              <LogoutButton />
-            </div>
-          </div>
-        </div>
-      </nav>
+    <div className="max-w-6xl mx-auto space-y-8">
+      <header className="flex flex-col gap-2">
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900">
+          Workflow Catalog
+        </h1>
+        <p className="text-lg text-muted-foreground">
+          Deploy an agentic workflow by selecting a template below.
+        </p>
+      </header>
 
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <UserInfoCard user={user} />
-      </main>
+      {workflows.length > 0 ? (
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {workflows.map((workflow) => (
+            <WorkflowCard key={workflow.id} workflow={workflow} />
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed rounded-xl bg-slate-50">
+          <p className="text-muted-foreground font-medium">No workflows available</p>
+          <p className="text-sm text-muted-foreground/70">Check your backend manifest directory.</p>
+        </div>
+      )}
     </div>
   );
 }
