@@ -1,16 +1,7 @@
 import { getAccessToken, getRefreshToken, createSession, deleteSession } from '@/lib/session';
+import { ApiError } from '@/types/api';
 
 const FASTAPI_URL = process.env.FASTAPI_URL || 'http://localhost:8000';
-
-export class ApiError extends Error {
-  constructor(
-    public status: number,
-    message: string,
-    public data?: any
-  ) {
-    super(message);
-  }
-}
 
 interface FetchOptions extends RequestInit {
   requireAuth?: boolean;
