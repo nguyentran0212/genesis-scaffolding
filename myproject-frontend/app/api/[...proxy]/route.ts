@@ -1,34 +1,56 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { apiFetch } from '@/lib/api-client';
-
-const FASTAPI_URL = process.env.FASTAPI_URL || 'http://localhost:8000';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { proxy: string[] } }
+  { params }: { params: Promise<{ proxy: string[] }> } // Type as Promise
 ) {
-  const path = params.proxy.join('/');
+  // Unwrap the params
+  const { proxy } = await params;
+  const path = proxy.join('/');
   const searchParams = request.nextUrl.searchParams.toString();
   const endpoint = `/${path}${searchParams ? `?${searchParams}` : ''}`;
 
   try {
     const response = await apiFetch(endpoint, { method: 'GET' });
-    const data = await response.json();
 
-    return Response.json(data, { status: response.status });
+    // Check if the response is successful
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      return NextResponse.json(errorBody, { status: response.status });
+    }
+
+    // Handle File Downloads vs JSON
+    const contentType = response.headers.get('content-type');
+
+    // If it's a file download, return the raw body as a blob/stream
+    if (contentType && !contentType.includes('application/json')) {
+      const blob = await response.blob();
+      return new NextResponse(blob, {
+        status: 200,
+        headers: {
+          'Content-Type': contentType,
+          'Content-Disposition': response.headers.get('content-disposition') || 'attachment',
+        },
+      });
+    }
+
+    // Otherwise, return JSON
+    const data = await response.json();
+    return NextResponse.json(data, { status: 200 });
+
   } catch (error) {
-    return Response.json(
-      { error: 'Proxy request failed' },
-      { status: 500 }
-    );
+    console.error('[Proxy GET Error]:', error);
+    return NextResponse.json({ error: 'Proxy request failed' }, { status: 500 });
   }
 }
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { proxy: string[] } }
+  { params }: { params: Promise<{ proxy: string[] }> } // Type as Promise
 ) {
-  const path = params.proxy.join('/');
+  const { proxy } = await params;
+  const path = proxy.join('/');
   const body = await request.text();
 
   try {
@@ -41,11 +63,8 @@ export async function POST(
     });
 
     const data = await response.json();
-    return Response.json(data, { status: response.status });
+    return NextResponse.json(data, { status: response.status });
   } catch (error) {
-    return Response.json(
-      { error: 'Proxy request failed' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Proxy request failed' }, { status: 500 });
   }
 }
