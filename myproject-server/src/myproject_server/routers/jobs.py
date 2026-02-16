@@ -1,5 +1,4 @@
 import asyncio
-import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated, Any, cast
@@ -9,7 +8,7 @@ from fastapi.responses import FileResponse
 from myproject_core.schemas import WorkflowCallback, WorkflowEvent
 from myproject_core.workflow_engine import WorkflowEngine
 from myproject_core.workflow_registry import WorkflowRegistry
-from sqlmodel import Session, select
+from sqlmodel import Session, desc, select
 from sse_starlette.sse import EventSourceResponse
 
 from ..database import engine as db_engine
@@ -181,8 +180,30 @@ async def submit_job(
     return {"message": "Job submitted", "job_id": safe_job_id}
 
 
-@router.get("/{job_id}/status", response_model=WorkflowJobRead)
-async def get_job_status(
+@router.get("/", response_model=list[WorkflowJobRead])
+async def list_jobs(
+    user: Annotated[User, Depends(get_current_active_user)],
+    session: Annotated[Session, Depends(get_session)],
+    offset: int = 0,
+    limit: int = 20,
+):
+    """
+    Get all jobs for the current user, ordered by newest first.
+    """
+    statement = (
+        select(WorkflowJob)
+        .where(WorkflowJob.user_id == user.id)
+        .order_by(desc(WorkflowJob.created_at))
+        .offset(offset)
+        .limit(limit)
+    )
+    jobs = session.exec(statement).all()
+    return jobs
+
+
+# Add a full detail endpoint if the status one is too limited
+@router.get("/{job_id}", response_model=WorkflowJobRead)
+async def get_job_detail(
     job_id: int,
     user: Annotated[User, Depends(get_current_active_user)],
     session: Annotated[Session, Depends(get_session)],
@@ -191,7 +212,7 @@ async def get_job_status(
         select(WorkflowJob).where(WorkflowJob.id == job_id, WorkflowJob.user_id == user.id)
     ).first()
     if not job:
-        raise HTTPException(status_code=404)
+        raise HTTPException(status_code=404, detail="Job not found")
     return job
 
 
