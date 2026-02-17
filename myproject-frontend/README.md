@@ -35,31 +35,54 @@ The project follows the Next.js App Router conventions with a domain-driven orga
 
 ### `/app` (Routing and Actions)
 
-* **`/actions`**: Contains Server Actions. These functions handle form submissions (e.g., `auth.ts`) and data mutations, interacting directly with the FastAPI backend.
-* **`/api/[...proxy]`**: A catch-all route handler. It proxies client-side requests to the FastAPI backend to bypass CORS and hide the backend origin.
-* **`/(routes)`**: Directories like `/login` and `/dashboard` define the application's pages.
-* **`layout.tsx`**: The root layout providing the global HTML structure and CSS entry points.
+* **`/actions`**: Contains Server Actions. These functions handle data mutations and interact directly with the FastAPI backend.
+  * `auth.ts`: Session and identity management.
+  * `workflow.ts`: Workflow manifest retrieval and execution triggers.
+  * `job.ts`: Polling and result retrieval for background tasks.
+  * `sandbox.ts`: File management (upload/delete/list) within the user's persistent storage.
+
+
+* **`/api/[...proxy]`**: A catch-all route handler. It proxies client-side requests to the FastAPI backend to bypass CORS, manage file downloads via secure JWT injection, and hide backend origin.
+
+* **`/(routes)`**:
+  * `/login`: Authentication entry point (wrapped in `Suspense` for CSR compatibility).
+  * `/dashboard/workflows`: Gallery of executable tools.
+  * `/dashboard/jobs`: Real-time monitoring of active and historical executions.
+  * `/dashboard/sandbox`: Full-featured file explorer for user assets.
+
 
 ### `/lib` (Core Logic)
 
 * **`auth.ts`**: Integration logic for FastAPI OAuth2 Password flow.
-* **`session.ts`**: Low-level cookie management for `access_token` and `refresh_token` using `next/headers`.
-* **`api-client.ts`**: Utilities for server-side fetching and standardizing requests to the backend.
+* **`session.ts`**: Low-level cookie management for tokens using `next/headers`.
+* **`workflow-utils.ts`**: Dynamic **Zod schema generation** logic. Converts FastAPI-provided tool manifests into runtime validation schemas for React Hook Form.
+* **`job-utils.ts`**: Helpers for parsing status states and formatting execution results.
 
 ### `/components` (UI Layer)
 
-* **`/auth`**: Domain-specific components for authentication (e.g., login forms).
-* **`/dashboard`**: Domain-specific components for the authenticated user interface.
-* **`/ui`**: (Implicit Shadcn location) Low-level, reusable UI primitives.
+* **`/auth`**: Login forms and logout triggers.
+
+* **`/dashboard`**: Domain-specific UI for the core application.
+  * **Workflow Execution**: `workflow-form.tsx` (dynamic form renderer) and `workflow-card.tsx`.
+  * **File Management**: Modular components including `sandbox-file-explorer.tsx`, `standalone-upload-button.tsx`, and `file-browser-modal.tsx`.
+  * **File Picking**: Specialized inputs like `sandbox-file-picker.tsx` (single) and `sandbox-multi-file-picker.tsx` (array) that interface with the Sandbox API.
+  * **Job Results**: Detailed views for downloads, status banners, and text outputs.
+
+* **`/ui`**: Shadcn UI low-level primitives (Dialogs, Tabs, ScrollArea, etc.).
 
 ### `/types`
 
-* Centralized TypeScript definitions. Interfaces here (e.g., `user.ts`, `auth.ts`) mirror the Pydantic models in the FastAPI backend to ensure type safety across the stack.
+* Centralized TypeScript definitions mirroring FastAPI Pydantic models.
+  * `workflow.ts`: Definitions for inputs, manifests, and parameter types.
+  * `sandbox.ts`: Metadata structures for files and folders.
+  * `job.ts`: Status enums and result payload interfaces.
 
-### Root Configuration
 
-* **`proxy.ts`**: Middleware that intercepts requests for route protection and JWT validation before they reach the App Router.
-* **`components.json`**: Configuration for Shadcn UI components.
+### Key Technical Patterns Implemented
+
+* **Dynamic Validation**: Utilizing `generateZodSchema` to bridge the gap between backend-defined tool inputs and frontend form validation.
+* **Atomic File Handling**: Decoupling file uploads into a `StandaloneUploadButton` to allow consistent behavior across both the full Sandbox Explorer and the Workflow inline pickers.
+* **Stateful Syncing**: Implementing `revalidateTag('sandbox')` across server actions to ensure that uploading a file in a modal instantly updates the background file explorer state.
 
 ---
 

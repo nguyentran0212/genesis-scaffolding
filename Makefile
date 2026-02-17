@@ -15,8 +15,14 @@ PNPM := cd $(FRONTEND_DIR) && pnpm
 help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
-setup: ## Initial project setup (uv sync)
+setup-backend: ## Initial backend setup (uv sync)
 	uv sync
+
+setup-frontend: ## Initial frontend setup (pnpm install)
+	$(PNPM) install
+
+setup: setup-backend setup-frontend ## Initial setup for both backend and frontend
+
 
 ### Linting
 
@@ -51,6 +57,9 @@ clean-workspace-dir: ## Remove content of workspaces directory
 
 clean-database: ## Remove content of workspaces directory
 	rm -rf database/
+
+clean-frontend: ### Clean up frontend
+	cd $(FRONTEND_DIR) && rm -rf .next node_modules
 
 clean: clean-workspace-dir clean-database clean-backend ## Clean up caches and build artifacts, workspaces, databases
 

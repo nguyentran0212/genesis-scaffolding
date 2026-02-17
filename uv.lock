@@ -1836,12 +1836,14 @@ version = "0.1.0"
 source = { editable = "myproject-cli" }
 dependencies = [
     { name = "myproject-core" },
+    { name = "myproject-server" },
     { name = "typer" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "myproject-core", editable = "myproject-core" },
+    { name = "myproject-server", editable = "myproject-server" },
     { name = "typer", specifier = ">=0.21.1" },
 ]
 

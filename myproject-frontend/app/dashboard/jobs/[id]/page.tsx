@@ -5,6 +5,7 @@ import { JobParamsCard } from "@/components/dashboard/job-params-card";
 import { JobTextResults } from "@/components/dashboard/job-text-results";
 import { JobDownloads } from "@/components/dashboard/job-downloads";
 import { Separator } from "@/components/ui/separator";
+import { JobRealtimeListener } from "@/components/dashboard/job-realtime-listener";
 
 export default async function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -18,6 +19,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
 
     return (
       <div className="max-w-6xl mx-auto space-y-8 pb-10">
+        <JobRealtimeListener jobId={job.id} status={job.status} />
         <div className="flex flex-col gap-2">
           <h1 className="text-3xl font-bold tracking-tight">Execution Detail</h1>
           <p className="text-muted-foreground font-mono text-sm">Job ID: #{job.id} • Workflow: {job.workflow_id}</p>

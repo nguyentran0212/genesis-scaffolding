@@ -12,16 +12,29 @@ export async function GET(
   const endpoint = `/${path}${searchParams ? `?${searchParams}` : ''}`;
 
   try {
-    const response = await apiFetch(endpoint, { method: 'GET' });
+    const response = await apiFetch(endpoint, { method: 'GET', cache: "no-store" });
+    // Handling SSE (Server-Sent Events)
+    const contentType = response.headers.get('content-type');
+
+    if (contentType?.includes('text/event-stream')) {
+      // Create a stream passthrough. 
+      // We pass the original backend body directly to the frontend.
+      return new NextResponse(response.body, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache, no-transform',
+          'Connection': 'keep-alive',
+          // Important for Vercel/Proxies to not buffer the stream
+          'X-Accel-Buffering': 'no',
+        },
+      });
+    }
 
     // Check if the response is successful
     if (!response.ok) {
       const errorBody = await response.json().catch(() => ({}));
       return NextResponse.json(errorBody, { status: response.status });
     }
-
-    // Handle File Downloads vs JSON
-    const contentType = response.headers.get('content-type');
 
     // If it's a file download, return the raw body as a blob/stream
     if (contentType && !contentType.includes('application/json')) {

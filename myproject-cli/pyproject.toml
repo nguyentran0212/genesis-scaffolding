@@ -9,6 +9,7 @@ authors = [
 requires-python = ">=3.11"
 dependencies = [
     "myproject-core",
+    "myproject-server",
     "typer>=0.21.1",
 ]
 
@@ -18,3 +19,4 @@ build-backend = "uv_build"
 
 [tool.uv.sources]
 myproject-core = { workspace = true }
+myproject-server = { workspace = true }
