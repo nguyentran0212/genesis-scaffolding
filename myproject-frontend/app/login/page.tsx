@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import LoginForm from '@/components/auth/login-form';
 
 export default async function LoginPage() {
@@ -9,7 +10,9 @@ export default async function LoginPage() {
             Sign in to your account
           </h2>
         </div>
-        <LoginForm />
+        <Suspense fallback={<div>Loading login...</div>}>
+          <LoginForm />
+        </Suspense>
       </div>
     </div>
   );

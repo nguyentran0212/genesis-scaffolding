@@ -36,6 +36,10 @@ format-backend: ## Auto-format backend code
 test-backend: ## Run pytest across backend packages
 	$(UV) pytest
 
+### Run all code quality check
+
+check-all-backend: backend-lint backend-test ## Run all backend quality checks
+
 ### Cleanup
 
 clean-backend: ### Clean up cache and build artefacts of the backend
@@ -58,9 +62,24 @@ dev-backend: ### Run FastAPI backend in dev mode
 dev-frontend: ### Run frontend in dev mode
 	$(PNPM) dev
 
-dev: ### Run both backend and frontend in parallel
+dev: ### Run both backend and frontend in parallel in dev
 	@$(MAKE) -j 2 dev-backend dev-frontend
 
-### Run all code quality check
 
-check-all-backend: backend-lint backend-test ## Run all backend quality checks
+### Build project
+
+build-frontend: ### Build frontend
+	$(PNPM) build
+
+
+### Run the project in prod on bare metal
+
+run-backend: ### Run backend on bare metal
+	$(UV) myproject serve
+
+
+run-frontend:build-frontend ### Run frontend on bare metal
+	$(PNPM) start
+
+run: ### Run both backend and frontend in parallel in prod on bare metal
+	@$(MAKE) -j 2 run-backend run-frontend
