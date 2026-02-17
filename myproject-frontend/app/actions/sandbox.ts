@@ -22,7 +22,6 @@ export async function getFilesAction(): Promise<SandboxFile[]> {
 
 /**
  * Upload a file to the sandbox
- * @param formData contains the 'file' and optionally 'subfolder'
  */
 export async function uploadFileAction(formData: FormData): Promise<SandboxFile> {
   const token = await getAccessToken();
@@ -55,6 +54,23 @@ export async function uploadFileAction(formData: FormData): Promise<SandboxFile>
   return fileObject as SandboxFile;
 }
 
+
+export async function deleteFileAction(fileId: number) {
+  const token = await getAccessToken();
+
+  const response = await fetch(`${FASTAPI_URL}/files/${fileId}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to delete file');
+  }
+
+  revalidateTag('sandbox', "max");
+  return { success: true };
+}
 /**
  * Fetch available folders for organization
  */
