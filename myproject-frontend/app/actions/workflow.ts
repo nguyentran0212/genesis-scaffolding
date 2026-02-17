@@ -53,5 +53,11 @@ export async function getWorkflowByIdAction(id: string): Promise<WorkflowManifes
     throw new Error(`Failed to fetch workflow: ${id}`);
   }
 
-  return response.json();
+  const data = await response.json();
+
+  // Inject the ID manually so the frontend components have it
+  return {
+    ...data,
+    id,
+  } as WorkflowManifest;
 }

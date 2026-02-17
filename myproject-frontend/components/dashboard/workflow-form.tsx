@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { generateZodSchema } from '@/lib/workflow-utils';
@@ -15,11 +16,13 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Rocket } from 'lucide-react';
+import { Rocket, Loader2 } from 'lucide-react';
+import { createJobAction } from '@/app/actions/job';
+import { toast } from 'sonner';
 
 export function WorkflowForm({ workflow }: { workflow: WorkflowManifest }) {
   const schema = generateZodSchema(workflow);
-
+  const [isPending, setIsPending] = useState(false);
   const form = useForm({
     // @ts-ignore - The schema is generated dynamically at runtime, 
     // which confuses the static analysis of the zodResolver type definition.
@@ -30,8 +33,14 @@ export function WorkflowForm({ workflow }: { workflow: WorkflowManifest }) {
   });
 
   async function onSubmit(values: any) {
-    console.log('Submitting to /jobs:', values);
-    // TODO: Implement job submission action
+    setIsPending(true);
+    try {
+      await createJobAction(workflow.id, values);
+      toast.success("Job submitted successfully!");
+    } catch (error: any) {
+      toast.error(error.message || "Something went wrong");
+      setIsPending(false); // Only reset if we didn't redirect
+    }
   }
 
   return (
@@ -48,11 +57,10 @@ export function WorkflowForm({ workflow }: { workflow: WorkflowManifest }) {
                   {key.replace(/_/g, ' ')}
                 </FormLabel>
                 <FormControl>
-                  {/* For now, we use a simple Input. 
-                      Next we will implement the Switch and the Sandbox Picker */}
                   <Input
                     placeholder={config.description}
                     {...field}
+                    disabled={isPending}
                     value={field.value ?? ''}
                   />
                 </FormControl>
@@ -63,8 +71,23 @@ export function WorkflowForm({ workflow }: { workflow: WorkflowManifest }) {
           />
         ))}
 
-        <Button type="submit" size="lg" className="w-full md:w-auto">
-          <Rocket className="mr-2 h-4 w-4" /> Execute Workflow
+        <Button
+          type="submit"
+          size="lg"
+          className="w-full md:w-auto min-w-[150px]"
+          disabled={isPending}
+        >
+          {isPending ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Dispatching...
+            </>
+          ) : (
+            <>
+              <Rocket className="mr-2 h-4 w-4" />
+              Execute Workflow
+            </>
+          )}
         </Button>
       </form>
     </Form>

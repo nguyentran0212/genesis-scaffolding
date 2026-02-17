@@ -2,8 +2,44 @@
 
 import { getAccessToken } from '@/lib/session';
 import { WorkflowJob, JobFile } from '@/types/job';
+import { redirect } from 'next/navigation';
+import { revalidatePath } from 'next/cache';
 
 const FASTAPI_URL = process.env.FASTAPI_URL || 'http://localhost:8000';
+
+export async function createJobAction(workflowId: string, inputs: Record<string, any>) {
+  const token = await getAccessToken();
+
+  if (!token) {
+    throw new Error('You must be logged in to execute workflows.');
+  }
+
+  // Note: We pass workflow_id as a query param as per your FastAPI router signature
+  const url = new URL(`${FASTAPI_URL}/jobs/`);
+  url.searchParams.append('workflow_id', workflowId);
+
+  const response = await fetch(url.toString(), {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(inputs),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Failed to dispatch workflow job.');
+  }
+
+  const { job_id } = await response.json();
+
+  // 1. Refresh the jobs list cache so the new entry appears immediately in history
+  revalidatePath('/dashboard/jobs');
+
+  // 2. Pivot the user to the detail page to watch the progress
+  redirect(`/dashboard/jobs/${job_id}`);
+}
 
 export async function getJobsAction(limit: number = 20, offset: number = 0): Promise<WorkflowJob[]> {
   const token = await getAccessToken();
