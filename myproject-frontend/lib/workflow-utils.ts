@@ -1,39 +1,44 @@
 import { z } from 'zod';
 import { WorkflowManifest } from '@/types/workflow';
 
-// Define the return type as a ZodObject with any shape
-export function generateZodSchema(workflow: WorkflowManifest): z.ZodObject<any> {
-  const shape: Record<string, z.ZodTypeAny> = {};
+export function generateZodSchema(workflow: WorkflowManifest) {
+  const schemaFields: Record<string, any> = {};
 
-  Object.entries(workflow.inputs).forEach(([key, config]) => {
-    let validator: z.ZodTypeAny;
+  for (const [key, config] of Object.entries(workflow.inputs)) {
+    let validator;
 
     switch (config.type) {
-      case 'int':
-      case 'float':
-        validator = z.coerce.number();
+      case 'list[file]':
+        // Allow an array of any (SandboxFile objects)
+        validator = z.array(z.any());
         break;
-      case 'bool':
-        validator = z.boolean();
+
+      case 'file':
+        // Allow an object (SandboxFile) or null
+        validator = z.any().nullable();
         break;
+
       case 'list[string]':
         validator = z.array(z.string());
         break;
+
+      case 'bool':
+        validator = z.boolean().default(false);
+        break;
+
+      case 'string':
       default:
         validator = z.string();
+        if (config.required) {
+          validator = validator.min(1, `${key} is required`);
+        } else {
+          validator = validator.optional().or(z.literal(""));
+        }
+        break;
     }
 
-    if (config.required) {
-      // Use refined validation for required fields
-      if (config.type === 'string') {
-        validator = (validator as z.ZodString).min(1, `${key} is required`);
-      }
-    } else {
-      validator = validator.optional().or(z.literal(''));
-    }
+    schemaFields[key] = validator;
+  }
 
-    shape[key] = validator;
-  });
-
-  return z.object(shape);
+  return z.object(schemaFields);
 }

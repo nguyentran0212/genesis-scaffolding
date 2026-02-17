@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { generateZodSchema } from '@/lib/workflow-utils';
 import { WorkflowManifest } from '@/types/workflow';
+import { SandboxFile } from '@/types/sandbox';
 import {
   Form,
   FormControl,
@@ -19,27 +20,48 @@ import { Button } from '@/components/ui/button';
 import { Rocket, Loader2 } from 'lucide-react';
 import { createJobAction } from '@/app/actions/job';
 import { toast } from 'sonner';
+import { SandboxFilePicker } from '@/components/dashboard/sandbox-file-picker';
+import { SandboxMultiFilePicker } from '@/components/dashboard/sandbox-multi-file-picker';
 
 export function WorkflowForm({ workflow }: { workflow: WorkflowManifest }) {
   const schema = generateZodSchema(workflow);
   const [isPending, setIsPending] = useState(false);
+
   const form = useForm({
     // @ts-ignore - The schema is generated dynamically at runtime, 
     // which confuses the static analysis of the zodResolver type definition.
     resolver: zodResolver(schema),
     defaultValues: Object.fromEntries(
-      Object.entries(workflow.inputs).map(([key, val]) => [key, val.default ?? ''])
+      Object.entries(workflow.inputs).map(([key, val]) => {
+        if (val.type === 'list[file]') return [key, []];
+        if (val.type === 'file') return [key, null]; // Use null, not ''
+        return [key, val.default ?? ''];
+      })
     ),
   });
 
   async function onSubmit(values: any) {
     setIsPending(true);
+
+    // Create a copy to modify
+    const processedValues = { ...values };
+
+    // Transform file lists from Objects back to Paths for the Backend
+    for (const [key, config] of Object.entries(workflow.inputs)) {
+      if (config.type === 'list[file]' && Array.isArray(processedValues[key])) {
+        processedValues[key] = processedValues[key].map((f: SandboxFile) => f.relative_path);
+      }
+      if (config.type === 'file' && typeof processedValues[key] === 'object') {
+        processedValues[key] = processedValues[key].relative_path;
+      }
+    }
+
     try {
-      await createJobAction(workflow.id, values);
-      toast.success("Job submitted successfully!");
+      await createJobAction(workflow.id, processedValues);
+      toast.success("Job submitted!");
     } catch (error: any) {
-      toast.error(error.message || "Something went wrong");
-      setIsPending(false); // Only reset if we didn't redirect
+      toast.error(error.message);
+      setIsPending(false);
     }
   }
 
@@ -57,12 +79,38 @@ export function WorkflowForm({ workflow }: { workflow: WorkflowManifest }) {
                   {key.replace(/_/g, ' ')}
                 </FormLabel>
                 <FormControl>
-                  <Input
-                    placeholder={config.description}
-                    {...field}
-                    disabled={isPending}
-                    value={field.value ?? ''}
-                  />
+                  {(() => {
+                    switch (config.type) {
+                      case 'file':
+                        return (
+                          <SandboxFilePicker
+                            value={field.value} // Remove ?? ''
+                            onChange={field.onChange}
+                            placeholder={config.description}
+                          />
+                        );
+                      case 'list[file]':
+                        return (
+                          <SandboxMultiFilePicker
+                            value={field.value || []}
+                            onChange={field.onChange}
+                            placeholder={config.description}
+                          />
+                        );
+                      case 'bool':
+                        {/* We can eventually add a Switch here */ }
+                        return <Input {...field} value={field.value ?? ''} />;
+                      default:
+                        return (
+                          <Input
+                            placeholder={config.description}
+                            {...field}
+                            disabled={isPending}
+                            value={field.value ?? ''}
+                          />
+                        );
+                    }
+                  })()}
                 </FormControl>
                 <FormDescription>{config.description}</FormDescription>
                 <FormMessage />

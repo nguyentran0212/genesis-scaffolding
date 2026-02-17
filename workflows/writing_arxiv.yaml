@@ -19,7 +19,7 @@ inputs:
     description: "Target word count."
     default: 500
   input_files:
-    type: "list[string]"
+    type: "list[file]"
     description: "List of files to provide to the agent."
     default: []
 

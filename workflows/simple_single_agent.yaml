@@ -8,7 +8,7 @@ inputs:
     description: "The question you want to ask the agent."
     default: "Hello! Tell me a joke about research papers."
   input_files:
-    type: "list[string]"
+    type: "list[file]"
     description: "List of files to provide to the agent."
     default: []
 
