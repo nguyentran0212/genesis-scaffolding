@@ -1,5 +1,5 @@
 import ast
-from os import write
+import asyncio
 import re
 import shutil
 from abc import ABC, abstractmethod
@@ -130,7 +130,7 @@ class BaseTask(ABC, Generic[TParams, TOutput]):
         unique_files = list(set(resolved_files))
         return unique_files
 
-    def write_content_to_files(
+    async def write_content_to_files(
         self,
         content: list[str],
         context: JobContext,
@@ -140,50 +140,57 @@ class BaseTask(ABC, Generic[TParams, TOutput]):
         extension: str = "md",
         sub_directory: str | None = None,
     ) -> list[Path]:
-        def _get_file_name(
-            content: list[str],
-            index: int,
-            output_filename: str,
-            output_filename_prefix: str,
-            extension: str,
-        ):
-            if len(content) == 1:
-                return output_filename
-            else:
-                return f"{output_filename_prefix}_{index}.{extension}"
+        # Encapsulate logic in a synchronous inner function
+        def _sync_write_operation():
+            def _get_file_name(
+                content: list[str],
+                index: int,
+                output_filename: str,
+                output_filename_prefix: str,
+                extension: str,
+            ):
+                if len(content) == 1:
+                    return output_filename
+                else:
+                    return f"{output_filename_prefix}_{index}.{extension}"
 
-        # Determine target directories
-        target_dirs: list[Path] = []
+            # Determine target directories
+            target_dirs: list[Path] = []
+            sub_dir = sub_directory or ""
 
-        sub_dir = sub_directory or ""
+            # Blocking IO: mkdir
+            internal_dir = context.internal / sub_dir
+            internal_dir.mkdir(parents=True, exist_ok=True)
+            target_dirs.append(internal_dir)
 
-        internal_dir = context.internal / sub_dir
-        internal_dir.mkdir(parents=True, exist_ok=True)
-        target_dirs.append(internal_dir)
+            if write_response_to_output:
+                # Blocking IO: mkdir
+                output_dir = context.output / sub_dir
+                output_dir.mkdir(parents=True, exist_ok=True)
+                target_dirs.append(output_dir)
 
-        if write_response_to_output:
-            output_dir = context.output / sub_dir
-            output_dir.mkdir(parents=True, exist_ok=True)
-            target_dirs.append(output_dir)
+            # Write content items to files
+            all_written_paths: list[Path] = []
+            for i, content_item in enumerate(content):
+                filename = _get_file_name(
+                    content=content,
+                    index=i,
+                    output_filename=output_filename,
+                    output_filename_prefix=output_filename_prefix,
+                    extension=extension,
+                )
 
-        # Write content items to files
-        all_written_paths: list[Path] = []
-        for i, content_item in enumerate(content):
-            filename = _get_file_name(
-                content=content,
-                index=i,
-                output_filename=output_filename,
-                output_filename_prefix=output_filename_prefix,
-                extension=extension,
-            )
+                for target_dir in target_dirs:
+                    target_file = target_dir / filename
+                    # Blocking IO: write_text
+                    target_file.write_text(content_item, encoding="utf-8")
+                    all_written_paths.append(target_file)
 
-            for target_dir in target_dirs:
-                target_file = target_dir / filename
-                target_file.write_text(content_item, encoding="utf-8")
+            return all_written_paths
 
-                all_written_paths.append(target_file)
-
-        return all_written_paths
+        # Run the sync wrapper in a thread
+        # This releases the event loop immediately so FastAPI can serve the Redirect/GET request
+        return await asyncio.to_thread(_sync_write_operation)
 
 
 ### SAMPLE TASK
@@ -303,7 +310,7 @@ class PromptAgentTask(BaseTask[PromptAgentTaskParams, PromptAgentTaskOutput]):
 
         # Write to file if required
         if args.write_response_to_file:
-            output_paths = self.write_content_to_files(
+            output_paths = await self.write_content_to_files(
                 content=[str(response_text)],
                 context=context,
                 output_filename=args.output_filename,
@@ -330,17 +337,25 @@ class ArxivDownloadTask(BaseTask[ArxivDownloadTaskParams, ArxivDownloadTaskOutpu
 
     async def run(self, context: JobContext, agent_registry: AgentRegistry, params: dict) -> output_model:
         args = self.params_model.model_validate(params)
-        arxiv_paper_id = args.arxiv_paper_id
-        sub_directory = args.sub_directory
 
-        if not sub_directory:
-            sub_directory = ""
-        download_directory = context.internal / sub_directory
-        paper_details = get_paper_details(
-            paper_id=arxiv_paper_id, download_dir=download_directory, download_pdf=True
-        )
-        if not paper_details:
-            raise ValueError(f"Cannot find the given arxiv paper id: {arxiv_paper_id}")
+        # This workaround is needed to avoid blocking the entire event loop
+        def _do_blocking_download():
+            arxiv_paper_id = args.arxiv_paper_id
+            sub_directory = args.sub_directory or ""
+            download_directory = context.internal / sub_directory
+
+            # This contains your synchronous httpx/file-write logic
+            paper_details = get_paper_details(
+                paper_id=arxiv_paper_id, download_dir=download_directory, download_pdf=True
+            )
+
+            if not paper_details:
+                raise ValueError(f"Cannot find the given arxiv paper id: {arxiv_paper_id}")
+
+            return paper_details
+
+        paper_details = await asyncio.to_thread(_do_blocking_download)
+
         pdf_path = paper_details["pdf_path"]
         md_path = paper_details["md_path"]
 
@@ -384,7 +399,7 @@ class WebSearchTask(BaseTask[WebSearchTaskParams, WebSearchTaskOutput]):
             md_entry = f"# {res.title}\n**URL:** {res.url}\n\n{main_body}\n\n---\n"
             formatted_contents.append(md_entry)
 
-        all_written_paths = self.write_content_to_files(
+        all_written_paths = await self.write_content_to_files(
             content=formatted_contents,
             context=context,
             output_filename=args.output_filename,

@@ -1,3 +1,6 @@
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+
 import { getJobByIdAction, getJobFilesAction } from "@/app/actions/job";
 import { notFound } from "next/navigation";
 import { JobStatusBanner } from "@/components/dashboard/job-status-banner";
@@ -6,6 +9,8 @@ import { JobTextResults } from "@/components/dashboard/job-text-results";
 import { JobDownloads } from "@/components/dashboard/job-downloads";
 import { Separator } from "@/components/ui/separator";
 import { JobRealtimeListener } from "@/components/dashboard/job-realtime-listener";
+
+
 
 export default async function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -17,8 +22,13 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
       getJobFilesAction(jobId)
     ]);
 
+    // This is an effort to fix the problem that the GUI does not update after SSE completes with some workflows
+    // This forces React to destroy the old "Running" component tree and 
+    // mount the new "Completed" one immediately.
+    const pageKey = `${job.id}-${job.status}-${files.length}`;
+
     return (
-      <div className="max-w-6xl mx-auto space-y-8 pb-10">
+      <div key={pageKey} className="max-w-6xl mx-auto space-y-8 pb-10">
         <JobRealtimeListener jobId={job.id} status={job.status} />
         <div className="flex flex-col gap-2">
           <h1 className="text-3xl font-bold tracking-tight">Execution Detail</h1>
@@ -38,9 +48,9 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
               <h2 className="text-lg font-semibold mb-4">Results</h2>
               {job.status === 'completed' ? (
                 <div className="space-y-6">
-                  <JobTextResults result={job.result} />
-                  <Separator />
                   <JobDownloads jobId={job.id} files={files} />
+                  <Separator />
+                  <JobTextResults result={job.result} />
                 </div>
               ) : (
                 <div className="h-40 flex items-center justify-center border-2 border-dashed rounded-xl text-muted-foreground">

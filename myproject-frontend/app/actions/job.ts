@@ -108,8 +108,8 @@ export async function getJobByIdAction(jobId: number): Promise<WorkflowJob> {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
-    // Ensure we don't cache an old "running" status forever
-    cache: 'no-store'
+    cache: 'no-store',
+    next: { revalidate: 0 }
   });
 
   if (!response.ok) {

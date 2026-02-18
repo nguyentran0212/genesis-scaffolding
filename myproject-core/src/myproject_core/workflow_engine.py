@@ -1,4 +1,5 @@
 import asyncio
+import inspect
 from typing import Any
 
 from .agent_registry import AgentRegistry
@@ -56,7 +57,20 @@ class WorkflowEngine:
             # Execute Task
             # We pass the job_context for file access and the resolved params for logic
             # Result output object is a pydantic object that matches the TaskOutput schema that a task define
-            output = await task_instance.run(job_context, self.agent_registry, resolved_params)
+            try:
+                # Check if the .run method is native async
+                if inspect.iscoroutinefunction(task_instance.run):
+                    # It is async. We await it.
+                    # Note: If the dev put blocking code inside here, it will still break the event loop
+                    output = await task_instance.run(job_context, self.agent_registry, resolved_params)
+                else:
+                    # It is a standard 'def' (Synchronous).
+                    # We automatically offload it to a thread to prevent blocking the caller.
+                    output = await asyncio.to_thread(
+                        task_instance.run, job_context, self.agent_registry, resolved_params
+                    )
+            except Exception as e:
+                raise e
 
             # Update State
             state["steps"][step_def.id] = output.model_dump()

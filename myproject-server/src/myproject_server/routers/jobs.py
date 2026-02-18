@@ -98,11 +98,6 @@ async def run_workflow_background(
             job.result = workflow_output.workflow_result
             job.workspace_path = str(workflow_output.workspace_directory)
 
-            # Emit a final status event manually or via a log event
-            queue = get_job_queue(user_id, job_id)
-            if queue:
-                await queue.put({"event": "status", "data": "COMPLETED"})
-
         except Exception as e:
             job.status = JobStatus.FAILED
             job.error_message = str(e)
@@ -113,6 +108,13 @@ async def run_workflow_background(
             job.updated_at = datetime.now(timezone.utc)
             session.add(job)
             session.commit()
+            # Emit a final status event manually or via a log event
+            queue = get_job_queue(user_id, job_id)
+            if queue:
+                if job.status == JobStatus.FAILED:
+                    await queue.put({"event": "error", "data": job.error_message})
+                else:
+                    await queue.put({"event": "status", "data": "COMPLETED"})
 
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
@@ -134,6 +136,7 @@ async def submit_job(
     if not manifest:
         raise HTTPException(status_code=404, detail="Workflow not found")
 
+    print(f"received workflow: {workflow_id}")
     # 2. Path Resolution (The "CLI logic" adapted for User Sandbox)
     # We resolve 'input_files' relative to the user_inbox path provided by dependency
     resolved_inputs = inputs.copy()
@@ -177,6 +180,7 @@ async def submit_job(
         registry,
     )
 
+    print(f"submitted workflow {workflow_id}")
     return {"message": "Job submitted", "job_id": safe_job_id}
 
 
