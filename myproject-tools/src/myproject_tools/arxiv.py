@@ -1,3 +1,4 @@
+import re
 import tarfile
 import zipfile
 from pathlib import Path
@@ -115,6 +116,31 @@ def download_paper_source(paper_id: str, download_dir: Path) -> Path | None:
         return
 
 
+def extract_arxiv_id(input_str: str) -> str:
+    """
+    Extracts an arXiv ID from a URL or a string.
+    Supports:
+    - Modern IDs: 2301.12345, 0704.0001
+    - Legacy IDs: hep-th/9901001, math.CO/0101001
+    - URLs: https://arxiv.org/abs/2301.12345, https://arxiv.org/pdf/2301.12345.pdf
+    - Prefixes: arXiv:2301.12345
+    """
+    # Pattern for modern IDs (YYMM.NNNNN)
+    modern_pattern = r"(\d{4}\.\d{4,5}(v\d+)?)"
+    # Pattern for legacy IDs (subject/YYMMNNN)
+    legacy_pattern = r"([a-z\-]+(?:\.[A-Z]{2})?/\d{7}(v\d+)?)"
+
+    # Combined search for both patterns
+    full_pattern = f"({modern_pattern}|{legacy_pattern})"
+    match = re.search(full_pattern, input_str, re.IGNORECASE)
+
+    if match:
+        return match.group(0)
+
+    # Fallback: if no pattern matches, return original (it might already be a clean ID)
+    return input_str.strip()
+
+
 def get_paper_details(
     paper_id: str,
     download_dir: Path | None = None,
@@ -125,11 +151,15 @@ def get_paper_details(
     Get detailed information about a specific paper by its arXiv ID.
     Optimized to bypass the default library delays by using a custom Client.
     """
+
+    # Parse paper ID
+    parsed_paper_id: str | None = extract_arxiv_id(paper_id)
+
     try:
         # fetching a single specific resource.
         client = arxiv.Client(page_size=1, num_retries=3)
 
-        search = arxiv.Search(id_list=[paper_id])
+        search = arxiv.Search(id_list=[parsed_paper_id])
 
         # Use next() to get the first result immediately from the generator
         result = next(client.results(search))
@@ -140,10 +170,10 @@ def get_paper_details(
         if download_dir and download_pdf:
             try:
                 # Extract paper ID from the result's entry_id
-                paper_id = result.entry_id.split("/")[
+                parsed_paper_id = result.entry_id.split("/")[
                     -1
                 ]  # Handle both arxiv IDs like "1234.56789" and "cs/1234567"
-                pdf_path = download_paper_pdf(paper_id=paper_id, download_dir=download_dir)
+                pdf_path = download_paper_pdf(paper_id=parsed_paper_id, download_dir=download_dir)
                 if not pdf_path:
                     raise Exception("Cannot download PDF")
                 md_path = pdf_path.with_suffix(".md")
@@ -156,10 +186,10 @@ def get_paper_details(
         if download_dir and download_source:
             try:
                 # Extract paper ID from the result's entry_id
-                paper_id = result.entry_id.split("/")[
+                parsed_paper_id = result.entry_id.split("/")[
                     -1
                 ]  # Handle both arxiv IDs like "1234.56789" and "cs/1234567"
-                source_path = download_paper_source(paper_id=paper_id, download_dir=download_dir)
+                source_path = download_paper_source(paper_id=parsed_paper_id, download_dir=download_dir)
             except Exception:
                 # Silently handle download errors to prevent interference with agent
                 pass
@@ -167,10 +197,10 @@ def get_paper_details(
         return _format_result(result, pdf_path=pdf_path, md_path=md_path, source_path=source_path)
 
     except StopIteration:
-        print(f"No paper found with ID: {paper_id}")
+        print(f"No paper found with ID: {parsed_paper_id}")
         return None
     except Exception as e:
-        print(f"Error fetching details for {paper_id}: {e}")
+        print(f"Error fetching details for {parsed_paper_id}: {e}")
         return None
 
 
