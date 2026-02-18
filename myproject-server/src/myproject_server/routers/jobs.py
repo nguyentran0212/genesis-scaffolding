@@ -22,6 +22,7 @@ from ..dependencies import (
 from ..models.user import User
 from ..models.workflow_job import JobStatus, WorkflowJob
 from ..schemas.workflow_job import WorkflowJobRead, WorkflowRunResponse
+from ..utils.workflow_job import add_workflow_job, run_workflow_job
 
 # Global store: {user_id: {job_id: asyncio.Queue}}
 job_streams: dict[int, dict[int, asyncio.Queue]] = {}
@@ -83,58 +84,36 @@ class ConsoleRenderer:
 async def run_workflow_background(
     user_id: int,
     job_id: int,
-    workflow_id: str,
-    inputs: dict[str, Any],
     engine_instance: WorkflowEngine,
     registry_instance: WorkflowRegistry,
+    workflow_callbacks: list[WorkflowCallback] | None = None,
 ):
-    # This instance is a WorkflowCallback
-    sse_callback = ServerSSERenderer(user_id, job_id)
-    console_callback = ConsoleRenderer(user_id, job_id)
-
-    with Session(db_engine) as session:
-        job = session.get(WorkflowJob, job_id)
+    # Get an SSE queue
+    queue = get_job_queue(user_id, job_id)
+    try:
+        print("REACH INSIDE TRY")
+        # Use util to run workflow job
+        job = await run_workflow_job(
+            job_id=job_id,
+            engine_instance=engine_instance,
+            registry_instance=registry_instance,
+            workflow_callbacks=workflow_callbacks,
+        )
+        print("REACH AFTER RUN WORKFLOW JOB")
+        # If util function returns None, it means it could not find job.
+        # This is an exception
         if not job:
-            return
-
-        try:
-            job.status = JobStatus.RUNNING
-            session.add(job)
-            session.commit()
-
-            manifest = registry_instance.get_workflow(workflow_id)
-            if not manifest:
-                raise ValueError(f"Workflow type not found: {workflow_id}")
-
-            # Pass our callback in the list
-            # engine.run(manifest, inputs, [sse_callback])
-            workflow_output = await engine_instance.run(
-                manifest,
-                inputs,
-                [cast(WorkflowCallback, sse_callback), cast(WorkflowCallback, console_callback)],
-            )
-
-            job.status = JobStatus.COMPLETED
-            job.result = workflow_output.workflow_result
-            job.workspace_path = str(workflow_output.workspace_directory)
-
-        except Exception as e:
-            job.status = JobStatus.FAILED
-            job.error_message = str(e)
-            queue = get_job_queue(user_id, job_id)
-            if queue:
-                await queue.put({"event": "error", "data": str(e)})
-        finally:
-            job.updated_at = datetime.now(timezone.utc)
-            session.add(job)
-            session.commit()
-            # Emit a final status event manually or via a log event
-            queue = get_job_queue(user_id, job_id)
-            if queue:
-                if job.status == JobStatus.FAILED:
-                    await queue.put({"event": "error", "data": job.error_message})
-                else:
-                    await queue.put({"event": "status", "data": "COMPLETED"})
+            raise Exception(f"Could not find job {job_id}")
+        # Otherwise, job was either completed or failed. Time to return SSE
+        if queue:
+            if job.status == JobStatus.FAILED:
+                await queue.put({"event": "error", "data": job.error_message})
+            else:
+                await queue.put({"event": "status", "data": "COMPLETED"})
+    except Exception as e:
+        # This would mostly raise the job not found error.
+        if queue:
+            await queue.put({"event": "error", "data": str(e)})
 
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
@@ -151,53 +130,38 @@ async def submit_job(
     registry: Annotated[WorkflowRegistry, Depends(get_workflow_registry)],
     engine: Annotated[WorkflowEngine, Depends(get_workflow_engine)],
 ):
-    # 1. Verify Workflow Exists before doing any work
+    # Verify Workflow Exists before doing any work
     manifest = registry.get_workflow(workflow_id)
     if not manifest:
         raise HTTPException(status_code=404, detail="Workflow not found")
 
-    print(f"received workflow: {workflow_id}")
-    # 2. Path Resolution (The "CLI logic" adapted for User Sandbox)
-    # We resolve 'input_files' relative to the user_inbox path provided by dependency
-    resolved_inputs = inputs.copy()
-    if "input_files" in resolved_inputs:
-        files = resolved_inputs["input_files"]
-        if isinstance(files, list):
-            resolved_inputs["input_files"] = [
-                str(user_inbox / f) if not Path(f).is_absolute() else f for f in files
-            ]
-        elif isinstance(files, str):
-            resolved_inputs["input_files"] = (
-                str(user_inbox / files) if not Path(files).is_absolute() else files
-            )
-
-    # 3. Create Job Record with RESOLVED inputs
-    job = WorkflowJob(
-        workflow_id=workflow_id,
-        user_id=cast(int, user.id),
-        inputs=resolved_inputs,  # Use resolved paths here
-        status=JobStatus.PENDING,
-    )
-    session.add(job)
-    session.commit()
-    session.refresh(job)
-
-    # 4. Prepare Types for Background Task
-    safe_job_id = cast(int, job.id)
     safe_user_id = cast(int, user.id)
+    job = await add_workflow_job(
+        inputs=inputs, user_inbox=user_inbox, user_id=safe_user_id, workflow_id=workflow_id
+    )
 
-    # 5. Initialize the user-scoped SSE queue
+    if not job:
+        raise Exception("Could not register workflow job")
+
+    # Prepare Types for Background Task
+    safe_job_id = cast(int, job.id)
+
+    # Initialize the user-scoped SSE queue
     create_job_queue(safe_user_id, safe_job_id)
 
-    # 6. Dispatch Background Task with RESOLVED inputs
+    # Prepare callbacks
+    sse_callback = ServerSSERenderer(safe_user_id, safe_job_id)
+    console_callback = ConsoleRenderer(safe_user_id, safe_job_id)
+    callbacks = [cast(WorkflowCallback, sse_callback), cast(WorkflowCallback, console_callback)]
+
+    # Dispatch Background Task with RESOLVED inputs
     background_tasks.add_task(
         run_workflow_background,
         safe_user_id,
         safe_job_id,
-        workflow_id,
-        resolved_inputs,  # Pass the resolved paths to the engine
         engine,
         registry,
+        callbacks,
     )
 
     print(f"submitted workflow {workflow_id}")
