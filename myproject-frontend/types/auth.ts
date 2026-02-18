@@ -29,3 +29,15 @@ export interface LogoutState {
   error?: string;
   success?: boolean;
 }
+
+export interface RegisterState {
+  success?: boolean;
+  error?: string;
+  fieldErrors?: {
+    username?: string[];
+    email?: string[];
+    password?: string[];
+    full_name?: string[];
+    confirmPassword?: string[];
+  };
+}

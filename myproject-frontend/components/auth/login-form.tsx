@@ -3,6 +3,7 @@
 import { useActionState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { loginAction } from '@/app/actions/auth';
+import Link from 'next/link';
 import type { LoginState } from '@/types/auth';
 
 export default function LoginForm() {
@@ -82,6 +83,13 @@ export default function LoginForm() {
       >
         {isPending ? 'Signing in...' : 'Sign in'}
       </button>
+      <div className="mt-4 text-center text-sm">
+        <span className="text-gray-600">Don't have an account? </span>
+        <Link href="/register" className="font-medium text-blue-600 hover:text-blue-500">
+          Register now
+        </Link>
+      </div>
     </form>
+
   );
 }
