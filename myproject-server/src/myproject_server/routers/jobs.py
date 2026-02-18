@@ -63,6 +63,23 @@ class ServerSSERenderer:
             )
 
 
+class ConsoleRenderer:
+    """
+    Implements the WorkflowCallback interface to write output to terminal for debugging
+    """
+
+    def __init__(self, user_id: int, job_id: int):
+        self.user_id = user_id
+        self.job_id = job_id
+
+    async def __call__(self, event: WorkflowEvent) -> None:
+        print(f"UserID: {self.user_id}")
+        print(f"JobID: {self.job_id}")
+        print(f"Workflow Event: {event.event_type.value}")
+        print(f"\tStep: {event.step_id}")
+        print(f"\tStep Message: {event.message}")
+
+
 async def run_workflow_background(
     user_id: int,
     job_id: int,
@@ -73,6 +90,7 @@ async def run_workflow_background(
 ):
     # This instance is a WorkflowCallback
     sse_callback = ServerSSERenderer(user_id, job_id)
+    console_callback = ConsoleRenderer(user_id, job_id)
 
     with Session(db_engine) as session:
         job = session.get(WorkflowJob, job_id)
@@ -91,7 +109,9 @@ async def run_workflow_background(
             # Pass our callback in the list
             # engine.run(manifest, inputs, [sse_callback])
             workflow_output = await engine_instance.run(
-                manifest, inputs, [cast(WorkflowCallback, sse_callback)]
+                manifest,
+                inputs,
+                [cast(WorkflowCallback, sse_callback), cast(WorkflowCallback, console_callback)],
             )
 
             job.status = JobStatus.COMPLETED
