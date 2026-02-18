@@ -41,7 +41,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full">
+      <div className="flex h-screen w-full overflow-hidden">
         {/* Navigation Sidebar */}
         <Sidebar collapsible="icon">
           <SidebarHeader className="border-b px-4 py-2">

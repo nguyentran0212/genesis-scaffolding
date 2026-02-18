@@ -17,11 +17,20 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import { Rocket, Loader2 } from 'lucide-react';
 import { createJobAction } from '@/app/actions/job';
 import { toast } from 'sonner';
 import { SandboxFilePicker } from '@/components/dashboard/sandbox-file-picker';
 import { SandboxMultiFilePicker } from '@/components/dashboard/sandbox-multi-file-picker';
+
+// Heuristic function to guess whether a string input field requires input or textarea
+const isLongTextField = (key: string) => {
+  const longTextKeywords = ['prompt', 'description', 'instruction', 'content', 'text', 'query', 'body', 'markdown', 'summary'];
+  return longTextKeywords.some(keyword => key.toLowerCase().includes(keyword));
+};
+
 
 export function WorkflowForm({ workflow }: { workflow: WorkflowManifest }) {
   const schema = generateZodSchema(workflow);
@@ -98,9 +107,39 @@ export function WorkflowForm({ workflow }: { workflow: WorkflowManifest }) {
                           />
                         );
                       case 'bool':
-                        {/* We can eventually add a Switch here */ }
-                        return <Input {...field} value={field.value ?? ''} />;
+                        return (
+                          <div className="flex items-center space-x-2 pt-2">
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                              disabled={isPending}
+                            />
+                            <span className="text-sm text-muted-foreground">Enable this option</span>
+                          </div>
+                        );
+                      case 'int':
+                      case 'float':
+                        return (
+                          <Input
+                            type="number"
+                            {...field}
+                            disabled={isPending}
+                            onChange={(e) => field.onChange(config.type === 'int' ? parseInt(e.target.value) : parseFloat(e.target.value))}
+                          />
+                        );
+                      case 'string':
                       default:
+                        if (isLongTextField(key)) {
+                          return (
+                            <Textarea
+                              placeholder={config.description}
+                              className="min-h-[120px] resize-y"
+                              {...field}
+                              disabled={isPending}
+                              value={field.value ?? ''}
+                            />
+                          );
+                        }
                         return (
                           <Input
                             placeholder={config.description}
