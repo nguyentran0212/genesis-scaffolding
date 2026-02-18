@@ -24,9 +24,10 @@ import {
 } from 'lucide-react';
 import LogoutButton from '@/components/auth/logout-button';
 import Link from 'next/link';
+import DynamicHeader from '@/components/dashboard/dynamic-header';
 
 const navItems = [
-  { title: "Workflow Catalog", url: "/dashboard", icon: LayoutDashboard },
+  { title: "Workflow Catalog", url: "/dashboard/workflows", icon: LayoutDashboard },
   { title: "Job History", url: "/dashboard/jobs", icon: History },
   { title: "Sandbox", url: "/dashboard/sandbox", icon: Box },
 ];
@@ -44,10 +45,12 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         {/* Navigation Sidebar */}
         <Sidebar collapsible="icon">
           <SidebarHeader className="border-b px-4 py-2">
-            <div className="flex items-center gap-2 font-semibold">
-              <FileCode className="h-6 w-6" />
-              <span className="group-data-[collapsible=icon]:hidden">Workflow Engine</span>
-            </div>
+            <Link href="/dashboard/">
+              <div className="flex items-center gap-2 font-semibold">
+                <FileCode className="h-6 w-6" />
+                <span className="group-data-[collapsible=icon]:hidden uppercase font-black tracking-tighter text-xl text-slate-900 dark:text-white">myproject</span>
+              </div>
+            </Link>
           </SidebarHeader>
 
           <SidebarContent>
@@ -85,8 +88,9 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         <div className="flex flex-1 flex-col">
           <header className="flex h-16 items-center border-b px-6">
             <SidebarTrigger />
-            <div className="ml-4 flex-1">
-              <h2 className="text-lg font-semibold tracking-tight">System</h2>
+            <div className="h-6 w-[1px] bg-slate-200 dark:bg-slate-800" /> {/* Vertical Divider */}
+            <div className="m-3 flex-1">
+              <DynamicHeader />
             </div>
           </header>
 
