@@ -14,6 +14,7 @@ from sqlmodel import Session, select
 
 from .database import get_session
 from .models.user import User
+from .scheduler import SchedulerManager
 from .schemas.auth import TokenData
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
@@ -97,6 +98,13 @@ def get_workflow_engine(
     if hasattr(request.app.state, "engine"):
         return request.app.state.engine
     return WorkflowEngine(wm, agent_reg)
+
+
+def get_scheduler_manager(request: Request) -> SchedulerManager:
+    """
+    Dependency to retrieve the global scheduler manager from the app state.
+    """
+    return request.app.state.scheduler
 
 
 # --- Type Aliases for Clean Routers ---

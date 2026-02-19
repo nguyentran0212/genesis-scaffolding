@@ -12,7 +12,7 @@ from pydantic import BaseModel, ConfigDict, field_validator
 
 from myproject_core.agent_registry import AgentRegistry
 
-from .workspace import JobContext
+from .schemas import JobContext
 
 
 ### BASE TASK CLASS

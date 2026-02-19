@@ -2,18 +2,42 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from myproject_core.agent_registry import AgentRegistry
 from myproject_core.configs import settings
+from myproject_core.workflow_engine import WorkflowEngine
+from myproject_core.workflow_registry import WorkflowRegistry
+from myproject_core.workspace import WorkspaceManager
 
 from .database import init_db
-from .routers import auth, files, jobs, users, workflows
+from .routers import auth, files, jobs, schedules, users, workflows
+from .scheduler import SchedulerManager
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # This runs on startup
-    # 1. Pings DB (Postgres check)
-    # 2. Creates tables/file (SQLite check)
+    # Initialise databases
     init_db()
+    # Initialize Core Workflow Infrastructure
+    workspace = WorkspaceManager(settings)
+    registry = WorkflowRegistry(settings)
+    agent_registry = AgentRegistry(settings)
+    engine = WorkflowEngine(workspace, agent_registry)
+
+    # 3. Initialize & Start Scheduler
+    sm = SchedulerManager(engine, registry)
+
+    # Load existing schedules from DB into memory
+    await sm.sync_schedules()
+    sm.start()
+
+    # 4. Store in app state for dependencies
+    app.state.scheduler = sm
+
+    yield
+
+    # 5. Shutdown Logic
+    sm.scheduler.shutdown()
     yield
     # Cleanup logic (if any) goes here
 
@@ -35,6 +59,7 @@ app.include_router(users.router)
 app.include_router(files.router)
 app.include_router(workflows.router)
 app.include_router(jobs.router)
+app.include_router(schedules.router)
 
 
 @app.get("/health")

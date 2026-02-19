@@ -65,6 +65,7 @@ class ServerConfig(BaseModel):
     admin_username: str | None = None
     admin_password: str | None = None
     admin_email: str | None = None
+    timezone: str = "Australia/Adelaide"  # Default timezone for the server
 
 
 class DatabaseConfig(BaseModel):

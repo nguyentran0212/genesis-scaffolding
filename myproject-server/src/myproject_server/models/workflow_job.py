@@ -1,11 +1,12 @@
 from datetime import datetime, timezone
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Optional
 
 from sqlmodel import JSON, Column, Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
     from .user import User
+    from .workflow_schedule import WorkflowSchedule
 
 
 class JobStatus(str, Enum):
@@ -35,3 +36,5 @@ class WorkflowJob(WorkflowJobBase, table=True):
 
     user_id: int = Field(foreign_key="user.id", index=True)
     user: "User" = Relationship()
+    schedule_id: int | None = Field(default=None, foreign_key="workflowschedule.id", nullable=True)
+    schedule: Optional["WorkflowSchedule"] = Relationship(back_populates="jobs")

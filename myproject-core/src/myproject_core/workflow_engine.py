@@ -4,11 +4,18 @@ from typing import Any
 
 from .agent_registry import AgentRegistry
 from .configs import settings
-from .schemas import WorkflowCallback, WorkflowEvent, WorkflowEventType, WorkflowManifest, WorkflowOutput
+from .schemas import (
+    JobContext,
+    WorkflowCallback,
+    WorkflowEvent,
+    WorkflowEventType,
+    WorkflowManifest,
+    WorkflowOutput,
+)
 from .utils import evaluate_condition, resolve_placeholders
 from .workflow_registry import WorkflowRegistry
 from .workflow_tasks import TASK_LIBRARY
-from .workspace import JobContext, WorkspaceManager
+from .workspace import WorkspaceManager
 
 
 class WorkflowEngine:
