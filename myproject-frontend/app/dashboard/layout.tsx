@@ -20,7 +20,8 @@ import {
   Settings,
   Box,
   History,
-  FileCode
+  FileCode,
+  AlarmClock
 } from 'lucide-react';
 import LogoutButton from '@/components/auth/logout-button';
 import Link from 'next/link';
@@ -29,6 +30,7 @@ import DynamicHeader from '@/components/dashboard/dynamic-header';
 const navItems = [
   { title: "Workflow Catalog", url: "/dashboard/workflows", icon: LayoutDashboard },
   { title: "Job History", url: "/dashboard/jobs", icon: History },
+  { title: "Schedules", url: "/dashboard/schedules", icon: AlarmClock },
   { title: "Sandbox", url: "/dashboard/sandbox", icon: Box },
 ];
 

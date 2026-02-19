@@ -24,6 +24,7 @@ import { createJobAction } from '@/app/actions/job';
 import { toast } from 'sonner';
 import { SandboxFilePicker } from '@/components/dashboard/sandbox-file-picker';
 import { SandboxMultiFilePicker } from '@/components/dashboard/sandbox-multi-file-picker';
+import { WorkflowFieldsRenderer } from '@/components/dashboard/workflow-fields-renderer';
 
 // Heuristic function to guess whether a string input field requires input or textarea
 const isLongTextField = (key: string) => {
@@ -77,87 +78,11 @@ export function WorkflowForm({ workflow }: { workflow: WorkflowManifest }) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        {Object.entries(workflow.inputs).map(([key, config]) => (
-          <FormField
-            key={key}
-            control={form.control}
-            name={key}
-            render={({ field }) => (
-              <FormItem className="bg-white p-4 rounded-lg border shadow-sm">
-                <FormLabel className="text-base font-semibold capitalize">
-                  {key.replace(/_/g, ' ')}
-                </FormLabel>
-                <FormControl>
-                  {(() => {
-                    switch (config.type) {
-                      case 'file':
-                        return (
-                          <SandboxFilePicker
-                            value={field.value} // Remove ?? ''
-                            onChange={field.onChange}
-                            placeholder={config.description}
-                          />
-                        );
-                      case 'list[file]':
-                        return (
-                          <SandboxMultiFilePicker
-                            value={field.value || []}
-                            onChange={field.onChange}
-                            placeholder={config.description}
-                          />
-                        );
-                      case 'bool':
-                        return (
-                          <div className="flex items-center space-x-2 pt-2">
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                              disabled={isPending}
-                            />
-                            <span className="text-sm text-muted-foreground">Enable this option</span>
-                          </div>
-                        );
-                      case 'int':
-                      case 'float':
-                        return (
-                          <Input
-                            type="number"
-                            {...field}
-                            disabled={isPending}
-                            onChange={(e) => field.onChange(config.type === 'int' ? parseInt(e.target.value) : parseFloat(e.target.value))}
-                          />
-                        );
-                      case 'string':
-                      default:
-                        if (isLongTextField(key)) {
-                          return (
-                            <Textarea
-                              placeholder={config.description}
-                              className="min-h-[120px] resize-y"
-                              {...field}
-                              disabled={isPending}
-                              value={field.value ?? ''}
-                            />
-                          );
-                        }
-                        return (
-                          <Input
-                            placeholder={config.description}
-                            {...field}
-                            disabled={isPending}
-                            value={field.value ?? ''}
-                          />
-                        );
-                    }
-                  })()}
-                </FormControl>
-                <FormDescription>{config.description}</FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        ))}
-
+        <WorkflowFieldsRenderer
+          workflow={workflow}
+          control={form.control}
+          disabled={isPending}
+        />
         <Button
           type="submit"
           size="lg"

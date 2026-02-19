@@ -11,6 +11,7 @@ import { WorkflowJob } from "@/types/job";
 import { formatDistanceToNow } from "date-fns";
 import Link from "next/link";
 import { ChevronRight, Clock, AlertCircle, CheckCircle2, PlayCircle } from "lucide-react";
+import { formatRelativeTime } from '@/lib/date-utils';
 
 export function JobsTable({ jobs }: { jobs: WorkflowJob[] }) {
   const getStatusIcon = (status: string) => {
@@ -57,7 +58,7 @@ export function JobsTable({ jobs }: { jobs: WorkflowJob[] }) {
                   </div>
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
-                  {formatDistanceToNow(new Date(job.created_at), { addSuffix: true })}
+                  {formatRelativeTime(job.created_at)}
                 </TableCell>
                 <TableCell className="text-right">
                   <Link
