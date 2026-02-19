@@ -40,7 +40,7 @@ The project follows the Next.js App Router conventions with a domain-driven orga
   * `workflow.ts`: Workflow manifest retrieval and execution triggers.
   * `job.ts`: Polling and result retrieval for background tasks.
   * `sandbox.ts`: File management (upload/delete/list) within the user's persistent storage.
-
+  * `schedule.ts`: CRUD operations for automated workflow triggers.
 
 * **`/api/[...proxy]`**: A catch-all route handler. It proxies client-side requests to the FastAPI backend to bypass CORS, manage file downloads via secure JWT injection, and hide backend origin.
 
@@ -49,7 +49,8 @@ The project follows the Next.js App Router conventions with a domain-driven orga
   * `/dashboard/workflows`: Gallery of executable tools.
   * `/dashboard/jobs`: Real-time monitoring of active and historical executions.
   * `/dashboard/sandbox`: Full-featured file explorer for user assets.
-
+  * `/dashboard/schedules`: Management console for automations.
+  * `/dashboard/schedules/[id]`: Detailed execution history for a specific schedule.
 
 ### `/lib` (Core Logic)
 
@@ -57,13 +58,15 @@ The project follows the Next.js App Router conventions with a domain-driven orga
 * **`session.ts`**: Low-level cookie management for tokens using `next/headers`.
 * **`workflow-utils.ts`**: Dynamic **Zod schema generation** logic. Converts FastAPI-provided tool manifests into runtime validation schemas for React Hook Form.
 * **`job-utils.ts`**: Helpers for parsing status states and formatting execution results.
+* **`date-utils.ts`**: Normalization of backend UTC timestamps for consistent local browser rendering.
 
 ### `/components` (UI Layer)
 
 * **`/auth`**: Login forms and logout triggers.
 
 * **`/dashboard`**: Domain-specific UI for the core application.
-  * **Workflow Execution**: `workflow-form.tsx` (dynamic form renderer) and `workflow-card.tsx`.
+  * **Workflow Execution**: `workflow-form.tsx` and `workflow-fields-renderer.tsx` (Shared logic for dynamic input generation).
+  * **Automation**: `schedule-table.tsx`, `schedule-form.tsx`, and `timezone-select.tsx`.
   * **File Management**: Modular components including `sandbox-file-explorer.tsx`, `standalone-upload-button.tsx`, and `file-browser-modal.tsx`.
   * **File Picking**: Specialized inputs like `sandbox-file-picker.tsx` (single) and `sandbox-multi-file-picker.tsx` (array) that interface with the Sandbox API.
   * **Job Results**: Detailed views for downloads, status banners, and text outputs.
@@ -76,13 +79,14 @@ The project follows the Next.js App Router conventions with a domain-driven orga
   * `workflow.ts`: Definitions for inputs, manifests, and parameter types.
   * `sandbox.ts`: Metadata structures for files and folders.
   * `job.ts`: Status enums and result payload interfaces.
-
+  * `schedule.ts`: Definitions for Cron expressions, IANA timezones, and Schedule entities.
 
 ### Key Technical Patterns Implemented
 
 * **Dynamic Validation**: Utilizing `generateZodSchema` to bridge the gap between backend-defined tool inputs and frontend form validation.
-* **Atomic File Handling**: Decoupling file uploads into a `StandaloneUploadButton` to allow consistent behavior across both the full Sandbox Explorer and the Workflow inline pickers.
-* **Stateful Syncing**: Implementing `revalidateTag('sandbox')` across server actions to ensure that uploading a file in a modal instantly updates the background file explorer state.
+* **Smart Component Reuse**: The `WorkflowFieldsRenderer` decouples workflow input logic from execution logic, allowing the same high-fidelity UI (File Pickers, Smart Textareas) to be used for both manual execution and schedule configuration.
+* **Timezone-Aware Persistence**: Capturing the user's specific IANA timezone and absolute sandbox directory during schedule creation to ensure deterministic background execution.
+* **Stateful Syncing**: Implementing `revalidateTag('schedules')` to ensure real-time updates of the background scheduler state across the dashboard.
 
 ---
 
