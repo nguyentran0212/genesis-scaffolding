@@ -15,8 +15,8 @@ import { Button } from '@/components/ui/button';
 import { Calendar, Clock, Trash2, ExternalLink } from 'lucide-react';
 import { updateScheduleAction, deleteScheduleAction } from '@/app/actions/schedule';
 import { toast } from 'sonner';
-import { formatDistanceToNow } from 'date-fns';
 import { formatRelativeTime } from '@/lib/date-utils';
+import Link from 'next/link';
 
 interface ScheduleTableProps {
   schedules: WorkflowSchedule[];
@@ -72,7 +72,14 @@ export function ScheduleTable({ schedules }: ScheduleTableProps) {
                   onCheckedChange={() => handleToggle(schedule)}
                 />
               </TableCell>
-              <TableCell className="font-medium">{schedule.name}</TableCell>
+              <TableCell className="font-medium">
+                <Link
+                  href={`/dashboard/schedules/${schedule.id}`}
+                  className="hover:underline hover:text-primary transition-colors"
+                >
+                  {schedule.name}
+                </Link>
+              </TableCell>
               <TableCell>
                 <Badge variant="outline" className="font-mono">
                   {schedule.workflow_id}

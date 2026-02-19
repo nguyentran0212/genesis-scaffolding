@@ -47,6 +47,18 @@ async def list_schedules(
     return session.exec(statement).all()
 
 
+@router.get("/{schedule_id}", response_model=WorkflowScheduleRead)
+async def get_schedule(
+    schedule_id: int,
+    user: Annotated[User, Depends(get_current_active_user)],
+    session: Annotated[Session, Depends(get_session)],
+):
+    schedule = session.get(WorkflowSchedule, schedule_id)
+    if not schedule or schedule.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Schedule not found")
+    return schedule
+
+
 @router.patch("/{schedule_id}", response_model=WorkflowScheduleRead)
 async def update_schedule(
     schedule_id: int,

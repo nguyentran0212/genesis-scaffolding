@@ -174,6 +174,7 @@ async def list_jobs(
     session: Annotated[Session, Depends(get_session)],
     offset: int = 0,
     limit: int = 20,
+    schedule_id: int | None = None,
 ):
     """
     Get all jobs for the current user, ordered by newest first.
@@ -185,6 +186,10 @@ async def list_jobs(
         .offset(offset)
         .limit(limit)
     )
+
+    if schedule_id:
+        statement = statement.where(WorkflowJob.schedule_id == schedule_id)
+
     jobs = session.exec(statement).all()
     return jobs
 

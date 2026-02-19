@@ -41,7 +41,7 @@ export async function createJobAction(workflowId: string, inputs: Record<string,
   redirect(`/dashboard/jobs/${job_id}`);
 }
 
-export async function getJobsAction(limit: number = 20, offset: number = 0): Promise<WorkflowJob[]> {
+export async function getJobsAction(limit: number = 20, offset: number = 0, scheduleId?: number): Promise<WorkflowJob[]> {
   const token = await getAccessToken();
 
   if (!token) throw new Error('Unauthorized');
@@ -50,6 +50,10 @@ export async function getJobsAction(limit: number = 20, offset: number = 0): Pro
     limit: limit.toString(),
     offset: offset.toString(),
   });
+
+  if (scheduleId) {
+    params.append('schedule_id', scheduleId.toString());
+  }
 
   const response = await fetch(`${FASTAPI_URL}/jobs/?${params}`, {
     method: 'GET',

@@ -30,6 +30,30 @@ export async function getSchedulesAction(): Promise<WorkflowSchedule[]> {
 }
 
 /**
+ * Fetch one schedule object
+ */
+export async function getScheduleByIdAction(id: number): Promise<WorkflowSchedule> {
+  const token = await getAccessToken();
+  if (!token) throw new Error('Unauthorized');
+
+  const response = await fetch(`${FASTAPI_URL}/schedules/${id}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    next: { tags: [`schedule-${id}`], revalidate: 60 }
+  });
+
+  if (!response.ok) {
+    if (response.status === 404) throw new Error('Schedule not found');
+    throw new Error('Failed to fetch schedule');
+  }
+
+  return response.json();
+}
+
+/**
  * Create a new workflow schedule
  */
 export async function createScheduleAction(data: CreateScheduleInput): Promise<WorkflowSchedule> {
