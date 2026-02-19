@@ -9,7 +9,7 @@ import type { LoginState } from '@/types/auth';
 export default function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const from = searchParams.get('from') || '/';
+  const from = searchParams.get('from') || '/dashboard';
 
   const [state, formAction, isPending] = useActionState<LoginState, FormData>(
     loginAction,

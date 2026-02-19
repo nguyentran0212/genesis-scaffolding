@@ -38,7 +38,6 @@ async def lifespan(app: FastAPI):
 
     # 5. Shutdown Logic
     sm.scheduler.shutdown(wait=False)
-    yield
     # Cleanup logic (if any) goes here
 
 

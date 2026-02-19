@@ -73,13 +73,13 @@ export async function proxy(request: NextRequest) {
 
   // Redirect both root and dashboard to dashboard/workflows
   if (pathname === '/') {
-    return NextResponse.redirect(new URL('/dashboard/workflows', request.url));
+    return NextResponse.redirect(new URL('/dashboard', request.url));
   }
-
-  if (pathname === '/dashboard' || pathname === '/dashboard/') {
-    return NextResponse.redirect(new URL('/dashboard/workflows', request.url));
-  }
-
+  //
+  // if (pathname === '/dashboard' || pathname === '/dashboard/') {
+  //   return NextResponse.redirect(new URL('/dashboard/workflows', request.url));
+  // }
+  //
   // If hitting /login or /register, ALWAYS clear tokens first. This step prevents the redirection loop with the backend changes its JWT key
   if (isAuthPath) {
     console.log('[Middleware] ACTION: Entering Auth Path, purging existing tokens');
