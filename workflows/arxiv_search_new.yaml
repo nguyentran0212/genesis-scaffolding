@@ -1,0 +1,54 @@
+name: "Smart Arxiv Finder"
+description: "Search, download, and summarize relevant papers on Arxiv"
+version: "1.0"
+inputs:
+  topic:
+    type: "string"
+    description: "Topic for searching arxiv"
+  max_results:
+    type: "int"
+    description: "Max number of papers to retrieve"
+    default: 5
+
+steps:
+  - id: "search_web"
+    type: "web_search"
+    params:
+      query: "{{ inputs.topic }} arxiv papers latest"
+
+  - id: "extract_ids"
+    type: "list_extractor"  # The new step
+    params:
+      agent: "simple_agent"
+      files_to_read: "{{ steps.search_web.file_paths }}"
+      prompt: "Extract all Arxiv IDs found in these search results."
+      expected_item_type: "Arxiv IDs (e.g., 2301.12345)"
+      max_number: "{{ inputs.max_results }}"
+
+  - id: "download_papers"
+    type: "arxiv_download"
+    params:
+      arxiv_paper_ids: "{{ steps.extract_ids.content }}"
+
+  - id: "summarize_results"
+    type: "prompt_agent"
+    params:
+      agent: "simple_agent"
+      prompts: 
+        - |
+          Please summarize the latest discovered arxiv papers on the topic {{ inputs.topic }}.
+
+          The information about the discovered papers are below as retrieved from Arxiv. 
+          There might be multiple papers in the search results. Please cover all of them in your summary.
+
+          ## Information about Discovered papers
+          
+          {{ steps.download_papers.content }}
+      write_response_to_file: True
+      write_response_to_output: True
+      output_filename: "search_result_summary.md"
+
+outputs:
+  search_results:
+    description: "Summary of search results"
+    value: "{{ steps.summarize_results.content[0] }}"
