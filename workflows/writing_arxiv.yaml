@@ -32,53 +32,55 @@ steps:
   - id: "arxiv_download"
     type: "arxiv_download"
     params:
-      arxiv_paper_id: "{{ inputs.arxiv_paper_id }}"
+      arxiv_paper_ids: 
+        - "{{ inputs.arxiv_paper_id }}"
 
   - id: "agent_outline"
     type: "prompt_agent"
     params:
-      files_to_read:
-        - "{{ steps.arxiv_download.file_paths[1] }}"
+      files_to_read: "{{ steps.arxiv_download.file_paths}}"
       agent: "technical_writer_outline"
-      prompt: |
-        Create a detailed outline for a blog post promoting the research from the paper provided in your clipboard.
+      prompts: 
+        - |
+          Create a detailed outline for a blog post promoting the research from the paper provided in your clipboard.
 
-        Ensure that you provide an introduction to the paper in the opening hook.
+          Ensure that you provide an introduction to the paper in the opening hook.
 
-        Don't try to mimic the structure of a research paper. Instead, structure the blog post organically so that it is readable to technical readers.
+          Don't try to mimic the structure of a research paper. Instead, structure the blog post organically so that it is readable to technical readers.
 
-        Ensure it is structured for a {{ inputs.content_length }} word article.
+          Ensure it is structured for a {{ inputs.content_length }} word article.
 
-        ## Paper's details
+          ## Paper's details
 
-        {{ steps.arxiv_download.content }}
+          {{ steps.arxiv_download.content }}
 
-        ## Additional User's Instructions About the Blog Post
+          ## Additional User's Instructions About the Blog Post
 
-        {{ inputs.writing_instruction }}
+          {{ inputs.writing_instruction }}
 
-        Only write the content of the outline in your output.
+          Only write the content of the outline in your output.
       output_filename: "agent_outline.md"
 
   - id: "agent_drafting"
     type: "prompt_agent"
     params:
       files_to_read:
-        - "{{ steps.arxiv_download.file_paths[1] }}"
+        - "{{ steps.arxiv_download.file_paths[0] }}"
         - "internal/agent_outline.md"
       agent: "technical_writer_draft"
-      prompt: |
-        Please write the article about the paper based on the outine. 
-        Both the source paper and the outline are provided in your clipboard.
-        Target length is {{ inputs.content_length }} words. 
-        
-        ## Paper's details
+      prompts:
+        - | 
+          Please write the article about the paper based on the outine. 
+          Both the source paper and the outline are provided in your clipboard.
+          Target length is {{ inputs.content_length }} words. 
+          
+          ## Paper's details
 
-        {{ steps.arxiv_download.content }}
+          {{ steps.arxiv_download.content }}
 
-        ## Additional User's Instructions About the Blog Post
+          ## Additional User's Instructions About the Blog Post
 
-        {{ inputs.writing_instruction }}
+          {{ inputs.writing_instruction }}
       output_filename: "agent_draft.md"
 
 
@@ -89,20 +91,21 @@ steps:
       files_to_read:
         - "internal/agent_outline.md"
         - "internal/agent_draft.md"
-      prompt: |
-        Review and polish the blog post draft provided in your clipboard.
-        The draft is supposed to follow the outline, which is also provided in your clipboard
-        Target length is {{ inputs.content_length }} words. 
+      prompts: 
+        - |
+          Review and polish the blog post draft provided in your clipboard.
+          The draft is supposed to follow the outline, which is also provided in your clipboard
+          Target length is {{ inputs.content_length }} words. 
 
-        ## Paper's details
+          ## Paper's details
 
-        {{ steps.arxiv_download.content }}
+          {{ steps.arxiv_download.content }}
 
-        ## Additional User's Instructions About the Blog Post
+          ## Additional User's Instructions About the Blog Post
 
-        {{ inputs.writing_instruction }}
+          {{ inputs.writing_instruction }}
 
-        Remember to remove all the comments, prefix, postfix, and any mentioning of word counts.
+          Remember to remove all the comments, prefix, postfix, and any mentioning of word counts.
       output_filename: "agent_final.md"
       write_response_to_output: True
 
@@ -112,16 +115,17 @@ steps:
       agent: "technical_writer_twitter"
       files_to_read:
         - "internal/agent_final.md"
-      prompt: |
-        The blog post that you need to write twitter thread to promote is in your clipboard.
+      prompts: 
+        - |
+          The blog post that you need to write twitter thread to promote is in your clipboard.
 
-        ## Additional User's Instructions
+          ## Additional User's Instructions
 
-        {{ inputs.writing_instruction }}
+          {{ inputs.writing_instruction }}
 
-        ## Paper's details
+          ## Paper's details
 
-        {{ steps.arxiv_download.content }}
+          {{ steps.arxiv_download.content }}
       output_filename: "twitter_thread.md"
       write_response_to_output: True
 
@@ -131,16 +135,17 @@ steps:
       agent: "technical_writer_linkedin"
       files_to_read:
         - "internal/agent_final.md"
-      prompt: |
-        The blog post that you need to write linkedin post to promote is in your clipboard
+      prompts: 
+        - |
+          The blog post that you need to write linkedin post to promote is in your clipboard
 
-        ## Additional User's Instructions
+          ## Additional User's Instructions
 
-        {{ inputs.writing_instruction }}
+          {{ inputs.writing_instruction }}
 
-        ## Paper's details
+          ## Paper's details
 
-        {{ steps.arxiv_download.content }}
+          {{ steps.arxiv_download.content }}
       output_filename: "linkedin_post.md"
       write_response_to_output: True
 
@@ -150,8 +155,9 @@ steps:
       agent: "technical_writer_visual"
       files_to_read:
         - "internal/agent_final.md"
-      prompt: |
-        The source material you need to work on is provided in your clipboard.
+      prompts: 
+        - |
+          The source material you need to work on is provided in your clipboard.
       output_filename: "visual_recommendations.md"
       write_response_to_output: True
 

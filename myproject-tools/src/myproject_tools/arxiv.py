@@ -283,6 +283,46 @@ def search_papers(
     return results
 
 
+def search_papers_with_downloads(
+    query: str,
+    max_results: int = 10,
+    download_dir: Path = None,
+) -> list[dict]:
+    """
+    Search papers and automatically trigger download/MD conversion for each.
+    Returns a list of dicts where each dict contains metadata + 'pdf_path' + 'md_path'.
+    """
+
+    search = arxiv.Search(query=query, max_results=max_results, sort_by=arxiv.SortCriterion.Relevance)
+    client = arxiv.Client(num_retries=2)
+
+    results = []
+    # Process results one by one (Sequential)
+    for result in client.results(search):
+        paper_id = result.entry_id.split("/")[-1]
+
+        # Use get_paper_details to handle the actual file heavy-lifting
+        # This ensures we get the exact 'pdf_path' and 'md_path' generated
+        details = get_paper_details(paper_id=paper_id, download_dir=download_dir, download_pdf=True)
+
+        if details:
+            # Combine original metadata with our local file paths
+            # You can include title, summary, etc. from result here
+            combined_info = {
+                "id": paper_id,
+                "title": result.title,
+                "summary": result.summary,
+                "pdf_path": details["pdf_path"],
+                "md_path": details["md_path"],
+            }
+            results.append(combined_info)
+
+        if len(results) >= max_results:
+            break
+
+    return results
+
+
 def main():
     print("reached main")
     # output_path = download_paper_pdf(paper_id="2506.02153", download_dir=Path("./inbox"))

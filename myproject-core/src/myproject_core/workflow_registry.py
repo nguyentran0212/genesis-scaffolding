@@ -3,7 +3,7 @@ import jinja2
 from .configs import Config
 from .schemas import WorkflowManifest
 from .utils import resolve_placeholders
-from .workflow_tasks import TASK_LIBRARY
+from .workflow_tasks.registry import TASK_LIBRARY
 
 
 class WorkflowRegistry:

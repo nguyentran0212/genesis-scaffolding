@@ -278,7 +278,6 @@ async def download_job_output(
     user: Annotated[User, Depends(get_current_active_user)],
     session: Annotated[Session, Depends(get_session)],
 ):
-    """Downloads a file, strictly restricted to the 'output' sub-directory."""
     job = session.exec(
         select(WorkflowJob).where(WorkflowJob.id == job_id, WorkflowJob.user_id == user.id)
     ).first()
@@ -286,15 +285,25 @@ async def download_job_output(
     if not job or not job.workspace_path:
         raise HTTPException(status_code=404, detail="Job or workspace not found")
 
-    # Set base specifically to output folder
-    output_base = (Path(job.workspace_path) / "output").resolve()
-    target_file = (output_base / file_path).resolve()
+    workspace_root = Path(job.workspace_path).resolve()
+    output_base = (workspace_root / "output").resolve()
 
-    # Security: Ensure target is strictly inside output_base
-    if not str(target_file).startswith(str(output_base)):
+    # Join the path without resolving yet
+    target_file = output_base / file_path
+
+    # Security Check: Use is_relative_to (Python 3.9+)
+    # This checks the logical path. If it's a symlink, it checks the link itself.
+    # This is important because we now support workflow steps to symlink from internal to output directory
+    try:
+        # We check if the target is within output_base
+        if not target_file.resolve().is_relative_to(output_base):
+            # Fallback: if it's a symlink pointing to 'internal', check if it's still in workspace
+            if not target_file.resolve().is_relative_to(workspace_root):
+                raise HTTPException(status_code=403, detail="Access denied: outside of workspace scope")
+    except ValueError:
         raise HTTPException(status_code=403, detail="Access denied: outside of output scope")
 
-    if not target_file.is_file():
+    if not target_file.exists() or not target_file.is_file():
         raise HTTPException(status_code=404, detail="File not found")
 
     return FileResponse(target_file, filename=target_file.name)

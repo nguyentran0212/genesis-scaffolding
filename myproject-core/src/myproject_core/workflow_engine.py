@@ -14,7 +14,7 @@ from .schemas import (
 )
 from .utils import evaluate_condition, resolve_placeholders
 from .workflow_registry import WorkflowRegistry
-from .workflow_tasks import TASK_LIBRARY
+from .workflow_tasks.registry import TASK_LIBRARY
 from .workspace import WorkspaceManager
 
 

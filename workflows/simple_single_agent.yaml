@@ -22,9 +22,9 @@ steps:
     type: "prompt_agent"
     params:
       agent: "simple_agent"
-      files_to_read:
-        - "input"
-      prompt: "{{ inputs.user_query }}"
+      files_to_read: "{{ inputs.input_files }}"
+      prompts: 
+        - "{{ inputs.user_query }}"
       write_response_to_file: True
       write_response_to_output: True
       output_filename: "agent_response.md"
