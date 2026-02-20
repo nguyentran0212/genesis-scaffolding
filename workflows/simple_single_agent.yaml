@@ -22,7 +22,7 @@ steps:
     type: "prompt_agent"
     params:
       agent: "simple_agent"
-      files_to_read: "{{ inputs.input_files }}"
+      files_to_read: "{{ steps.file_ingest_step.readable_paths }}"
       prompts: 
         - "{{ inputs.user_query }}"
       write_response_to_file: True

@@ -1,23 +1,9 @@
 import asyncio
 import random
+from typing import Any
 
 import requests
 import trafilatura
-from pydantic import BaseModel
-
-
-class FetchResult(BaseModel):
-    url: str  # Original URL requested
-    final_url: str | None = None  # URL after redirects
-    status_code: int | None = None
-    title: str | None = None
-    content: str | None = None  # Markdown content
-    raw_html_len: int = 0
-    error: str | None = None  # Error message if fetch failed
-
-    @property
-    def is_success(self) -> bool:
-        return self.error is None and self.content is not None
 
 
 def get_random_user_agent() -> str:
@@ -36,7 +22,7 @@ async def fetch_page(
     delay_range: tuple = (1, 3),
     headers: dict[str, str] | None = None,
     cookies: dict[str, str] | None = None,
-) -> FetchResult:
+) -> dict[str, Any]:
     """
     Asynchronously fetches a URL and converts it to Markdown.
     Uses asyncio.to_thread to wrap the blocking requests call.
@@ -79,22 +65,26 @@ async def fetch_page(
                 metadata = trafilatura.extract_metadata(response.text)
                 title = metadata.title if metadata else "No Title Found"
 
-                return FetchResult(
-                    url=url,
-                    status_code=response.status_code,
-                    title=title,
-                    content=md_content,
-                    raw_html_len=len(response.text),
-                    final_url=response.url,
-                )
+                return {
+                    "url": url,
+                    "status_code": response.status_code,
+                    "title": title,
+                    "content": md_content or None,
+                    "raw_html_len": len(response.text),
+                    "final_url": response.url,
+                }
 
             except requests.exceptions.RequestException as e:
                 if attempt == max_retries:
-                    status_code = (
-                        getattr(e.response, "status_code", None) if hasattr(e, "response") else None
-                    )
-                    return FetchResult(url=url, status_code=status_code, error=str(e), content=None)
-        return FetchResult(url=url, error="Max retries reached", content=None)
+                    return {
+                        "url": url,
+                        "status_code": getattr(e.response, "status_code", None)
+                        if hasattr(e, "response")
+                        else None,
+                        "error": str(e),
+                        "content": None,
+                    }
+        return {"url": url, "error": "Max retries reached", "content": None}
 
     # Offload the blocking _blocking_fetch to a thread so we can 'await' it
     return await asyncio.to_thread(_blocking_fetch)
@@ -104,7 +94,7 @@ async def main():
     result = await fetch_page(
         "https://www.neowin.net/news/microsoft-reveals-mu-an-on-device-small-language-model-built-into-windows-11/"
     )
-    print(result.content)
+    print(result["content"])
 
 
 if __name__ == "__main__":

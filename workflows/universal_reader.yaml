@@ -1,0 +1,47 @@
+name: "Universal Reader"
+description: "Ingest PDFs, text files, or URLs and get a technical summary and critique."
+version: "1.0"
+
+inputs:
+  urls:
+    type: "list[string]"
+    description: "List of web URLs to analyze"
+    default: []
+  input_files:
+    type: "list[file]"
+    description: "List of files to provide to the agent."
+    default: []
+
+steps:
+  # Step 1: Fetch web content
+  - id: "fetch_web"
+    type: "web_fetch"
+    condition: "{{ inputs.urls | length > 0 }}"
+    params:
+      urls: "{{ inputs.urls }}"
+
+  # Step 2: Ingest local files (and auto-convert PDFs)
+  - id: "ingest_local"
+    type: "file_ingest"
+    condition: "{{ inputs.input_files | length > 0 }}"
+    params:
+      files_to_read: "{{ inputs.input_files }}"
+
+  # Step 3: Combine all readable text paths
+  # We use Jinja to merge the file_paths from web and readable_paths from ingest
+  - id: "analyze"
+    type: "prompt_agent"
+    params:
+      agent: "simple_agent"
+      files_to_read: >
+        {{ (steps['fetch_web']['file_paths'] if 'fetch_web' in steps else []) + 
+           (steps['ingest_local']['readable_paths'] if 'ingest_local' in steps else []) }}
+      prompts:
+        - "Summarize the core arguments and provide a scathing technical critique of these materials."
+      output_filename: "analysis_report.md"
+      write_response_to_output: True
+
+outputs:
+  report:
+    description: "The final analysis"
+    value: "{{ steps.analyze.content }}"
