@@ -416,7 +416,7 @@ steps:
 ```
 
 
-### Arxiv Download
+#### Arxiv Download
 
 **Workflow Step ID:** arxiv_download
 
@@ -438,7 +438,7 @@ class ArxivDownloadTaskParams(TaskParams):
 - `md_paths`: a list of paths to the stored markdown files
 - `pdf_paths`: a list of paths to the stored pdf files
 
-### Web Fetch
+#### Web Fetch
 
 **Workflow Step ID:** web_fetch
 
@@ -456,4 +456,48 @@ class WebFetchTaskParams(TaskParams):
 **Outputs:**
 - `content`: a list of markdown content of the retrieved web pages
 - `file_paths`: a list of path to the stored markdown files
+
+
+
+
+### Reduce Steps
+
+#### Agent Reduce
+
+**Workflow Step ID:** agent_reduce
+
+**What it does:** take an array of input prompts and an array of files to read. All input prompts would be processed by a required LLM agent in **one** step to generate response. The input files are added to the clipboard of the agent to use context for responding. An array of ONE response is returned as the output. 
+
+**Inputs**:
+```python
+class AgentReduceTaskParams(TaskParams):
+    agent: str
+    prompts: list[str]
+    # How to join the input prompts
+    separator: str = "\n\n---\n\n"
+    # An optional final instruction to wrap around the combined text
+    reduction_instruction: str = "Please synthesize the above information into a single, cohesive report."
+    output_filename: str = "summary_report.md"
+
+```
+**Outputs**:
+- `content`: a list of string of responses
+- `file_paths`: a list of Path pointing to response files written to disk
+
+
+## List of Current Agents
+
+At the moment, I treat agent as persona adopted by an LLM. This persona might include specific instructions so that the LLM would perform a certain task "better" (meaning more aligning with my expectation).
+
+The system has following agents out of the box:
+- `simple_agent`: chat and response without any specific "flavour"
+- `research_summary`: produce detailed summary of a given research paper. It was instructed to understand the type of paper (primary study, secondary study, empirical) and extract content appropriately.
+- `research_critic`: produce very tough review of any given research paper. The goal of this agent is to stress-test research methodology and results.
+- `technical_writer_outline`: produce outline for a technical article based on given topic and source material.
+- `technical_writer_draft`: producing written content about a technical article based on given outline and source materials.
+- `technical_writer_editor`: review and edit a given draft of a technical article. 
+- `technical_writer_twitter`: generate twitter thread based on a given technical article.
+- `technical_writer_linkedin`: generate linkedin post based on a given technical article
+- `technical_writer_visual`: generate a list of recommendation about visualisations to add to the given technical article
+
 
