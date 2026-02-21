@@ -37,8 +37,8 @@ steps:
         {{ (steps['fetch_web']['file_paths'] if 'fetch_web' in steps else []) + 
            (steps['ingest_local']['readable_paths'] if 'ingest_local' in steps else []) }}
       prompts:
-        - "Summarize the core arguments and provide a scathing technical critique of these materials."
-      output_filename: "analysis_report.md"
+        - "Summarize the core content of the provided materials in the clipboard."
+      output_filename: "content_summary.md"
       write_response_to_output: True
 
 outputs:

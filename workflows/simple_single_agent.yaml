@@ -1,4 +1,4 @@
-name: "Sample Agent Workflow"
+name: "Simple Agent"
 description: "Ingest input files to agent to answer question."
 version: "1.0"
 

@@ -1,4 +1,4 @@
-name: "Sample Web Search Workflow"
+name: "Search Web and Answer"
 description: "Search the web about a topic and write an answer response based on the web search results."
 version: "1.0"
 

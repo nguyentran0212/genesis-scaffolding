@@ -137,7 +137,11 @@ async def submit_job(
 
     safe_user_id = cast(int, user.id)
     job = await add_workflow_job(
-        inputs=inputs, user_inbox=user_inbox, user_id=safe_user_id, workflow_id=workflow_id
+        inputs=inputs,
+        user_inbox=user_inbox,
+        user_id=safe_user_id,
+        workflow_id=workflow_id,
+        manifest=manifest,
     )
 
     if not job:

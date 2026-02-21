@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, cast
 
-from myproject_core.schemas import WorkflowCallback
+from myproject_core.schemas import WorkflowCallback, WorkflowInputType, WorkflowManifest
 from myproject_core.workflow_engine import WorkflowEngine
 from myproject_core.workflow_registry import WorkflowRegistry
 from sqlmodel import Session
@@ -12,30 +12,43 @@ from ..models.workflow_job import JobStatus, WorkflowJob
 
 
 async def add_workflow_job(
-    inputs: dict[str, Any], user_inbox: Path, user_id: int, workflow_id: str
+    inputs: dict[str, Any],
+    user_inbox: Path,
+    user_id: int,
+    workflow_id: str,
+    manifest: WorkflowManifest,  # <--- Pass the manifest here
 ) -> WorkflowJob | None:
     """
-    Register a workflow job in the database
-    Also resolve the relative path user provides in workflow input to the correct path under their sandbox
+    Register a workflow job in the database.
+    Resolves relative paths to absolute sandbox paths based on the manifest definitions.
     """
     resolved_inputs = inputs.copy()
-    if "input_files" in resolved_inputs:
-        files = resolved_inputs["input_files"]
-        if isinstance(files, list):
-            resolved_inputs["input_files"] = [
-                str(user_inbox / f) if not Path(f).is_absolute() else f for f in files
-            ]
-        elif isinstance(files, str):
-            resolved_inputs["input_files"] = (
-                str(user_inbox / files) if not Path(files).is_absolute() else files
-            )
+
+    # Iterate through the inputs defined in the manifest
+    for input_name, definition in manifest.inputs.items():
+        # Check if this specific input was actually provided by the user
+        if input_name not in resolved_inputs or resolved_inputs[input_name] is None:
+            continue
+
+        val = resolved_inputs[input_name]
+
+        # Handle List of Files
+        if definition.type == WorkflowInputType.LIST_FILE:
+            if isinstance(val, list):
+                resolved_inputs[input_name] = [
+                    str(user_inbox / f) if not Path(f).is_absolute() else f for f in val
+                ]
+
+        # Handle Single File or Directory
+        elif definition.type in [WorkflowInputType.FILE, WorkflowInputType.DIR]:
+            if isinstance(val, str):
+                resolved_inputs[input_name] = str(user_inbox / val) if not Path(val).is_absolute() else val
 
     with Session(db_engine) as session:
-        # Create Job Record with RESOLVED inputs
         job = WorkflowJob(
             workflow_id=workflow_id,
             user_id=user_id,
-            inputs=resolved_inputs,  # Use resolved paths here
+            inputs=resolved_inputs,
             status=JobStatus.PENDING,
         )
         session.add(job)
