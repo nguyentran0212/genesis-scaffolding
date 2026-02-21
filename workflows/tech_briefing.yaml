@@ -6,7 +6,7 @@ inputs:
   topic:
     type: "string"
     description: "Topic for research briefing"
-    default: "AI agent at the edge"
+    default: "Local AI, small language model, and AI agent at the edge"
   feeds:
     type: "list[string]"
     description: "List of RSS feed URLs"
@@ -15,8 +15,7 @@ inputs:
       - "https://research.google/blog/rss/"
       - "https://openai.com/feed.xml?format=xml"
       - "https://feeds.feedburner.com/nvidiablog"
-      - "https://www.anthropic.com/news"
-      - "https://huggingface.co/blog?tag=research"
+      - "https://huggingface.co/blog/feed.xml"
   lookback_days:
     type: "int"
     description: "How many days back to look"
@@ -44,7 +43,7 @@ steps:
       # We pass the list of RSS entries as the prompt for filtering
       prompt:
         - |
-          Below is a list of recent RSS feed items. Analyze them and identify items related to {{ inputs.topic }}.
+          Below is a list of recent RSS feed items. Analyze them and identify items related to the topic of {{ inputs.topic }}.
 
           For each relevant item, extract the URL.
 
@@ -76,13 +75,18 @@ steps:
         TITLE: Name the research briefing using the current date and the title {{ inputs.briefing_title }}.
         
         STRUCTURE:
-        1. The Big Picture: A 1-paragraph overview of the articles we are going to share in this blog post.
-        2. Deep Dive Spotlights: For each article, create a section:
-           - Article Title & Source (Mention the site/company)
-           - The 'What': A technical summary with enough details.
-           - The 'Why': The practical implication for developer.
+        **Overview**: An overview of articles we are going to mention in this briefing. 
+        If the articles we cover has a wide range of topic, then the overview should discuss about the topic from multiple angles.
+
+        **Articles** A list of subsections. Each subsection present one article. 
+        - Section title should be a brief overview of the topic of the article.
+        - Source with link should be provided
+        - "What" subsection: summary of the main technical point of the article with enough details so that readers can get the article without reading the source material.
+        - "So what" subsection: why we think this matters from the perspective of the topic.
         
         TONE: Authoritative, respectful to the engineers who wrote the original posts, and focused on utility.
+
+        Do not add a conclusion section.
       output_filename: "Tech_Pulse_Report.md"
       write_response_to_output: True
 

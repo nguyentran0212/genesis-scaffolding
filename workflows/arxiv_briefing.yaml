@@ -65,7 +65,7 @@ steps:
       reduction_instruction: >
         Create a research briefing update about the topic {{ inputs.topic }} based on the summary of relevant articles from arxiv below.
 
-        These articles are from the last {{ inputs.lookback_days }} days until today. 
+        These articles are freshly published today.
 
         The purpose of this briefing is to provide a snapshot of latest papers related to the topic.
 
