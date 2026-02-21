@@ -19,7 +19,7 @@ steps:
       files_to_read: "{{ inputs.input_files }}"
 
   - id: "agent_step"
-    type: "prompt_agent"
+    type: "agent_map"
     params:
       agent: "simple_agent"
       files_to_read: "{{ steps.file_ingest_step.readable_paths }}"

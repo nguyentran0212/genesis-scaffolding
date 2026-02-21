@@ -10,17 +10,17 @@ from .base_task import BaseTask, TaskOutput, TaskParams
 logger = logging.getLogger(__name__)
 
 
-class ListExtractorTaskParams(TaskParams):
+class AgentProjectionTaskParams(TaskParams):
     agent: str
-    prompt: str  # Single prompt instruction
+    prompt: list[str]
     # Optional: tell the LLM what kind of items to extract (e.g., "Arxiv IDs")
     expected_item_type: str = "strings"
     # Optional: max number of list items.
     max_number: int | None = None
 
 
-class ListExtractorTask(BaseTask[ListExtractorTaskParams, TaskOutput]):
-    params_model = ListExtractorTaskParams
+class AgentProjectionTask(BaseTask[AgentProjectionTaskParams, TaskOutput]):
+    params_model = AgentProjectionTaskParams
     output_model = TaskOutput
 
     async def run(self, context: JobContext, agent_registry: AgentRegistry, params: dict) -> TaskOutput:
@@ -35,9 +35,13 @@ class ListExtractorTask(BaseTask[ListExtractorTaskParams, TaskOutput]):
         for file_path in unique_files:
             await agent.add_file(file_path)
 
+        prompt_string = ""
+        if args.prompt:
+            prompt_string = "\n\n".join(args.prompt)
+
         # Augment prompt to force JSON list format
         structured_prompt = (
-            f"{args.prompt}\n\n"
+            f"{prompt_string}\n\n"
             f"IMPORTANT: You must return the result as a valid JSON list of {args.expected_item_type}. "
             f'Example format: ["item1", "item2"]. '
             f"Respond ONLY with the JSON list."

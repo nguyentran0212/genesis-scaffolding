@@ -6,7 +6,7 @@ from .base_task import BaseTask, TaskOutput, TaskParams
 
 
 class WebSearchTaskParams(TaskParams):
-    query: str
+    query: list[str]
     number_of_results: int = 10
     output_filename_prefix: str = "search_results"
 
@@ -22,8 +22,12 @@ class WebSearchTask(BaseTask[WebSearchTaskParams, WebSearchTaskOutput]):
     async def run(self, context: JobContext, agent_registry: AgentRegistry, params: dict) -> output_model:
         args = self.params_model.model_validate(params)
 
+        query_string = " ".join(args.query)
+        print(args.query)
+        print(query_string)
+
         web_search_results = await search_web(
-            query=args.query, max_results=args.number_of_results, fetch_full=True
+            query=query_string, max_results=args.number_of_results, fetch_full=True
         )
         if not web_search_results:
             raise ValueError(f"Cannot find any search result for the query {args.query}")

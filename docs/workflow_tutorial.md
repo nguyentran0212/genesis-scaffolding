@@ -159,6 +159,81 @@ The workflow in my system encourage you to think in terms of data pipeline rathe
 
 As you can see, it's simpler to think about and simpler to write workflow this way. And no loop is needed to iterate through elements. And if your LLM and API support, you can performs the map step in parallel to further speed up the process.
 
+### How to define workflow inputs
+
+```python
+class WorkflowInputType(str, Enum):
+    """
+    Data types of workflow inputs for the workflow manifests
+    """
+
+    STRING = "string"
+    INT = "int"
+    FLOAT = "float"
+    BOOL = "bool"
+    FILE = "file"
+    DIR = "dir"
+    LIST_STRING = "list[string]"
+    LIST_FILE = "list[file]"
+
+
+# Map our WorkflowInputType Enum to actual Python types for Pydantic to do run-time validation
+TYPE_MAP: Dict[WorkflowInputType, Any] = {
+    WorkflowInputType.STRING: str,
+    WorkflowInputType.INT: int,
+    WorkflowInputType.FLOAT: float,
+    WorkflowInputType.BOOL: bool,
+    WorkflowInputType.FILE: Path,
+    WorkflowInputType.DIR: Path,
+    WorkflowInputType.LIST_STRING: List[str],
+    WorkflowInputType.LIST_FILE: List[Path],
+}
+```
+
+Each workflow input is declared as an object underneath the `inputs` object. The name of the workflow input is used as the identifier to refer to it in the workflow.
+
+```yaml
+inputs:
+  arxiv_paper_id:
+    type: "string"
+    description: "ID of Arxiv paper to use as input"
+    default: 500
+```
+
+Each workflow input declaration must contain:
+- `type`: describing the data type of the workflow input
+- `description`: textual description of the workflow input
+
+Each workflow input can also contain a `default` field, showing the value that would be used if user does not provide an input value at runtime.
+
+The frontend would rely on your declarations of workflow inputs to present the form to user. 
+
+The backend would rely on your declaration to verify the workflow inputs from user to ensure that your workflow would be given the correct type of inputs you expect.
+
+#### Workflow Input types
+
+`string`: a string. Mapped to the builtin `str` type of python.
+
+`int`: an integer number. Mapped to the builtin `int` type of python.
+
+`float`: a floating point number. Mapped to the built in `float` type of python.
+
+`bool`: a boolean type value. Mapped to the built in `bool` type of python.
+
+`file`: the path to a file. Mapped to the `Path` object from `pathlib`.
+
+`dir`: the path to a directory. Mapped to the `Path` object from `pathlib`.
+
+`list[string]`: a list of string. Map to the type `list[str]` internally.
+
+`list[file]`: a list of files. Mapped to the type `list[Path]` internally.
+
+
+**Special note on the files and dir type workflow input**: if user gives an absolute path, that path would be used directly. If user gives a relative path, the system would automatically attempt to rewrite the path so that it is underneath the inbox directory of a user (a.k.a., user's sandbox). For example, when user uploads a file to the sandbox via the frontend, the frontend would return a relative path to that file under the sandbox. Then user can provide that relative path as input to a workflow. The backend would automatically resolve that relative path to be underneath the inbox, thus allowing the workflow engine to fetch the required files. All of this happen without exposing to end user the read directory structure of the server underneath.
+
+
+-----
+
 
 ## Understanding Workflow steps
 
@@ -210,10 +285,102 @@ You can pipe the `content` output from a workflow step directly to a params in a
 
 You can use Python list notation to access components of the list. For example, if a subsequent component accepts only one string, you can use `"{{ steps.prior_step.content[0] }}"` to use only one string output from the previous step.
 
+### Types of workflow steps
+
+I organise workflow steps into three main types: 
+- **projection** step: it accepts an array of one or more items as input, process them all together, and produce an array of multiple items as output. For example, a step that takes a set of documents and returns a list of arxiv paper IDs is a projection step.
+- **map** step: it accepts an array of items, and process each item in parallel, independent from other items, and produce an array of multiple items as output. For example, a step that takes an array of prompt and create an array of corresponding responses is a map step.
+- **reduce** step: it accepts an array of items, process all of them together, and produce an array of one as output. 
+
+You can string all of these together in your workflow. For example:
+- use a projection step to turn input into a list of output
+- apply multiple map steps to transform the output arrays
+- apply a reduce step to compress the output array down to one output element
+- use a projection step on the output element to project it to a list for the next part of the workflow.
+- so on and so forth.
+
 
 ## References of current workflow steps:
 
-### Prompt Agent
+### Projection Steps
+
+#### Agent Projection
+
+**Workflow Step ID:** agent_projection
+
+**What it does:** take one prompt, return a list of outputs according to the instruction.
+
+**Inputs:** 
+
+```python
+class AgentProjectionTaskParams(TaskParams):
+    agent: str
+    prompt: list[str]
+    # Optional: tell the LLM what kind of items to extract (e.g., "Arxiv IDs")
+    expected_item_type: str = "strings"
+    # Optional: max number of list items.
+    max_number: int | None = None
+```
+
+Noted that if multiple prompts are provided, they are combined into one and provided to the agent.
+
+**Outputs:**
+- `content`: a list of string storing the requested outputs
+- `file_paths`: list of paths to markdown files stored in the internal directory
+
+#### Web Search
+
+**Workflow Step ID:** web_search
+
+**What it does:** take one list of query, performs search using DDGS, and fetches the web pages of search results, and return a list of articles parsed to markdown.
+
+**Inputs:** 
+
+```python
+class WebSearchTaskParams(TaskParams):
+    query: list[str]
+    number_of_results: int = 10
+    output_filename_prefix: str = "search_results"
+```
+
+Noted that if multiple queries are provided, they are combined before sending to search engine.
+
+**Outputs:**
+- `content`: a list of string storing the fetched and parsed articles
+- `file_paths`: list of paths to markdown files stored in the internal directory
+
+
+#### Arxiv Search
+
+**Workflow Step ID:** arxiv_search
+
+**What it does:** take one query, perform search on Arxiv, and retrieve PDF and markdown of relevant papers.
+
+**Inputs:**
+
+```python
+class ArxivSearchTaskParams(TaskParams):
+    query: str
+    max_results: int = 5
+    output_filename_prefix: str = "arxiv_search_"
+    write_response_to_output: bool = True
+```
+
+**Outputs:**
+- `content`: a list of markdown content, each has a summary and title of one of the found papers
+- `file_paths`: a list of path to the stored markdown files
+- `md_paths`: a list of paths to the stored markdown files
+- `pdf_paths`: a list of paths to the stored pdf files
+
+**Note**: this relies on arxiv built-in search and it is quite bad. Use the dedicated workflow `arxiv_search_new.yaml` instead.
+
+
+
+### Map steps
+
+#### Agent Map
+
+**Workflow Step ID:** agent_map
 
 **What it does:** take an array of input prompts and an array of files to read. Each input prompt would be processed by a required LLM agent in **one** step to generate response. The input files are added to the clipboard of the agent to use context for responding. An array of responses is returned. 
 
@@ -229,7 +396,9 @@ class PromptAgentTaskParams(TaskParams):
 - `content`: a list of string of responses
 - `file_paths`: a list of Path pointing to response files written to disk
 
-### File Ingest
+#### File Ingest
+
+**Workflow Step ID:** file_ingest
 
 **What it does:**: symlink or copy a list of input files to the internal directory of the workflow so that they are available for other steps.
 
@@ -247,24 +416,9 @@ steps:
 ```
 
 
-### Web Search
-
-**What it does:** take one query, performs search using DDGS, and fetches the web pages of search results, and return a list of articles parsed to markdown.
-
-**Inputs:** 
-
-```python
-class WebSearchTaskParams(TaskParams):
-    query: str
-    number_of_results: int = 10
-    output_filename_prefix: str = "search_results"
-```
-
-**Outputs:**
-- `content`: a list of string storing the fetched and parsed articles
-- `file_paths`: list of paths to markdown files stored in the internal directory
-
 ### Arxiv Download
+
+**Workflow Step ID:** arxiv_download
 
 **What it does:** Download articles from arxiv based on given ID. Automatically convert PDF to markdown as well.
 
@@ -284,23 +438,22 @@ class ArxivDownloadTaskParams(TaskParams):
 - `md_paths`: a list of paths to the stored markdown files
 - `pdf_paths`: a list of paths to the stored pdf files
 
-### Arxiv Search
+### Web Fetch
 
-**What it does:** take one query, perform search on Arxiv, and retrieve PDF and markdown of relevant papers.
+**Workflow Step ID:** web_fetch
+
+**What it does:** Download and convert web articles into markdown documents.
 
 **Inputs:**
 
 ```python
-class ArxivSearchTaskParams(TaskParams):
-    query: str
-    max_results: int = 5
-    output_filename_prefix: str = "arxiv_search_"
-    write_response_to_output: bool = True
+class WebFetchTaskParams(TaskParams):
+    urls: list[str]
+    # Useful for naming the resulting markdown files
+    output_filename_prefix: str = "web_page_"
 ```
 
-
 **Outputs:**
-- `content`: a list of markdown content, each has a summary and title of one of the found papers
+- `content`: a list of markdown content of the retrieved web pages
 - `file_paths`: a list of path to the stored markdown files
-- `md_paths`: a list of paths to the stored markdown files
-- `pdf_paths`: a list of paths to the stored pdf files
+

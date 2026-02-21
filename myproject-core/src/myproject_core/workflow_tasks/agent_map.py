@@ -6,24 +6,24 @@ from .base_task import BaseTask, TaskOutput, TaskParams
 
 
 # Prompting an LLM agent
-class PromptAgentTaskParams(TaskParams):
+class AgentMapTaskParams(TaskParams):
     agent: str
     prompts: list[str]
     output_filename: str = "output.md"
 
 
-class PromptAgentTaskOutput(TaskOutput):
+class AgentMapTaskOutput(TaskOutput):
     # content and file_paths are inherited from TaskOutput as lists
     pass
 
 
-class PromptAgentTask(BaseTask[PromptAgentTaskParams, PromptAgentTaskOutput]):
-    params_model = PromptAgentTaskParams
-    output_model = PromptAgentTaskOutput
+class AgentMapTask(BaseTask[AgentMapTaskParams, AgentMapTaskOutput]):
+    params_model = AgentMapTaskParams
+    output_model = AgentMapTaskOutput
 
     async def run(
         self, context: JobContext, agent_registry: AgentRegistry, params: dict
-    ) -> PromptAgentTaskOutput:
+    ) -> AgentMapTaskOutput:
         args = self.params_model.model_validate(params)
 
         # Initialize agent by querying agent registry

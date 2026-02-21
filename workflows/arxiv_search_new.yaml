@@ -14,14 +14,16 @@ steps:
   - id: "search_web"
     type: "web_search"
     params:
-      query: "{{ inputs.topic }} arxiv papers latest"
+      query: 
+        - "{{ inputs.topic }} arxiv papers latest"
 
   - id: "extract_ids"
-    type: "list_extractor"  # The new step
+    type: "agent_projection"  # The new step
     params:
       agent: "simple_agent"
       files_to_read: "{{ steps.search_web.file_paths }}"
-      prompt: "Extract all Arxiv IDs found in these search results."
+      prompt: 
+        - "Extract all Arxiv IDs found in these search results."
       expected_item_type: "Arxiv IDs (e.g., 2301.12345)"
       max_number: "{{ inputs.max_results }}"
 
@@ -31,7 +33,7 @@ steps:
       arxiv_paper_ids: "{{ steps.extract_ids.content }}"
 
   - id: "summarize_results"
-    type: "prompt_agent"
+    type: "agent_map"
     params:
       agent: "simple_agent"
       prompts: 

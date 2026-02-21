@@ -30,7 +30,7 @@ steps:
   # Step 3: Combine all readable text paths
   # We use Jinja to merge the file_paths from web and readable_paths from ingest
   - id: "analyze"
-    type: "prompt_agent"
+    type: "agent_map"
     params:
       agent: "simple_agent"
       files_to_read: >

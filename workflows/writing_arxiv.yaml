@@ -36,7 +36,7 @@ steps:
         - "{{ inputs.arxiv_paper_id }}"
 
   - id: "agent_outline"
-    type: "prompt_agent"
+    type: "agent_map"
     params:
       files_to_read: "{{ steps.arxiv_download.file_paths}}"
       agent: "technical_writer_outline"
@@ -62,7 +62,7 @@ steps:
       output_filename: "agent_outline.md"
 
   - id: "agent_drafting"
-    type: "prompt_agent"
+    type: "agent_map"
     params:
       files_to_read:
         - "{{ steps.arxiv_download.file_paths[0] }}"
@@ -85,7 +85,7 @@ steps:
 
 
   - id: "agent_editing"
-    type: "prompt_agent"
+    type: "agent_map"
     params:
       agent: "technical_writer_editor"
       files_to_read:
@@ -110,7 +110,7 @@ steps:
       write_response_to_output: True
 
   - id: "agent_twitter"
-    type: "prompt_agent"
+    type: "agent_map"
     params:
       agent: "technical_writer_twitter"
       files_to_read:
@@ -130,7 +130,7 @@ steps:
       write_response_to_output: True
 
   - id: "agent_linkedin"
-    type: "prompt_agent"
+    type: "agent_map"
     params:
       agent: "technical_writer_linkedin"
       files_to_read:
@@ -150,7 +150,7 @@ steps:
       write_response_to_output: True
 
   - id: "agent_visual"
-    type: "prompt_agent"
+    type: "agent_map"
     params:
       agent: "technical_writer_visual"
       files_to_read:

@@ -35,7 +35,7 @@ async def search_web(query: str, max_results: int = 5, fetch_full: bool = False)
 
                 if fetch_full:
                     full_data = await fetch_page(item.url)
-                    item.full_content = full_data.content
+                    item.full_content = full_data.get("content", "")
 
                 results.append(item)
 
@@ -63,7 +63,7 @@ async def search_news(query: str, max_results: int = 5, fetch_full: bool = False
 
                 if fetch_full:
                     full_data = await fetch_page(item.url)
-                    item.full_content = full_data.content
+                    item.full_content = full_data.get("content", "")
 
                 results.append(item)
         return results

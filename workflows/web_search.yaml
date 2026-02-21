@@ -10,7 +10,7 @@ inputs:
 
 steps:
   - id: "prompt_refinement"
-    type: "prompt_agent"
+    type: "agent_map"
     params:
       agent: "simple_agent"
       prompts: 
@@ -22,10 +22,10 @@ steps:
   - id: "web_search"
     type: "web_search"
     params:
-      query: "{{ steps.prompt_refinement.content[0] }}"
+      query: "{{ steps.prompt_refinement.content }}"
 
   - id: "answer_question"
-    type: "prompt_agent"
+    type: "agent_map"
     params:
       agent: "simple_agent"
       files_to_read: "{{ steps.web_search.file_paths }}"

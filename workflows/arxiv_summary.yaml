@@ -15,7 +15,7 @@ steps:
         - "{{ inputs.paper_id }}"
 
   - id: "paper_summary"
-    type: "prompt_agent"
+    type: "agent_map"
     params:
       agent: "research_summary"
       files_to_read: "{{ steps.arxiv_download.file_paths}}"
@@ -26,7 +26,7 @@ steps:
       output_filename: "paper_summary.md"
 
   - id: "paper_critic"
-    type: "prompt_agent"
+    type: "agent_map"
     params:
       agent: "research_critic"
       files_to_read: "{{ steps.arxiv_download.file_paths}}"
