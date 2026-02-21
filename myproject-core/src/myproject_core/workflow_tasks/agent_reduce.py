@@ -16,6 +16,7 @@ class AgentReduceTaskParams(TaskParams):
     # An optional final instruction to wrap around the combined text
     reduction_instruction: str = "Please synthesize the above information into a single, cohesive report."
     output_filename: str = "summary_report.md"
+    write_response_to_output: bool = True
 
 
 class AgentReduceTask(BaseTask[AgentReduceTaskParams, TaskOutput]):

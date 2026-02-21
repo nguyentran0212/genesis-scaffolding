@@ -1912,6 +1912,7 @@ source = { editable = "myproject-tools" }
 dependencies = [
     { name = "arxiv" },
     { name = "ddgs" },
+    { name = "feedparser" },
     { name = "pymupdf-layout" },
     { name = "pymupdf4llm" },
     { name = "trafilatura" },
@@ -1921,6 +1922,7 @@ dependencies = [
 requires-dist = [
     { name = "arxiv", specifier = ">=2.4.0" },
     { name = "ddgs", specifier = ">=9.10.0" },
+    { name = "feedparser", specifier = ">=6.0.12" },
     { name = "pymupdf-layout", specifier = ">=1.26.6" },
     { name = "pymupdf4llm", specifier = ">=0.2.9" },
     { name = "trafilatura", specifier = ">=2.0.0" },

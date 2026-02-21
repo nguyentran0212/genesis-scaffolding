@@ -17,6 +17,7 @@ class AgentProjectionTaskParams(TaskParams):
     expected_item_type: str = "strings"
     # Optional: max number of list items.
     max_number: int | None = None
+    write_response_to_output: bool = True
 
 
 class AgentProjectionTask(BaseTask[AgentProjectionTaskParams, TaskOutput]):

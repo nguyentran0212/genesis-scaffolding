@@ -1,6 +1,9 @@
+from datetime import datetime
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
+from .configs import settings
 from .schemas import AgentClipboard, AgentClipboardFile
 
 
@@ -27,11 +30,15 @@ class AgentMemory:
         Formats the clipboard as a system message.
         This is ephemeral and should not be stored in self.messages.
         """
+        timezone = settings.server.timezone
+        now = datetime.now(ZoneInfo(timezone))
         content = (
             "## CURRENT CLIPBOARD\n"
             "The following information is your current working context. "
             "Use this to answer the user's latest request.\n\n"
-            f"{self.agent_clipboard.render_to_markdown()}"
+            f"{self.agent_clipboard.render_to_markdown()}\n\n\n====="
+            "## CURRENT DATE TIME\n"
+            f"{now.strftime('%Y-%m-%d %H:%M:%S %Z %z')}\n\n====="
         )
         return {"role": "system", "content": content}
 

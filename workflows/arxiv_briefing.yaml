@@ -1,0 +1,102 @@
+name: "Daily Arxiv Briefing"
+description: "Curate the latest technical engineering blogs."
+version: "1.0"
+
+inputs:
+  topic:
+    type: "string"
+    description: "Topic for research briefing"
+    default: "AI at the edge and small language model"
+  feeds:
+    type: "list[string]"
+    description: "List of RSS feed URLs"
+    default: 
+      - "https://rss.arxiv.org/rss/cs.AI"
+      - "https://rss.arxiv.org/rss/cs.SE"  
+  max_results:
+    type: "int"
+    description: "Max number of rss feed item to process"
+    default: 5
+  briefing_title:
+    type: "string"
+    description: "Title of the Research Briefing"
+    default: "Tech Pulse on Local AI"
+
+steps:
+  - id: "fetch_feeds"
+    type: "rss_fetch"
+    params:
+      feed_urls: "{{ inputs.feeds }}"
+      since_days: 1 
+
+  - id: "filter_relevant_items"
+    type: "agent_projection"
+    condition: "{{ steps.fetch_feeds.content | length > 0 }}"
+    params:
+      agent: "simple_agent"
+      # We pass the list of RSS entries as the prompt for filtering
+      prompt:
+        - |
+          Below is a list of recent RSS feed items from arxiv. Analyze them and identify items related to {{ inputs.topic }}.
+
+          For each relevant item, extract the arxiv id.
+
+          ## Items
+
+          {{ steps.fetch_feeds.content }}
+      expected_item_type: "Arxiv IDs (e.g., 2401.12345)"
+      max_number: "{{ inputs.max_results }}"
+
+  # 3. Map: Download and convert the PDFs to Markdown
+  - id: "fetch_content"
+    type: "arxiv_download"
+    condition: "{{ steps.filter_relevant_items.content | default([]) | length > 0 }}"
+    params:
+      arxiv_paper_ids: "{{ steps.filter_relevant_items.content }}"
+      write_response_to_output: True
+
+  # Reduce: The "Tech Pulse" Report
+  - id: "newsletter"
+    type: "agent_reduce"
+    condition: "{{ steps.fetch_content.content | default([]) | length > 0 }}"
+    params:
+      agent: "technical_writer_draft"
+      prompts: "{{ steps.fetch_content.content }}"
+      reduction_instruction: >
+        Create a research briefing update about the topic {{ inputs.topic }} based on the summary of relevant articles from arxiv below.
+
+        These articles are from the last {{ inputs.lookback_days }} days until today. 
+
+        The purpose of this briefing is to provide a snapshot of latest papers related to the topic.
+
+        TITLE: Name the research briefing using the current date and the title {{ inputs.briefing_title }}.
+        
+        STRUCTURE:
+        1. The Big Picture: A 1-paragraph overview of the articles we are going to share in this blog post.
+        2. Deep Dive Spotlights: For each article, create a section:
+           - Article Title & Source (Mention the site/company)
+           - The 'What': A technical summary with enough details.
+           - The 'Why': The practical implication for developer.
+        
+        TONE: Authoritative, respectful to the engineers who wrote the original posts, and focused on utility.
+      output_filename: "Tech_Pulse_Report.md"
+      write_response_to_output: True
+
+  # Promo: LinkedIn Social Post
+  - id: "promo"
+    type: "agent_map"
+    condition: "{{ steps.newsletter.content | default([]) | length > 0 }}"
+    params:
+      agent: "technical_writer_linkedin"
+      prompts: "{{ steps.newsletter.content }}"
+      prompts_prefix: "Create a LinkedIn post that shares the key insights from this technical report. Do not use hype. Use a 'curator' tone. Focus on helping other devs save time. THE REPORT: "
+      output_filename: "linkedin_promo.md"
+      write_response_to_output: True
+
+outputs:
+  report:
+    description: "The generated newsletter"
+    value: "{{ steps.newsletter.content[0] }}"
+  linkedin_post:
+    description: "Social media copy"
+    value: "{{ steps.promo.content[0] }}"

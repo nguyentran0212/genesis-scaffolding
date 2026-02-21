@@ -9,7 +9,9 @@ from .base_task import BaseTask, TaskOutput, TaskParams
 class AgentMapTaskParams(TaskParams):
     agent: str
     prompts: list[str]
+    prompts_prefix: str | None = None
     output_filename: str = "output.md"
+    write_response_to_output: bool = True
 
 
 class AgentMapTaskOutput(TaskOutput):
@@ -42,7 +44,12 @@ class AgentMapTask(BaseTask[AgentMapTaskParams, AgentMapTaskOutput]):
         all_responses: list[str] = []
         for prompt in args.prompts:
             # Trigger the agent for each prompt
-            response_text = await agent.step(prompt)
+            prompt_string = ""
+            if args.prompts_prefix:
+                prompt_string = f"{args.prompts_prefix} \n\n {prompt}"
+            else:
+                prompt_string = prompt
+            response_text = await agent.step(prompt_string)
             all_responses.append(str(response_text))
 
         # Handle file writing logic
