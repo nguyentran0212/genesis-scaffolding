@@ -1,0 +1,79 @@
+name: "Reference Finder"
+description: "Identifies claims in a proposal and finds authoritative government/white paper citations."
+version: "1.0"
+
+inputs:
+  proposal_text:
+    type: "string"
+    description: "The draft text or paragraph that needs supporting references."
+  focus_area:
+    type: "string"
+    description: "Specific context (e.g., UK Energy Policy, US Healthcare)"
+    default: "General Research"
+
+steps:
+  # 1. Projection: Turn the text into a list of specific searchable claims
+  - id: "extract_claims"
+    type: "agent_projection"
+    params:
+      agent: "simple_agent"
+      prompt:
+        - |
+          Analyze the following research proposal text: "{{ inputs.proposal_text }}"
+          
+          1. Identify up to 5 specific factual claims or statistics that require external evidence.
+          2. For each claim, generate a search query designed to find high-authority sources (Government documents, White papers, or Official reports).
+          3. Use search operators like 'site:.gov', 'site:.org', or 'report' where appropriate.
+          
+          Return ONLY a list of the search queries.
+      expected_item_type: "Search Queries"
+      max_number: 5
+
+  # 2. Web Search: Fetch the actual articles
+  - id: "search_web"
+    condition: "{{ steps.extract_claims.content | length > 0 }}"
+    type: "web_search"
+    params:
+      query: "{{ steps.extract_claims.content }}"
+      number_of_results: 3 # 3 results per query to keep the data manageable
+      output_filename_prefix: "source_doc_"
+
+  # 3. Map: Assess each found document for authority and relevance
+  - id: "assess_sources"
+    condition: "{{ steps.search_web.file_paths | length > 0 }}"
+    type: "agent_map"
+    params:
+      agent: "research_summary" # Reusing research summary agent to extract key facts
+      prompts: "{{ steps.search_web.content }}"
+      prompts_prefix: |
+          I am researching "{{ inputs.focus_area }}". 
+          Evaluate the provided document:
+          1. Is this a high-authority source (Gov/Official/Expert)? 
+          2. Does it contain specific data that supports the claims in our proposal?
+          3. If valid, provide a formal citation and a 2-sentence summary of the supporting evidence.
+          4. If it is a low-quality blog or irrelevant, reply with 'REJECT'.
+      write_response_to_file: True
+
+  # 4. Reduce: Compile the final list of references
+  - id: "compile_bibliography"
+    condition: "{{ steps.assess_sources.content | length > 0 }}"
+    type: "agent_reduce"
+    params:
+      agent: "technical_writer_editor"
+      prompts: "{{ steps.assess_sources.content }}"
+      reduction_instruction: |
+        Review the following assessed sources. 
+        Discard any that say 'REJECT'.
+        Organize the remaining valid sources into a 'Supporting References' list for a research proposal.
+        Format them cleanly in Markdown using a standard citation style.
+        Group them by relevance to the original topic: {{ inputs.focus_area }}
+      output_filename: "verified_references.md"
+      write_response_to_output: True
+
+outputs:
+  reference_list:
+    description: "The final list of verified supporting references."
+    value: "{{ steps.compile_bibliography.content[0] if steps.compile_bibliography is defined else 'No high-authority references could be verified.' }}"
+  source_files:
+    description: "The raw markdown files of the sources found."
+    value: "{{ steps.search_web.file_paths }}"

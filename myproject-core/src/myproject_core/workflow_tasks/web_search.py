@@ -1,3 +1,6 @@
+import asyncio
+from typing import Any, Union
+
 from myproject_tools.web_search import search_web
 
 from ..agent_registry import AgentRegistry
@@ -19,31 +22,57 @@ class WebSearchTask(BaseTask[WebSearchTaskParams, WebSearchTaskOutput]):
     params_model = WebSearchTaskParams
     output_model = WebSearchTaskOutput
 
-    async def run(self, context: JobContext, agent_registry: AgentRegistry, params: dict) -> output_model:
+    async def run(
+        self, context: JobContext, agent_registry: AgentRegistry, params: dict
+    ) -> WebSearchTaskOutput:
         args = self.params_model.model_validate(params)
 
-        query_string = " ".join(args.query)
-        print(args.query)
-        print(query_string)
+        # 1. Create concurrent search tasks for each individual query
+        # We perform searches in parallel to avoid blocking and save time
+        search_tasks = [
+            search_web(query=q, max_results=args.number_of_results, fetch_full=True) for q in args.query
+        ]
 
-        web_search_results = await search_web(
-            query=query_string, max_results=args.number_of_results, fetch_full=True
+        # 2. Execute all searches concurrently
+        # return_exceptions=True ensures one failing query doesn't crash the whole workflow
+        search_results_lists: list[Union[list[Any], BaseException]] = await asyncio.gather(
+            *search_tasks, return_exceptions=True
         )
-        if not web_search_results:
-            raise ValueError(f"Cannot find any search result for the query {args.query}")
 
-        # 2. Process results into Markdown strings
-        formatted_contents = []
-        for i, res in enumerate(web_search_results, start=1):
-            # Extract content from the Pydantic FetchResult, fallback to snippet if fetch failed
-            main_body = res.snippet
-            if res and res.full_content:
-                main_body = res.full_content
+        # 3. Flatten the results and format into Markdown
+        formatted_contents: list[str] = []
+        seen_urls = set()  # Simple de-duplication across different queries
 
-            # Create a structured Markdown block for this specific result
-            md_entry = f"# {res.title}\n**URL:** {res.url}\n\n{main_body}\n\n---\n"
-            formatted_contents.append(md_entry)
+        for i, result in enumerate(search_results_lists):
+            if isinstance(result, BaseException):
+                print(f"Error searching for query '{args.query[i]}': {result}")
+                continue
 
+            for res in result:
+                # Basic de-duplication: skip if we've already found this URL in this step
+                if res.url in seen_urls:
+                    continue
+                seen_urls.add(res.url)
+
+                # Extract content (Prefer full content over snippet)
+                main_body = res.full_content if res.full_content else res.snippet
+
+                # Create a clean Markdown block
+                md_entry = (
+                    f"# {res.title}\n"
+                    f"**Source URL:** {res.url}\n"
+                    f"**Search Query:** {args.query[i]}\n\n"
+                    f"{main_body}\n\n"
+                    f"---\n"
+                )
+                formatted_contents.append(md_entry)
+
+        if not formatted_contents:
+            # Instead of crashing, we return empty so 'condition' logic in YAML can handle it
+            return self.output_model(content=[], file_paths=None)
+
+        # 4. Write results to individual files in the internal directory
+        # This allows the next 'agent_map' step to process each article independently
         all_written_paths = await self.write_content_to_files(
             content=formatted_contents,
             context=context,
@@ -52,7 +81,7 @@ class WebSearchTask(BaseTask[WebSearchTaskParams, WebSearchTaskOutput]):
             write_response_to_output=args.write_response_to_output,
         )
 
-        # 4. Return the structured output
+        # 5. Return the structured output
         return self.output_model(
             content=formatted_contents, file_paths=all_written_paths if all_written_paths else None
         )
