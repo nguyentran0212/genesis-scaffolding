@@ -180,7 +180,10 @@ class BaseTask(ABC, Generic[TParams, TOutput]):
                 extension: str,
             ):
                 if len(content) == 1:
-                    return output_filename
+                    if output_filename:
+                        return output_filename
+                    else:
+                        return f"{type(self)}_output.{extension}"
                 else:
                     return f"{output_filename_prefix}_{index}.{extension}"
 
