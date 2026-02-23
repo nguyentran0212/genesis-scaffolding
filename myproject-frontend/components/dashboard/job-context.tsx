@@ -37,6 +37,16 @@ export function JobProvider({
   }, [initialJob]);
 
   useEffect(() => {
+    // When user returns to the tab, sync with the DB immediately
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        startTransition(() => {
+          router.refresh();
+        });
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     // If job is already finished, don't even open SSE
     if (job.status === 'completed' || job.status === 'failed') return;
 
