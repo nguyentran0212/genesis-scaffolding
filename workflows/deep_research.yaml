@@ -1,0 +1,147 @@
+name: "Deep Research"
+description: "Conduct structured research on web and write a report on a topic."
+version: "1.2"
+
+inputs:
+  research_query:
+    type: "string"
+    description: "The main topic or initial instructions."
+
+steps:
+  # 1. REDUCE: Synthesize text + files into a coherent Research Specification
+  - id: "define_spec"
+    type: "agent_reduce"
+    params:
+      agent: "simple_agent"
+      prompts: 
+        - |  
+          Your task is to create a research project specification that provide a concise description and requirement of the research report user wants.
+
+          We call this concise and specific research requirement a "research project specification".
+
+          The research project specification is a one paragraph description that clearly specify the following main instructions for the project:
+          1. THE GOAL: What is the primary objective of this research task?
+          2. THE PURPOSE: Why is this research being done (e.g., policy planning, technology acquisition)?
+          3. DEPTH LEVEL: Is this a high-level intro or a deep technical/legal audit?
+          4. SPECIFIC TARGETS: List specific entities (companies, laws, persons, technologies) mentioned or sought.
+
+          Output only the research project specification. 
+
+          **Do not write the report**.
+
+          Here is user's requirement:
+
+          "{{ inputs.research_query }}"
+
+          =====
+      prompts_prefix: |
+      output_filename: "research_specification.md"
+
+  # 3. PROJECTION: Project Information Needs to Search Queries
+  - id: "generate_queries"
+    type: "agent_projection"
+    params:
+      agent: "simple_agent"
+      prompt: "{{ steps.define_spec.content }}"
+      prompts_prefix: |
+        Create a list of web search queries for the research project described below.
+      expected_item_type: "Search Queries"
+      max_number: 3
+
+  # 4. PROJECTION: Project information need queries into search results
+  - id: "execute_search"
+    type: "web_search"
+    params:
+      query: "{{ steps.generate_queries.content }}"
+      number_of_results: 5
+      output_filename_prefix: "search_result_"
+      write_response_to_output: False
+
+  # 5. MAP: Quality Assessment & Fact Extraction
+  # We pass the original Spec and Info Needs for context using Jinja2
+  - id: "assess_and_extract"
+    type: "agent_map"
+    params:
+      agent: "simple_agent"
+      prompts: "{{ steps.execute_search.content }}"
+      prompts_prefix: |
+        ### CONTEXTUAL GROUNDING ###
+        RESEARCH GOAL: 
+        {{ steps.define_spec.content[0] }}
+        
+        
+        ### TASK ###
+        Analyze the provided document:
+        1. RELEVANCE CHECK: Is the content of this document relevant to the research goal and information need? Unless the information need is about products, any links to shop or products are irrelevant.
+        2. QUALITY CHECK: Is this an authoritative/official source? (No personal blogs/Medium). 
+        3. DECISION: If not authoritative or relevant, write ONLY 'REJECT'.
+        4. EXTRACTION: If accepted, extract all data that you can find in the document that satisfies the 'SPECIFIC INFORMATION NEEDS' listed above.
+        5. CITATION: Note the source title and URL.
+      write_response_to_output: False
+
+  # 6. REDUCE: Write outline
+  - id: "create_outline"
+    type: "agent_reduce"
+    params:
+      agent: "simple_agent"
+      prompts: "{{ steps.assess_and_extract.content }}"
+      prompts_prefix: |
+        Create an outline for the research report of the research project describe below. 
+
+        Structure the report with an executive summary, body sections containing the key required information of the research, and a reference section.
+
+        The outline you write must clearly show sections and main points within each.
+
+        =====
+
+        Research project specification: 
+
+        "{{ steps.define_spec.content[0] }}"
+
+        =====
+
+        The relevant source materials for writing this report is provided below. Please refer to them in your outline.
+
+        =====
+      output_filename: "report_outline.md"
+      write_response_to_output: True
+
+  # 6. REDUCE: Final Report Synthesis
+  - id: "final_synthesis"
+    type: "agent_reduce"
+    params:
+      agent: "simple_agent"
+      prompts: "{{ steps.assess_and_extract.content }}"
+      prompts_prefix: |
+        Please write a comprehensive research report for the research goal described below. 
+
+        Follow the provided outline when you write the report. 
+
+        Use the provided reference material to supply content for your writing. Please cite the source material when you use them. Do not cite or use any material that are not provided. Ignore any rejected reference material.
+
+        =====
+
+        Research project specification: 
+
+        "{{ steps.define_spec.content[0] }}"
+
+        =====
+
+        Outline:
+        "{{ steps.create_outline.content[0] }}"
+        
+
+        ======
+      output_filename: "final_research_report.md"
+      write_response_to_output: True
+
+outputs:
+  research_specification:
+    description: "The synthesized plan for this research."
+    value: "{{ steps.define_spec.content[0] }}"
+  final_report:
+    description: "The complete, cited research report."
+    value: "{{ steps.final_synthesis.content[0] }}"
+  authoritative_sources:
+    description: "The raw content of sources that passed the quality check."
+    value: "{{ steps.assess_and_extract.file_paths }}"
