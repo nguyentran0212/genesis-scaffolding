@@ -113,6 +113,7 @@ class AgentClipboard(BaseModel):
 class WorkflowEventType(str, Enum):
     STEP_START = "step_start"
     STEP_COMPLETED = "step_completed"
+    STEP_FAILED = "step_failed"
     LOG = "log"
     ERROR = "error"
 

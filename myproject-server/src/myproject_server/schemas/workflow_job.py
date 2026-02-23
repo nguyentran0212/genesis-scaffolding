@@ -15,6 +15,7 @@ class WorkflowJobRead(BaseModel):
     status: JobStatus
     inputs: dict
     result: dict | None
+    step_status: dict[str, str]
     error_message: str | None
     workspace_path: str | None
     created_at: datetime

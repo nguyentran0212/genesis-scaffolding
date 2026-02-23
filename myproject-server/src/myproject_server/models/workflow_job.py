@@ -24,6 +24,9 @@ class WorkflowJobBase(SQLModel):
     inputs: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
     result: dict[str, Any] | None = Field(default=None, sa_column=Column(JSON))
 
+    # Keep the progress of steps
+    step_status: dict[str, str] = Field(default_factory=dict, sa_column=Column(JSON))
+
     error_message: str | None = None
     workspace_path: str | None = None  # Path provided by WorkspaceManager
 

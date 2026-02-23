@@ -77,6 +77,13 @@ class WorkflowEngine:
                         task_instance.run, job_context, self.agent_registry, resolved_params
                     )
             except Exception as e:
+                if step_callbacks:
+                    event = WorkflowEvent(
+                        event_type=WorkflowEventType.STEP_FAILED,
+                        step_id=step_def.id,
+                        message=f"Starting step: {step_def.id}",
+                    )
+                    await asyncio.gather(*(cb(event) for cb in step_callbacks))
                 raise e
 
             # Update State

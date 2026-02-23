@@ -6,6 +6,7 @@ export interface WorkflowJob {
   status: JobStatus;
   inputs: Record<string, any>;
   result: Record<string, string> | null;
+  step_status: Record<string, string> | null;
   error_message: string | null;
   workspace_path: string | null;
   created_at: string;

@@ -1,19 +1,25 @@
 'use client';
 
-import { useEffect, useRef, useTransition } from 'react';
+import { useEffect, useRef, useTransition, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { forceRefreshAction } from '@/app/actions/refresh';
 
 interface JobRealtimeListenerProps {
   jobId: number;
   status: string; // Current status passed from the server component
+  manifestSteps: { id: string }[]; // list of workflow steps
+  initialStepStatus: Record<string, string>; // From job.step_status
 }
 
-export function JobRealtimeListener({ jobId, status }: JobRealtimeListenerProps) {
+export function JobRealtimeListener({ jobId,
+  status,
+  manifestSteps,
+  initialStepStatus }: JobRealtimeListenerProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [isPending, startTransition] = useTransition();
   const isTerminatingRef = useRef(false);
+  const [stepStates, setStepStates] = useState<Record<string, string>>(initialStepStatus);
 
   useEffect(() => {
     // Helper to refresh Server Components
@@ -49,9 +55,15 @@ export function JobRealtimeListener({ jobId, status }: JobRealtimeListenerProps)
     };
 
     // Step updates
-    // TODO: We will decide what to do with step related event later
-    // eventSource.addEventListener("step_start", triggerUpdate);
-    // eventSource.addEventListener("step_completed", triggerUpdate);
+    eventSource.addEventListener("step_start", (e: any) => {
+      const data = JSON.parse(e.data);
+      setStepStates(prev => ({ ...prev, [data.step_id]: 'running' }));
+    });
+
+    eventSource.addEventListener("step_completed", (e: any) => {
+      const data = JSON.parse(e.data);
+      setStepStates(prev => ({ ...prev, [data.step_id]: 'completed' }));
+    });
 
     // Logs: Optional 
     eventSource.addEventListener("log", () => {

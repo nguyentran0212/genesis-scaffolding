@@ -1,11 +1,11 @@
 import asyncio
-from datetime import datetime, timezone
+import json
 from pathlib import Path
 from typing import Annotated, Any, cast
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import FileResponse
-from myproject_core.schemas import WorkflowCallback, WorkflowEvent
+from myproject_core.schemas import WorkflowCallback, WorkflowEvent, WorkflowEventType
 from myproject_core.workflow_engine import WorkflowEngine
 from myproject_core.workflow_registry import WorkflowRegistry
 from sqlmodel import Session, desc, select
@@ -55,11 +55,19 @@ class ServerSSERenderer:
         """
         queue = get_job_queue(self.user_id, self.job_id)
         if queue:
-            # We wrap the event in a dict for SSE-friendly JSON serialization
+            # Explicitly serialize to JSON string here
+            payload = json.dumps(
+                {
+                    "step_id": event.step_id,
+                    "message": event.message,
+                    # "data": event.data  # Only include if event.data is JSON serializable
+                }
+            )
+
             await queue.put(
                 {
                     "event": event.event_type.value,
-                    "data": {"step_id": event.step_id, "message": event.message, "data": event.data},
+                    "data": payload,
                 }
             )
 
@@ -79,6 +87,42 @@ class ConsoleRenderer:
         print(f"Workflow Event: {event.event_type.value}")
         print(f"\tStep: {event.step_id}")
         print(f"\tStep Message: {event.message}")
+
+
+class DatabaseProgressRenderer:
+    """
+    Implements the WorkflowCallback interface to update the status of workflow steps in the database
+    """
+
+    def __init__(self, job_id: int):
+        self.job_id = job_id
+
+    async def __call__(self, event: WorkflowEvent) -> None:
+        if not event.step_id:
+            return
+
+        with Session(db_engine) as session:
+            job = session.get(WorkflowJob, self.job_id)
+            if job:
+                # Define status mapping
+                mapping = {
+                    WorkflowEventType.STEP_START: "running",
+                    WorkflowEventType.STEP_COMPLETED: "completed",
+                    WorkflowEventType.STEP_FAILED: "failed",
+                }
+
+                new_status = mapping.get(event.event_type)
+                if not new_status:
+                    return
+
+                # Update the step_status dict
+                # Note: We create a new dict so SQLModel detects the change
+                current_status = dict(job.step_status)
+                current_status[event.step_id] = new_status
+                job.step_status = current_status
+
+                session.add(job)
+                session.commit()
 
 
 async def run_workflow_background(
@@ -111,9 +155,10 @@ async def run_workflow_background(
             else:
                 await queue.put({"event": "status", "data": "COMPLETED"})
     except Exception as e:
-        # This would mostly raise the job not found error.
         if queue:
-            await queue.put({"event": "error", "data": str(e)})
+            await queue.put({"event": "error", "data": json.dumps({"message": str(e)})})
+            await queue.put({"event": "status", "data": "FAILED"})
+            await asyncio.sleep(1)
 
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
@@ -156,7 +201,12 @@ async def submit_job(
     # Prepare callbacks
     sse_callback = ServerSSERenderer(safe_user_id, safe_job_id)
     console_callback = ConsoleRenderer(safe_user_id, safe_job_id)
-    callbacks = [cast(WorkflowCallback, sse_callback), cast(WorkflowCallback, console_callback)]
+    db_callback = DatabaseProgressRenderer(safe_job_id)
+    callbacks = [
+        cast(WorkflowCallback, sse_callback),
+        cast(WorkflowCallback, console_callback),
+        cast(WorkflowCallback, db_callback),
+    ]
 
     # Dispatch Background Task with RESOLVED inputs
     background_tasks.add_task(
