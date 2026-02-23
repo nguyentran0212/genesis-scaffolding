@@ -18,6 +18,7 @@ steps:
           Please write a web search string for the user's query below. Write only the search string in your response. Nothing else. 
 
           {{ inputs.user_query }}
+      write_response_to_output: False
 
   - id: "web_search"
     type: "web_search"
@@ -25,12 +26,11 @@ steps:
       query: "{{ steps.prompt_refinement.content }}"
 
   - id: "answer_question"
-    type: "agent_map"
+    type: "agent_reduce"
     params:
       agent: "simple_agent"
-      files_to_read: "{{ steps.web_search.file_paths }}"
-      prompts: 
-        - |
+      prompts: "{{ steps.web_search.content }}"
+      prompts_prefix: |
           Please answer user's questions below based on the relevant web articles in your clipboard 
 
           {{ inputs.user_query }}
@@ -38,12 +38,9 @@ steps:
       write_response_to_output: True
 
 outputs:
+  answer:
+    description: "Answer to original question"
+    value: "{{ steps.answer_question.content[0] }}"
   web_search_results:
     description: "Web Search Results"
     value: "{{ steps.web_search.content }}"
-  web_search_results_paths:
-    description: "File path to the Web search results"
-    value: "{{ steps.web_search.file_paths }}"
-  answer:
-    description: "Answer to original question"
-    value: "{{ steps.answer_question.content }}"
