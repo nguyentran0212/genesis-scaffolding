@@ -1,0 +1,20 @@
+services:
+  myproject-aio:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: myproject-aio
+    # Load your API keys and secrets from the root .env file
+    env_file:
+      - .env
+    ports:
+      - "3000:3000" # Frontend
+      - "8000:8000" # Backend
+    volumes:
+      - database_data:/app/database
+      - workspace_data:/app/workspaces
+    restart: unless-stopped
+
+volumes:
+  database_data:
+  workspace_data:

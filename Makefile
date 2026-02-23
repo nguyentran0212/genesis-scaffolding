@@ -92,3 +92,27 @@ run-frontend:build-frontend ### Run frontend on bare metal
 
 run: ### Run both backend and frontend in parallel in prod on bare metal
 	@$(MAKE) -j 2 run-backend run-frontend
+
+
+### Docker / Container Management
+
+build-container: ## Build the Docker image
+	docker compose build
+
+up-container: ## Run the project in a container in the background
+	docker compose up -d
+
+run-container: ## Build and run the project in a container (one command, foreground)
+	docker compose up --build
+
+stop-container: ## Stop the running containers
+	docker compose stop
+
+down-container: ## Stop and remove containers, networks, and volumes
+	docker compose down -v
+
+logs-container: ## Tail logs from the container
+	docker compose logs -f
+
+shell-container: ## Access the running container shell for debugging
+	docker compose exec app /bin/bash
