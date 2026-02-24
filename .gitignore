@@ -23,3 +23,6 @@ inbox/
 
 # Ignore the database directory
 database/
+
+# Ignore the debug file
+debug_messages.json

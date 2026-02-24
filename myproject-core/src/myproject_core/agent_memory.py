@@ -34,8 +34,7 @@ class AgentMemory:
         now = datetime.now(ZoneInfo(timezone))
         content = (
             "## CURRENT CLIPBOARD\n"
-            "The following information is your current working context. "
-            "Use this to answer the user's latest request.\n\n"
+            "The following information is your current working context.\n\n"
             f"{self.agent_clipboard.render_to_markdown()}\n\n\n====="
             "## CURRENT DATE TIME\n"
             f"{now.strftime('%Y-%m-%d %H:%M:%S %Z %z')}\n\n====="

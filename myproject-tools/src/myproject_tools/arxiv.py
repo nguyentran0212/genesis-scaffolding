@@ -286,7 +286,7 @@ def search_papers(
 def search_papers_with_downloads(
     query: str,
     max_results: int = 10,
-    download_dir: Path = None,
+    download_dir: Path | None = None,
 ) -> list[dict]:
     """
     Search papers and automatically trigger download/MD conversion for each.

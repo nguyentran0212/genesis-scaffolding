@@ -3,19 +3,21 @@ from pathlib import Path
 from typing import Annotated, Any
 
 import typer
+import uvicorn
 from myproject_core.agent_registry import AgentRegistry
 from myproject_core.configs import Config
 from myproject_core.workflow_engine import WorkflowEngine
 from myproject_core.workflow_registry import WorkflowRegistry
 from myproject_core.workspace import WorkspaceManager
+from myproject_server.main import app as web_app
 from rich import box, print
 from rich.console import Console
 from rich.panel import Panel
+from rich.prompt import Prompt
 from rich.table import Table
 
+from .streaming import CLIStreamHandler
 from .utils import RichWorkflowRenderer
-from myproject_server.main import app as web_app
-import uvicorn
 
 
 class GenesisCLI:
@@ -142,6 +144,67 @@ class GenesisCLI:
             web_app.state.wm = self.wm
 
             uvicorn.run(web_app, host=self.settings.server.host, port=self.settings.server.port)
+
+        @self.app.command()
+        def chat(
+            agent_id: str = typer.Argument(
+                default="simple_agent", help="The ID of the agent to chat with (e.g., simple_agent)"
+            ),
+            reset: bool = typer.Option(False, "--reset", help="Reset agent memory before starting"),
+        ):
+            """
+            Enter an interactive chat session with a specific agent.
+            """
+            agent = self.agent_registry.get_agent(agent_id)
+            if not agent:
+                self._console.print(f"[red]Error:[/red] Agent '{agent_id}' not found.")
+                raise typer.Exit(1)
+
+            if reset:
+                agent.memory.reset_memory()
+
+            self._console.print(
+                Panel(
+                    f"Chatting with [bold green]{agent.agent_config.name}[/bold green]\n"
+                    f"Type [bold red]'exit'[/bold red] or [bold red]'quit'[/bold red] to stop.",
+                    title="Interactive Session",
+                    border_style="blue",
+                )
+            )
+
+            stream_handler = CLIStreamHandler(self._console)
+
+            async def chat_loop():
+                while True:
+                    try:
+                        # 1. Get User Input
+                        user_input = Prompt.ask("\n[bold yellow]You[/bold yellow]")
+
+                        if user_input.lower() in ["exit", "quit"]:
+                            break
+
+                        # 2. Setup streaming callbacks for this turn
+                        stream_handler.reset()
+
+                        # 3. Execute Step
+                        # We pass the callbacks directly to the agent's step
+                        await agent.step(
+                            input=user_input,
+                            stream=True,
+                            content_chunk_callbacks=[stream_handler.handle_content],
+                            reasoning_chunk_callbacks=[stream_handler.handle_reasoning],
+                            tool_start_callback=[stream_handler.handle_tool_start],
+                        )
+
+                        # Print a final newline for spacing
+                        print()
+
+                    except KeyboardInterrupt:
+                        break
+                    except Exception as e:
+                        self._console.print(f"\n[red]Error:[/red] {e}")
+
+            asyncio.run(chat_loop())
 
     def _print_workflow_help(self, manifest):
         """Standard output for workflow-specific options."""

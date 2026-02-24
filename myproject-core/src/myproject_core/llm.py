@@ -6,7 +6,7 @@ from litellm import CustomStreamWrapper, ModelResponse, acompletion
 from litellm.types.utils import Choices, StreamingChoices
 
 from .configs import settings
-from .schemas import LLMModel, LLMProvider, LLMResponse, StreamCallback
+from .schemas import LLMModel, LLMProvider, LLMResponse, StreamCallback, ToolCall
 
 litellm.suppress_debug_info = True  # Silences provider suggestion logs
 
@@ -17,6 +17,7 @@ async def get_llm_response(
     stream=False,
     content_chunk_callbacks: list[StreamCallback] | None = None,
     reasoning_chunk_callbacks: list[StreamCallback] | None = None,
+    tools: list[Any] | None = None,
 ) -> LLMResponse:
     """
     Executes a completion request against an LLM and handles both static and streaming outputs. This function is async by default.
@@ -48,10 +49,12 @@ async def get_llm_response(
         messages=messages,
         stream=stream,
         stream_options={"include_usage": True},
+        tools=tools,
     )
 
     full_content = ""
     full_reasoning_content = ""
+    tool_calls_dict = {}
 
     if stream:
         if not isinstance(response, CustomStreamWrapper):
@@ -60,22 +63,36 @@ async def get_llm_response(
         full_reasoning_content = ""
         async for chunk in response:
             # This cast prevents pyright from assign the type of choice correctly to streaming choice
-            choice = chunk.choices[0]
-            choice = cast(StreamingChoices, choice)
-            content = getattr(choice.delta, "content", "")
-            reasoning_content = getattr(choice.delta, "reasoning_content", "")
-            if reasoning_content:
-                full_reasoning_content += reasoning_content  # Accumulate reasoning content
-                # If there is a callback to deal with the reasoning chunk, calls it
-                if reasoning_chunk_callbacks:
-                    tasks = [cb(reasoning_content) for cb in reasoning_chunk_callbacks]
-                    await asyncio.gather(*tasks)
+            choice = cast(StreamingChoices, chunk.choices[0])
+
+            # Handle Content Chunk
+            content = getattr(choice.delta, "content", "") or ""
             if content:
-                full_content += content  # Accumulate full text content
-                # If there is a callback to deal with text content, calls it
+                full_content += content
                 if content_chunk_callbacks:
-                    tasks = [cb(content) for cb in content_chunk_callbacks]
-                    await asyncio.gather(*tasks)
+                    await asyncio.gather(*[cb(content) for cb in content_chunk_callbacks])
+
+            # Handle Reasoning Chunk
+            reasoning = getattr(choice.delta, "reasoning_content", "") or ""
+            if reasoning:
+                full_reasoning_content += reasoning
+                if reasoning_chunk_callbacks:
+                    await asyncio.gather(*[cb(reasoning) for cb in reasoning_chunk_callbacks])
+
+            # Handle tool call chunks
+            tool_calls = getattr(choice.delta, "tool_calls", None)
+            if tool_calls:
+                for tc in tool_calls:
+                    idx = tc.index
+                    if idx not in tool_calls_dict:
+                        tool_calls_dict[idx] = {"id": "", "name": "", "args": ""}
+                    if tc.id:
+                        tool_calls_dict[idx]["id"] += tc.id
+                    if tc.function.name:
+                        tool_calls_dict[idx]["name"] += tc.function.name
+                    if tc.function.arguments:
+                        tool_calls_dict[idx]["args"] += tc.function.arguments
+
     else:
         if not isinstance(response, ModelResponse):
             raise RuntimeError("Expected a ModelResponse from litellm but didn't get one.")
@@ -87,7 +104,20 @@ async def get_llm_response(
         full_content = getattr(choices.message, "content", full_content)
         full_reasoning_content = getattr(choices.message, "reasoning_content", full_reasoning_content)
 
-    return LLMResponse(content=full_content, reasoning_content=full_reasoning_content)
+        tool_calls = getattr(choices.message, "tool_calls", None)
+        if tool_calls:
+            for i, tc in enumerate(tool_calls):
+                tool_calls_dict[i] = {
+                    "id": getattr(tc, "id", ""),
+                    "name": getattr(tc.function, "name", ""),
+                    "args": getattr(tc.function, "arguments", ""),
+                }
+    final_tool_calls = [
+        ToolCall(id=v["id"], function_name=v["name"], arguments=v["args"]) for v in tool_calls_dict.values()
+    ]
+    return LLMResponse(
+        content=full_content, reasoning_content=full_reasoning_content, tool_calls=final_tool_calls
+    )
 
 
 async def main():

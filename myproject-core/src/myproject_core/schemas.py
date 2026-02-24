@@ -39,13 +39,23 @@ class LLMModel(BaseModel):
 
 
 ### LLM Response Message
+class ToolCall(BaseModel):
+    id: str
+    function_name: str
+    arguments: str  # We'll store the raw JSON string here for parsing later
+
+
 class LLMResponse(BaseModel):
     content: str
     reasoning_content: str
+    tool_calls: list[ToolCall] = []
 
 
 ### Callback function for handling LLM response chunk
 StreamCallback = Callable[[str], Awaitable[None]]
+
+### Callback function for handling LLM response chunk
+ToolCallback = Callable[[str, dict[str, Any]], Awaitable[None]]
 
 
 ### Agent Configs
@@ -59,7 +69,7 @@ class AgentConfig(BaseModel):
     # System prompt for the agent
     system_prompt: str = "You are a helpful AI agent."
     # List of allowed tools
-    allowed_tools: list[Any] = []
+    allowed_tools: list[str] = []
     # List of names of allowed agents for delegation
     allowed_agents: list[str] = []
 
