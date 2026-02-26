@@ -57,7 +57,7 @@ class Agent:
             # If myproject_tools is not available, agent simply has no tools
             self.tools = []
 
-    def get_tool_definitions(self) -> list[dict]:
+    def _get_tool_definitions(self) -> list[dict]:
         """Returns the JSON schemas for all resolved tools for the LLM call."""
         return [t.to_llm_schema() for t in self.tools]
 
@@ -80,36 +80,61 @@ class Agent:
 
         return llm_message
 
-    async def _handle_tool_execution(self, tool_name: str, args: dict) -> str:
-        tool = next((t for t in self.tools if t.name == tool_name), None)
-        if not tool:
-            return f"Error: Tool {tool_name} not found."
+    async def _execute_tool_and_format(self, tool_id: str, name: str, args: dict, working_directory: Path):
+        """Internal helper to run the tool and format the message for the LLM."""
+        # 1. Look up tool
+        tool = next((t for t in self.tools if t.name == name), None)
 
         try:
-            result = await tool.run(**args)
+            if not tool:
+                result_str = f"Error: Tool {name} not found."
+            else:
+                # Execute (Pure data generation)
+                result: ToolResult = await tool.run(working_directory=working_directory, **args)
 
-            if result.status == "success" and result.add_to_clipboard:
-                # We use the hint if provided, otherwise a default
-                path = Path(result.file_path_hint or f"{tool_name}_output.txt")
-                self.memory.add_file_to_clipboard(path, result.content)
+                # Side Effect: Add files to clipboard
+                if result.status == "success" and result.files_to_add_to_clipboard:
+                    for file_path in result.files_to_add_to_clipboard:
+                        await self.add_file(file_path=file_path)
 
-                # What we tell the LLM (The "Receipt")
-                return f"Success: Content from {tool_name} added to clipboard."
+                # Side Effect: Add tool results to clipboard
+                if result.status == "success" and result.results_to_add_to_clipboard:
+                    self.memory.add_tool_results_to_clipboard(
+                        tool_name=name, tool_call_id=tool_id, results=result.results_to_add_to_clipboard
+                    )
 
-            # 4. Standard return if not meant for clipboard
-            return result.content
-
+                result_str = result.tool_response
         except Exception as e:
-            # Catch the simulated crash from our Test Tool
-            return f"Tool Execution Error ({tool_name}): {str(e)}"
+            # Uncaught error. This really should not happen as it messes up the agent
+            result_str = f"Tool Execution Error: {str(e)}"
+
+        # Return the 'tool' role message required by LLM history
+        return {"role": "tool", "tool_call_id": tool_id, "name": name, "content": result_str}
+
+    def _log_debug_messages(self, messages: list[dict], turn: int):
+        """Dumps the current message stack to a local JSON file for debugging."""
+        timestamp = datetime.now().strftime("%H-%M-%S")
+        debug_file = Path("debug_messages.json")
+
+        # We append to the file so we can see the history of turns
+        with open(debug_file, "a", encoding="utf-8") as f:
+            log_entry = {
+                "timestamp": timestamp,
+                "agent": self.agent_config.name,
+                "turn": turn,
+                "messages": messages,
+            }
+            f.write(json.dumps(log_entry, indent=2) + "\n\n" + "=" * 50 + "\n\n")
 
     async def step(
         self,
         input: str,
+        working_directory: Path,
         stream: bool | None = None,
         content_chunk_callbacks: list[StreamCallback] | None = None,
         reasoning_chunk_callbacks: list[StreamCallback] | None = None,
         tool_start_callback: list[ToolCallback] | None = None,
+        debug=False,
     ):
         """
         Agent calls LLM to progress to the next step
@@ -120,8 +145,12 @@ class Agent:
         # Add user message to memory
         self.memory.append_memory(self._create_llm_message(role="user", content=input))
 
-        with open("debug_messages.json", "w") as f:
-            f.write("")
+        # Reduce ttl and remove any expire item from memory to save space
+        self.memory.forget()
+
+        if debug:
+            with open("debug_messages.json", "w") as f:
+                f.write("")
 
         # Build the ephemeral payload for the LLM
         # Current memory.messages is [..., UserMsg]
@@ -160,14 +189,15 @@ class Agent:
                 reasoning_chunk_callbacks if reasoning_chunk_callbacks else self.reasoning_chunk_callbacks
             )
 
-            self._log_debug_messages(full_payload, turn)
+            if debug:
+                self._log_debug_messages(full_payload, turn)
             llm_response = await get_llm_response(
                 llm_model=self.llm,
                 messages=full_payload,
                 stream=stream if stream is not None else self.stream,
                 content_chunk_callbacks=content_chunk_callbacks,
                 reasoning_chunk_callbacks=reasoning_chunk_callbacks,
-                tools=self.get_tool_definitions() if self.tools else None,
+                tools=self._get_tool_definitions() if self.tools else None,
             )
 
             # 4. Store Assistant Response in memory
@@ -203,7 +233,9 @@ class Agent:
                     tool_start_cb = [cb(tc.function_name, args) for cb in tool_start_callback]
                     await asyncio.gather(*tool_start_cb)
 
-                tool_tasks.append(self._execute_tool_and_format(tc.id, tc.function_name, args))
+                tool_tasks.append(
+                    self._execute_tool_and_format(tc.id, tc.function_name, args, working_directory)
+                )
 
             # Wait for all tool side-effects to finish
             tool_results = await asyncio.gather(*tool_tasks)
@@ -211,46 +243,6 @@ class Agent:
             # Add results to history and LOOP BACK
             for res_msg in tool_results:
                 self.memory.append_memory(res_msg)
-
-    async def _execute_tool_and_format(self, tool_id: str, name: str, args: dict):
-        """Internal helper to run the tool and format the message for the LLM."""
-        # 1. Look up tool
-        tool = next((t for t in self.tools if t.name == name), None)
-
-        try:
-            if not tool:
-                result_str = f"Error: Tool {name} not found."
-            else:
-                # 2. Execute (Pure data generation)
-                result: ToolResult = await tool.run(**args)
-
-                # 3. Core Side Effect (The Clipboard)
-                if result.status == "success" and result.add_to_clipboard:
-                    path = Path(result.file_path_hint or f"{name}_output.txt")
-                    self.memory.add_file_to_clipboard(path, result.content)
-                    result_str = f"Success: Content from {name} added to clipboard."
-                else:
-                    result_str = result.content
-        except Exception as e:
-            result_str = f"Tool Execution Error: {str(e)}"
-
-        # Return the 'tool' role message required by LLM history
-        return {"role": "tool", "tool_call_id": tool_id, "name": name, "content": result_str}
-
-    def _log_debug_messages(self, messages: list[dict], turn: int):
-        """Dumps the current message stack to a local JSON file for debugging."""
-        timestamp = datetime.now().strftime("%H-%M-%S")
-        debug_file = Path("debug_messages.json")
-
-        # We append to the file so we can see the history of turns
-        with open(debug_file, "a", encoding="utf-8") as f:
-            log_entry = {
-                "timestamp": timestamp,
-                "agent": self.agent_config.name,
-                "turn": turn,
-                "messages": messages,
-            }
-            f.write(json.dumps(log_entry, indent=2) + "\n\n" + "=" * 50 + "\n\n")
 
     async def add_file(self, file_path: Path):
         """Method for external workflows to feed files to the agent."""
@@ -275,11 +267,15 @@ async def main():
         reasoning_chunk_callbacks=[streamcallback_simple_print],
     )
 
-    print(f"Turn 1:\n{await agent.step('hello, how are you?')}\n-----")
+    print(
+        f"Turn 1:\n{await agent.step('hello, how are you?', working_directory=Path(__file__).parent)}\n-----"
+    )
 
     await agent.add_file(Path(__file__).resolve())
 
-    print(f"Turn 2:\n{await agent.step('Can you explain to me the file in the clipboard?')}\n-----")
+    print(
+        f"Turn 2:\n{await agent.step('Can you explain to me the file in the clipboard?', working_directory=Path(__file__).parent)}\n-----"
+    )
 
     messages = agent.memory.get_messages()
     print(f"\n\nAll of the messages:\n{messages}")

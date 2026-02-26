@@ -49,7 +49,7 @@ class AgentProjectionTask(BaseTask[AgentProjectionTaskParams, TaskOutput]):
         )
 
         # Get response from LLM
-        response_text = await agent.step(structured_prompt)
+        response_text = await agent.step(structured_prompt, context.root)
         raw_content = str(response_text)
 
         # Attempt to parse the list
@@ -58,7 +58,7 @@ class AgentProjectionTask(BaseTask[AgentProjectionTaskParams, TaskOutput]):
         if not extracted_list:
             # Simple one-time retry logic if parsing fails
             retry_prompt = 'Your previous response was not a valid JSON list. Please provide the list again in ["item1", "item2"] format.'
-            response_text = await agent.step(retry_prompt)
+            response_text = await agent.step(retry_prompt, context.root)
             extracted_list = self._parse_json_list(str(response_text))
 
         if args.max_number is not None:

@@ -49,7 +49,7 @@ class AgentMapTask(BaseTask[AgentMapTaskParams, AgentMapTaskOutput]):
                 prompt_string = f"{args.prompts_prefix} \n\n {prompt}"
             else:
                 prompt_string = prompt
-            response_text = await agent.step(prompt_string)
+            response_text = await agent.step(prompt_string, context.root)
             all_responses.append(str(response_text))
 
         # Handle file writing logic

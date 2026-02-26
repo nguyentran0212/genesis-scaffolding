@@ -1,12 +1,16 @@
+import asyncio
 import re
 import tarfile
 import zipfile
 from pathlib import Path
+from typing import Any
 
 import arxiv
 import httpx
 
+from .base import BaseTool
 from .pdf import convert_pdf_to_markdown
+from .schema import ToolResult
 
 
 def _format_result(
@@ -321,6 +325,183 @@ def search_papers_with_downloads(
             break
 
     return results
+
+
+class ArxivSearchTool(BaseTool):
+    name = "arxiv_search_tool"
+    description = "Search arxiv papers for a given query, download markdown and PDF of the found paper to a directory, and read the markdown files into the clipboard."
+    parameters = {
+        "type": "object",
+        "properties": {
+            "query": {
+                "type": "string",
+                "description": "The search query for ArXiv papers (e.g., 'quantum computing')",
+            },
+            "max_results": {
+                "type": "integer",
+                "default": 10,
+                "description": "The maximum number of papers to return",
+            },
+            "download_dir": {
+                "type": "string",
+                "default": ".",
+                "description": "The subdirectory where files should be saved",
+            },
+        },
+        "required": ["query"],
+    }
+
+    async def run(
+        self,
+        working_directory: Path,
+        query: str,
+        max_results: int = 10,
+        download_dir: str = ".",
+        **kwargs: Any,
+    ) -> ToolResult:
+        download_dir_path = Path(download_dir)
+        if download_dir_path.is_absolute() or not download_dir_path.resolve().is_relative_to(
+            working_directory
+        ):
+            return ToolResult(
+                tool_response="The provided download directory is invalid. You need to provide a relative path that does not resolve outside the working directory",
+                status="error",
+            )
+        if not download_dir_path.exists():
+            return ToolResult(
+                tool_response="The provided download directory does not exist", status="error"
+            )
+        if download_dir_path.is_file():
+            return ToolResult(
+                tool_response="The provided download directory is invalid. You need to provide a relative path to a directory",
+                status="error",
+            )
+        # At this point, the provided path exist, sit within the working directory, and is a valid directory
+        results = await asyncio.to_thread(
+            search_papers_with_downloads,
+            query=query,
+            max_results=max_results,
+            download_dir=download_dir_path,
+        )
+
+        if not results or len(results) == 0:
+            return ToolResult(
+                status="success", tool_response=f"Cannot find any paper for the given search query: {query}"
+            )
+
+        num_results = len(results)
+        results_to_add_to_clipboard: list[str] = []
+        files_to_add_to_clipboard: list[Path] = []
+        for result in results:
+            results_to_add_to_clipboard.append(
+                f"Arxiv Paper ID: {result.get('id', 'unknown')}\nTitle: {result.get('title', 'unknown')}\nSummary: {result.get('summary', 'unknown')}\n\n\n"
+            )
+            md_path = result.get("md_path")
+            if md_path and Path(md_path).exists():
+                files_to_add_to_clipboard.append(Path(md_path))
+
+        return ToolResult(
+            status="success",
+            tool_response=f"Found and downloaded {num_results}. Resulting markdown files have been added to clipboard.",
+            files_to_add_to_clipboard=files_to_add_to_clipboard,
+            results_to_add_to_clipboard=results_to_add_to_clipboard,
+        )
+
+
+class ArxivPaperDetailTool(BaseTool):
+    name = "arxiv_paper_detail"
+    description = (
+        "Fetch detailed metadata for a specific arXiv paper by its ID. "
+        "Optionally download the PDF and read the converted markdown content into the clipboard."
+    )
+    parameters = {
+        "type": "object",
+        "properties": {
+            "paper_id": {
+                "type": "string",
+                "description": "The arXiv ID (e.g., '2305.16303' or 'cs/0501001')",
+            },
+            "download_pdf": {
+                "type": "boolean",
+                "default": False,
+                "description": "If true, downloads the PDF and converts it to markdown for the clipboard.",
+            },
+            "download_dir": {
+                "type": "string",
+                "default": ".",
+                "description": "The relative subdirectory where the paper should be saved.",
+            },
+        },
+        "required": ["paper_id"],
+    }
+
+    async def run(
+        self,
+        working_directory: Path,
+        paper_id: str,
+        download_pdf: bool = False,
+        download_dir: str = ".",
+        **kwargs: Any,
+    ) -> ToolResult:
+        # 1. Validate the download directory
+        download_dir_path = Path(download_dir)
+
+        # Ensure path is relative and stays within the working directory
+        if download_dir_path.is_absolute() or not (
+            working_directory / download_dir_path
+        ).resolve().is_relative_to(working_directory.resolve()):
+            return ToolResult(
+                status="error",
+                tool_response="Invalid download directory. Please provide a relative path within the current working directory.",
+            )
+
+        full_target_dir = working_directory / download_dir_path
+        if not full_target_dir.exists():
+            return ToolResult(
+                status="error", tool_response=f"The directory '{download_dir}' does not exist."
+            )
+
+        # 2. Call the blocking sync function in a separate thread
+        # We use asyncio.to_thread to avoid blocking the agent's event loop
+        result = await asyncio.to_thread(
+            get_paper_details, paper_id=paper_id, download_dir=full_target_dir, download_pdf=download_pdf
+        )
+
+        if not result:
+            return ToolResult(status="error", tool_response=f"No paper found with ArXiv ID: {paper_id}")
+
+        # 3. Prepare the Clipboard content
+        # We put the summary/metadata in the clipboard text channel
+        paper_metadata = (
+            f"ID: {result.get('id')}\n"
+            f"Title: {result.get('title')}\n"
+            f"Authors: {result.get('authors', 'Unknown')}\n"
+            f"Summary: {result.get('summary')}\n"
+        )
+
+        results_to_add_to_clipboard = [paper_metadata]
+        files_to_add_to_clipboard: list[Path] = []
+
+        # If a markdown conversion was generated, add it to the file clipboard channel
+        md_path_str = result.get("md_path")
+        if md_path_str:
+            md_path = Path(md_path_str)
+            if md_path.exists():
+                files_to_add_to_clipboard.append(md_path)
+
+        # 4. Return result
+        status_msg = f"Successfully fetched details for {paper_id}."
+        if download_pdf and files_to_add_to_clipboard:
+            status_msg += " Paper content has been converted to markdown and added to the clipboard."
+        else:
+            status_msg += " Metadata has been added to the clipboard."
+
+        return ToolResult(
+            status="success",
+            tool_response=status_msg,
+            results_to_add_to_clipboard=results_to_add_to_clipboard,
+            files_to_add_to_clipboard=files_to_add_to_clipboard,
+        )
 
 
 def main():

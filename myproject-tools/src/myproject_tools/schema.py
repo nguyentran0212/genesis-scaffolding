@@ -1,15 +1,13 @@
-from typing import Any, Optional
+from pathlib import Path
+from typing import Literal
 
 from pydantic import BaseModel
 
 
 class ToolResult(BaseModel):
-    content: str  # The main output or error message
-    status: str  # "success" or "error"
+    status: Literal["success", "error"]
 
-    # Hints for the Core
-    add_to_clipboard: bool = False
-    file_path_hint: str | None = None  # e.g., "research_paper.md"
-
-    # Any extra data the tool wants to pass back
-    metadata: Optional[dict[str, Any]] = None
+    # Tool results have three channels
+    tool_response: str  # The main output or error message to send back to the agent
+    results_to_add_to_clipboard: list[str] | None = None  # Any content here would be added to clipboard
+    files_to_add_to_clipboard: list[Path] = []  # Any files here would be loaded to the clipboard

@@ -80,6 +80,19 @@ class AgentClipboardFile(BaseModel):
     file_path: Path
     # Content of the file (support textual content only for now)
     file_content: str
+    # How many turns left until the file is removed from clipboard
+    ttl: int = 10
+
+
+class AgentClipboardToolResult(BaseModel):
+    # Name of the tool
+    tool_name: str
+    # ID of the tool call returned by LLM backend
+    tool_call_id: str
+    # Results of tool call returned by the tools defined in myproject-tools
+    tool_call_results: list[str]
+    # How many turns left until the tool call result is removed from clipboard
+    ttl: int = 10
 
 
 class AgentClipboardTodoItem(BaseModel):
@@ -90,8 +103,37 @@ class AgentClipboardTodoItem(BaseModel):
 
 
 class AgentClipboard(BaseModel):
-    accessed_files: list[AgentClipboardFile] = []
+    accessed_files: dict[str, AgentClipboardFile] = {}
+    tool_results: dict[str, AgentClipboardToolResult] = {}
     todo_list: list[AgentClipboardTodoItem] = []
+
+    def add_file_to_clipboard(self, file_path: Path, content: str):
+        """Adds or updates a file in the clipboard."""
+        new_file = AgentClipboardFile(file_path=file_path, file_content=content)
+        self.accessed_files[str(file_path)] = new_file
+
+    def add_tool_result_to_clipboard(self, tool_name: str, tool_call_id: str, tool_call_results: list[str]):
+        """Add results of tool call to the clipboard"""
+        new_tool_result = AgentClipboardToolResult(
+            tool_name=tool_name, tool_call_id=tool_call_id, tool_call_results=tool_call_results
+        )
+        self.tool_results[tool_call_id] = new_tool_result
+
+    def reduce_ttl(self):
+        """Reduce ttl of every item stored in clipboard"""
+        if self.accessed_files:
+            for _, file in self.accessed_files.items():
+                file.ttl = file.ttl - 1
+        if self.tool_results:
+            for _, tool_result in self.tool_results.items():
+                tool_result.ttl = tool_result.ttl - 1
+
+    def remove_expired_items(self):
+        """Remove expired files and tool call results"""
+        # Reconstruct the dictionaries keeping only items with ttl > 0
+        self.accessed_files = {key: file for key, file in self.accessed_files.items() if file.ttl > 0}
+
+        self.tool_results = {key: result for key, result in self.tool_results.items() if result.ttl > 0}
 
     def render_to_markdown(self) -> str:
         """Converts clipboard contents into a structured Markdown string."""
@@ -108,10 +150,24 @@ class AgentClipboard(BaseModel):
         # Render Files
         if self.accessed_files:
             file_section = "### ACCESSED FILES\n"
-            for file in self.accessed_files:
+            for _, file in self.accessed_files.items():
                 file_section += f"#### File: {file.file_path}\n"
+                file_section += f"This file would be removed from clipboard in {file.ttl} turns\n\n"
                 file_section += f"```\n{file.file_content}\n```\n"
             sections.append(file_section)
+
+        # Render tool results
+        if self.tool_results:
+            tool_section = "### TOOL CALL RESULTS\n"
+            for _, tool_result in self.tool_results.items():
+                tool_section += f"#### Tool Call ID: {tool_result.tool_call_id}\n"
+                tool_section += f"Tool: {tool_result.tool_name}\n"
+                tool_section += (
+                    f"This tool call result would be removed from clipboard in {tool_result.ttl} turns\n\n"
+                )
+                for res in tool_result.tool_call_results:
+                    tool_section += f"```\n{res}\n```\n"
+            sections.append(tool_section)
 
         if not sections:
             return "Clipboard is currently empty."

@@ -4,7 +4,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from .configs import settings
-from .schemas import AgentClipboard, AgentClipboardFile
+from .schemas import AgentClipboard
 
 
 class AgentMemory:
@@ -25,6 +25,10 @@ class AgentMemory:
         self.messages = []
         self.agent_clipboard = AgentClipboard()
 
+    def forget(self):
+        self.agent_clipboard.reduce_ttl()
+        self.agent_clipboard.remove_expired_items()
+
     def get_clipboard_message(self) -> dict[str, str]:
         """
         Formats the clipboard as a system message.
@@ -43,13 +47,13 @@ class AgentMemory:
 
     def add_file_to_clipboard(self, file_path: Path, content: str):
         """Adds or updates a file in the clipboard."""
-        # Remove existing version of the file if it exists to avoid duplicates
-        self.agent_clipboard.accessed_files = [
-            f for f in self.agent_clipboard.accessed_files if f.file_path != file_path
-        ]
+        self.agent_clipboard.add_file_to_clipboard(file_path=file_path, content=content)
 
-        new_file = AgentClipboardFile(file_path=file_path, file_content=content)
-        self.agent_clipboard.accessed_files.append(new_file)
+    def add_tool_results_to_clipboard(self, tool_name: str, tool_call_id: str, results: list[str]):
+        """Adds tool results to clipboard"""
+        self.agent_clipboard.add_tool_result_to_clipboard(
+            tool_name=tool_name, tool_call_id=tool_call_id, tool_call_results=results
+        )
 
     def estimate_total_tokens(self) -> int:
         """

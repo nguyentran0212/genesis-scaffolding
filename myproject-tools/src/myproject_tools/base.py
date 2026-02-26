@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Any
 
 from .schema import ToolResult
@@ -12,7 +13,7 @@ class BaseTool(ABC):
     parameters: dict[str, Any]
 
     @abstractmethod
-    async def run(self, *args: Any, **kwargs: Any) -> ToolResult:
+    async def run(self, working_directory: Path, *args: Any, **kwargs: Any) -> ToolResult:
         """Execute logic and return a ToolResult data object."""
         pass
 

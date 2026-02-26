@@ -46,7 +46,7 @@ class AgentReduceTask(BaseTask[AgentReduceTaskParams, TaskOutput]):
         )
 
         # 4. Execute the agent run
-        response_text = await agent.step(final_one_shot_prompt)
+        response_text = await agent.step(final_one_shot_prompt, context.root)
         response_str = str(response_text)
 
         # 5. Handle output (content is a list of 1 string)

@@ -148,7 +148,7 @@ class GenesisCLI:
         @self.app.command()
         def chat(
             agent_id: str = typer.Argument(
-                default="simple_agent", help="The ID of the agent to chat with (e.g., simple_agent)"
+                default="assistant_agent", help="The ID of the agent to chat with (e.g., simple_agent)"
             ),
             reset: bool = typer.Option(False, "--reset", help="Reset agent memory before starting"),
         ):
@@ -190,6 +190,7 @@ class GenesisCLI:
                         # We pass the callbacks directly to the agent's step
                         await agent.step(
                             input=user_input,
+                            working_directory=self.settings.path.working_directory,
                             stream=True,
                             content_chunk_callbacks=[stream_handler.handle_content],
                             reasoning_chunk_callbacks=[stream_handler.handle_reasoning],

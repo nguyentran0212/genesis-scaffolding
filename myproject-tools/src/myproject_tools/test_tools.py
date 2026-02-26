@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Any
 
 from .base import BaseTool
@@ -12,13 +13,15 @@ class MockTestTool(BaseTool):
         "properties": {"input_text": {"type": "string"}, "should_fail": {"type": "boolean"}},
     }
 
-    async def run(self, input_text: str, should_fail: bool = False, **kwargs: Any) -> ToolResult:
+    async def run(
+        self, working_directory: Path, input_text: str, should_fail: bool = False, **kwargs: Any
+    ) -> ToolResult:
         if should_fail:
             # Test exception catching
             raise Exception(f"Simulated crash with input: {input_text}")
 
         return ToolResult(
-            content="Processed input text successfully and added to the clipboard",
+            tool_response="Processed input text successfully and added to the clipboard",
             status="success",
-            add_to_clipboard=True,
+            results_to_add_to_clipboard=[f"{input_text}"],
         )
