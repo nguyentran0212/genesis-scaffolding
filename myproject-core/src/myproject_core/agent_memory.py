@@ -25,6 +25,18 @@ class AgentMemory:
         self.messages = []
         self.agent_clipboard = AgentClipboard()
 
+    def remove_deleted_files(self) -> list[Path]:
+        """
+        Automatically remove deleted files from the clipboard
+        """
+        accessed_files_paths = self.agent_clipboard.get_accessed_files_paths()
+        files_to_remove = [file_path for file_path in accessed_files_paths if not file_path.exists()]
+        files_removed = []
+        for file_path in files_to_remove:
+            if self.agent_clipboard.remove_file_from_clipboard(file_path):
+                files_removed.append(file_path)
+        return files_removed
+
     def forget(self):
         self.agent_clipboard.reduce_ttl()
         self.agent_clipboard.remove_expired_items()

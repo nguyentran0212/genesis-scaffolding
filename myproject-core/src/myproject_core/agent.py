@@ -15,6 +15,27 @@ from .llm import get_llm_response
 from .schemas import AgentConfig, LLMModel, LLMProvider, StreamCallback, ToolCallback
 from .utils import streamcallback_simple_print
 
+SYSTEM_PROMPT_PREFIX = """
+# GENERAL INSTRUCTION
+
+You need to follow the role and specific instructions described later in this message to accomplish your goal of supporting me (the user).
+
+You have access to a clipboard that stores relevant data in this session:
+- content of files you read or provided to you
+- results of your tool calls 
+- your to-do list
+
+This clipboard would be dynamically updated and provided to you after you finish calling tool and before any message from me, the user. 
+
+After successful tool call, such as reading a file or fetching a web page, you would usually receive a response from tool to notify you where the retrieved content can be found.
+the retrieved content is usually added to the clipboard. In this case, the tool call has completed.
+
+-----
+
+# ROLE DESCRIPTION AND INSTRUCTIONS
+
+"""
+
 
 class Agent:
     def __init__(
@@ -31,7 +52,7 @@ class Agent:
 
         self.llm = agent_config.llm_config
 
-        system_prompt = agent_config.system_prompt
+        system_prompt = SYSTEM_PROMPT_PREFIX + agent_config.system_prompt
         self.memory = (
             memory
             if memory
@@ -172,6 +193,10 @@ class Agent:
         # Reduce ttl and remove any expire item from memory to save space
         self.memory.forget()
 
+        # Remove the deleted files from the clipboard
+        self.memory.remove_deleted_files()
+
+        debug = True
         if debug:
             with open("debug_messages.json", "w") as f:
                 f.write("")
@@ -282,44 +307,73 @@ class Agent:
             raise FileNotFoundError(f"File not found: {file_path}")
 
         # 2. Determine File Type
-        mime_type, _ = mimetypes.guess_type(resolved_path)
         extension = resolved_path.suffix.lower()
 
         content = ""
         safe_file_path = resolved_path.relative_to(current_working_directory)
+        extension = resolved_path.suffix.lower()
 
-        # 3. Handle Different File Types
-        try:
-            if extension == ".pdf":
-                # Use your existing PDF converter
-                # We use asyncio.to_thread to keep the event loop responsive during conversion
-                content = await asyncio.to_thread(
-                    convert_pdf_to_markdown, pdf_path=resolved_path, prune_references=True
-                )
+        # 1. Handle Known Non-Text Formats first
+        if extension == ".pdf":
+            return await asyncio.to_thread(
+                convert_pdf_to_markdown, pdf_path=resolved_path, prune_references=True
+            )
 
-            elif extension in [".txt", ".md", ".py", ".json", ".csv", ".yaml", ".yml"]:
-                # Standard text reading
-                def read_text():
-                    with open(resolved_path, "r", encoding="utf-8", errors="replace") as f:
-                        return f.read()
+        # List of extensions to explicitly ignore (binaries/assets)
+        # This prevents wasting IO on large images or compiled files
+        BINARY_EXTENSIONS = {
+            ".exe",
+            ".bin",
+            ".pyc",
+            ".o",
+            ".obj",
+            ".dll",
+            ".so",
+            ".dylib",
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".gif",
+            ".bmp",
+            ".ico",
+            ".webp",
+            ".mp3",
+            ".mp4",
+            ".wav",
+            ".avi",
+            ".mov",
+            ".zip",
+            ".tar",
+            ".gz",
+            ".7z",
+            ".docx",
+            ".xlsx",
+            ".pptx",
+            ".sqlite",
+            ".db",
+        }
 
-                content = await asyncio.to_thread(read_text)
+        if extension in BINARY_EXTENSIONS:
+            raise ValueError(f"Unsupported binary file type: {extension}")
 
-            else:
-                # Optional: Handle generic text-based mimetypes
-                if mime_type and (mime_type.startswith("text/") or mime_type == "application/json"):
-                    content = await asyncio.to_thread(
-                        lambda: resolved_path.read_text(encoding="utf-8", errors="replace")
-                    )
-                else:
-                    raise ValueError(f"Unsupported file type: {extension} ({mime_type})")
+        # 2. Heuristic: Check if the file is binary or text
+        def is_text_and_read():
+            # Check first 1024 bytes for null character
+            with open(resolved_path, "rb") as f:
+                chunk = f.read(1024)
+                if b"\0" in chunk:
+                    return None  # It's a binary file
 
-        except Exception as e:
-            # Handle parsing errors (e.g. corrupted PDF or binary file mistaken for text)
-            raise RuntimeError(f"Failed to process file {file_path}: {str(e)}")
+            # If no null byte, attempt to read as text
+            try:
+                with open(resolved_path, "r", encoding="utf-8", errors="replace") as f:
+                    return f.read()
+            except Exception:
+                return None
 
-        if not content.strip():
-            raise ValueError(f"The file {file_path} appears to be empty or could not be parsed.")
+        content = await asyncio.to_thread(is_text_and_read)
+        if content is None:
+            raise ValueError(f"File {resolved_path.name} appears to be binary or unreadable.")
 
         # 4. Add to Memory
         self.memory.add_file_to_clipboard(safe_file_path, content)

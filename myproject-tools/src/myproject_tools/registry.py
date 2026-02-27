@@ -1,5 +1,15 @@
 from .arxiv import ArxivPaperDetailTool, ArxivSearchTool
 from .base import BaseTool
+from .file import (
+    DeleteFileTool,
+    EditFileTool,
+    FindFilesTool,
+    ListFilesTool,
+    MoveFileTool,
+    ReadFileTool,
+    SearchFileContentTool,
+    WriteFileTool,
+)
 from .pdf import PdfToMarkdownTool
 from .rss_utils import RssFetchTool
 from .test_tools import MockTestTool
@@ -40,6 +50,14 @@ tool_registry.register("fetch_rss_feed", RssFetchTool)
 tool_registry.register("fetch_web_page", WebPageFetchTool)
 tool_registry.register("search_web", WebSearchTool)
 tool_registry.register("search_news", NewsSearchTool)
+tool_registry.register("list_files", ListFilesTool)
+tool_registry.register("read_file", ReadFileTool)
+tool_registry.register("write_file", WriteFileTool)
+tool_registry.register("edit_file", EditFileTool)
+tool_registry.register("find_files", FindFilesTool)
+tool_registry.register("delete_file", DeleteFileTool)
+tool_registry.register("move_or_rename_file", MoveFileTool)
+tool_registry.register("search_file_content", SearchFileContentTool)
 
 
 def main():

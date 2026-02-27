@@ -65,10 +65,17 @@ class CLIStreamHandler:
 
     def stop_live(self):
         if self.live:
-            # Force one last refresh to ensure the final tokens are there
+            # 1. Final update to the current Live block
             self.live.update(self.display, refresh=True)
+            # 2. Close the Live context (pins the text to terminal history)
             self.live.stop()
             self.live = None
+
+            # Clear the buffers immediately after pinning.
+            # This ensures the NEXT time start_live() is called (even in the same turn),
+            # we don't re-print the reasoning from the previous step.
+            self.display.content = ""
+            self.display.reasoning = ""
 
     def reset(self):
         """Clears everything for a new prompt."""
