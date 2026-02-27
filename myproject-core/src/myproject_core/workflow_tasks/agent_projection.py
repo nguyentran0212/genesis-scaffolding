@@ -27,7 +27,7 @@ class AgentProjectionTask(BaseTask[AgentProjectionTaskParams, TaskOutput]):
     async def run(self, context: JobContext, agent_registry: AgentRegistry, params: dict) -> TaskOutput:
         args = self.params_model.model_validate(params)
 
-        agent = agent_registry.get_agent(args.agent)
+        agent = agent_registry.create_agent(args.agent)
         if not agent:
             raise Exception(f"Cannot find the requested agent {args.agent}")
 

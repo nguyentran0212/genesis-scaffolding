@@ -29,7 +29,7 @@ class AgentMemory:
         self.agent_clipboard.reduce_ttl()
         self.agent_clipboard.remove_expired_items()
 
-    def get_clipboard_message(self) -> dict[str, str]:
+    def get_clipboard_message(self, shorten: bool = False) -> dict[str, str]:
         """
         Formats the clipboard as a system message.
         This is ephemeral and should not be stored in self.messages.
@@ -38,8 +38,7 @@ class AgentMemory:
         now = datetime.now(ZoneInfo(timezone))
         content = (
             "## CURRENT CLIPBOARD\n"
-            "The following information is your current working context.\n\n"
-            f"{self.agent_clipboard.render_to_markdown()}\n\n\n====="
+            f"{self.agent_clipboard.render_to_markdown(shorten=shorten)}\n\n\n=====\n"
             "## CURRENT DATE TIME\n"
             f"{now.strftime('%Y-%m-%d %H:%M:%S %Z %z')}\n\n====="
         )
@@ -54,6 +53,30 @@ class AgentMemory:
         self.agent_clipboard.add_tool_result_to_clipboard(
             tool_name=tool_name, tool_call_id=tool_call_id, tool_call_results=results
         )
+
+    def remove_file_from_clipboard(self, file_path: Path) -> bool:
+        """
+        Remove a file from clipboard
+        Return False if failed to remove file
+        """
+        try:
+            if self.agent_clipboard.remove_file_from_clipboard(file_path):
+                return True
+            else:
+                return False
+        except Exception:
+            return False
+
+    def remove_dir_from_clipboard(self, dir_path: Path) -> list[Path]:
+        accessed_files_paths = self.agent_clipboard.get_accessed_files_paths()
+        files_to_remove = [
+            file_path for file_path in accessed_files_paths if file_path.is_relative_to(dir_path)
+        ]
+        files_removed = []
+        for file_path in files_to_remove:
+            if self.agent_clipboard.remove_file_from_clipboard(file_path):
+                files_removed.append(file_path)
+        return files_removed
 
     def estimate_total_tokens(self) -> int:
         """

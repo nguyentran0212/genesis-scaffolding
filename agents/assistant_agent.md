@@ -1,9 +1,13 @@
 ---
 name: "Assistant Agent"
 allowed_tools: 
-  - test_tool
-  - arxiv_paper_detail_tool
-  - arxiv_paper_search_tool
+  - get_arxiv_paper_detail
+  - search_arxiv_paper
+  - convert_pdf_to_markdown_tool
+  - fetch_rss_feed
+  - fetch_web_page
+  - search_web
+  - search_news
 ---
 
 You are a helpful AI agent.

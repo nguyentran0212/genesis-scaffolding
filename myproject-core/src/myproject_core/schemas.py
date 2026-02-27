@@ -119,6 +119,16 @@ class AgentClipboard(BaseModel):
         )
         self.tool_results[tool_call_id] = new_tool_result
 
+    def remove_file_from_clipboard(self, file_path: Path) -> bool:
+        """
+        Remove a given file from clipboard
+        Return False if file does not exist.
+        """
+        if str(file_path) in self.accessed_files:
+            del self.accessed_files[str(file_path)]
+            return True
+        return False
+
     def reduce_ttl(self):
         """Reduce ttl of every item stored in clipboard"""
         if self.accessed_files:
@@ -135,7 +145,7 @@ class AgentClipboard(BaseModel):
 
         self.tool_results = {key: result for key, result in self.tool_results.items() if result.ttl > 0}
 
-    def render_to_markdown(self) -> str:
+    def render_to_markdown(self, shorten: bool = False) -> str:
         """Converts clipboard contents into a structured Markdown string."""
         sections = []
 
@@ -153,7 +163,10 @@ class AgentClipboard(BaseModel):
             for _, file in self.accessed_files.items():
                 file_section += f"#### File: {file.file_path}\n"
                 file_section += f"This file would be removed from clipboard in {file.ttl} turns\n\n"
-                file_section += f"```\n{file.file_content}\n```\n"
+                if not shorten:
+                    file_section += f"```\n{file.file_content}\n```\n"
+                else:
+                    file_section += f"```\n{file.file_content[0:50]}...\n```\n"
             sections.append(file_section)
 
         # Render tool results
@@ -166,13 +179,23 @@ class AgentClipboard(BaseModel):
                     f"This tool call result would be removed from clipboard in {tool_result.ttl} turns\n\n"
                 )
                 for res in tool_result.tool_call_results:
-                    tool_section += f"```\n{res}\n```\n"
+                    if not shorten:
+                        tool_section += f"```\n{res}\n```\n"
+                    else:
+                        tool_section += f"```\n{res[:50]}...\n```\n"
             sections.append(tool_section)
 
         if not sections:
             return "Clipboard is currently empty."
 
         return "\n\n".join(sections)
+
+    def get_accessed_files_paths(self) -> list[Path]:
+        """
+        Return a list of paths of all accessed files
+        """
+        str_paths: list[str] = list(self.accessed_files.keys())
+        return [Path(str_path) for str_path in str_paths]
 
 
 ### Schema for workflow events to use with callbacks to communicate events happening during workflow runs

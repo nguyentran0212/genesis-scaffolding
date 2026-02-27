@@ -10,6 +10,8 @@ requires-python = ">=3.11"
 dependencies = [
     "myproject-core",
     "myproject-server",
+    "pathspec>=1.0.4",
+    "prompt-toolkit>=3.0.52",
     "typer>=0.21.1",
 ]
 

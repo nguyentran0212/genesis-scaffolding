@@ -1,9 +1,11 @@
 import asyncio
 import json
+import mimetypes
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
 
+from myproject_tools.pdf import convert_pdf_to_markdown
 from myproject_tools.registry import tool_registry
 from myproject_tools.schema import ToolResult
 
@@ -19,22 +21,32 @@ class Agent:
         self,
         agent_config: AgentConfig,
         memory: AgentMemory | None = None,
+        working_directory: Path | None = None,
         content_chunk_callbacks: list[StreamCallback] | None = None,
         reasoning_chunk_callbacks: list[StreamCallback] | None = None,
     ) -> None:
         self.agent_config = agent_config
         if not agent_config.llm_config:
             raise Exception(f"Agent {agent_config.name} does not have llm configuration.")
+
         self.llm = agent_config.llm_config
+
         system_prompt = agent_config.system_prompt
         self.memory = (
             memory
             if memory
             else AgentMemory(messages=[self._create_llm_message(role="system", content=system_prompt)])
         )
+
         self.stream = agent_config.interactive
         self.content_chunk_callbacks = content_chunk_callbacks
         self.reasoning_chunk_callbacks = reasoning_chunk_callbacks
+
+        self.working_directory = working_directory
+        if working_directory and not working_directory.exists():
+            raise Exception(
+                f"Agent {agent_config.name} was given a non-existent working directory: {working_directory}"
+            )
 
         self.tools: list[Any] = []  # This will hold the tool instances
         self._resolve_tools()
@@ -95,7 +107,7 @@ class Agent:
                 # Side Effect: Add files to clipboard
                 if result.status == "success" and result.files_to_add_to_clipboard:
                     for file_path in result.files_to_add_to_clipboard:
-                        await self.add_file(file_path=file_path)
+                        await self.add_file(file_path=file_path, working_directory=working_directory)
 
                 # Side Effect: Add tool results to clipboard
                 if result.status == "success" and result.results_to_add_to_clipboard:
@@ -126,10 +138,18 @@ class Agent:
             }
             f.write(json.dumps(log_entry, indent=2) + "\n\n" + "=" * 50 + "\n\n")
 
+    def _get_current_working_directory(self, working_directory: Path | None):
+        current_working_directory = working_directory or self.working_directory
+        if not current_working_directory:
+            raise Exception(
+                f"Failed to call agent {self.agent_config.name}: the agent was not created with a working directory, and none was given when calling step()"
+            )
+        return current_working_directory
+
     async def step(
         self,
         input: str,
-        working_directory: Path,
+        working_directory: Path | None = None,
         stream: bool | None = None,
         content_chunk_callbacks: list[StreamCallback] | None = None,
         reasoning_chunk_callbacks: list[StreamCallback] | None = None,
@@ -142,6 +162,10 @@ class Agent:
         Then, clipboard is removed so that it does not inflate the message history
         The agent would loop until max number of turn of until no more tool calls are detected.
         """
+
+        # Fail fast if there is no working directory
+        current_working_directory = self._get_current_working_directory(working_directory)
+
         # Add user message to memory
         self.memory.append_memory(self._create_llm_message(role="user", content=input))
 
@@ -234,7 +258,7 @@ class Agent:
                     await asyncio.gather(*tool_start_cb)
 
                 tool_tasks.append(
-                    self._execute_tool_and_format(tc.id, tc.function_name, args, working_directory)
+                    self._execute_tool_and_format(tc.id, tc.function_name, args, current_working_directory)
                 )
 
             # Wait for all tool side-effects to finish
@@ -244,16 +268,90 @@ class Agent:
             for res_msg in tool_results:
                 self.memory.append_memory(res_msg)
 
-    async def add_file(self, file_path: Path):
+    async def add_file(self, file_path: Path, working_directory: Path | None = None):
         """Method for external workflows to feed files to the agent."""
-        if not file_path.exists():
-            raise FileNotFoundError(f"Workflow provided invalid path: {file_path}")
 
-        # In a real scenario, you'd handle different encodings/extensions here
-        with open(file_path, "r", encoding="utf-8") as f:
-            content = f.read()
+        # 1. Path Validation
+        current_working_directory = self._get_current_working_directory(working_directory)
+        resolved_path = file_path.resolve()
 
-        self.memory.add_file_to_clipboard(file_path, content)
+        if not resolved_path.is_relative_to(current_working_directory.resolve()):
+            raise ValueError(f"Security Alert: Path {file_path} is outside of {current_working_directory}")
+
+        if not resolved_path.exists():
+            raise FileNotFoundError(f"File not found: {file_path}")
+
+        # 2. Determine File Type
+        mime_type, _ = mimetypes.guess_type(resolved_path)
+        extension = resolved_path.suffix.lower()
+
+        content = ""
+        safe_file_path = resolved_path.relative_to(current_working_directory)
+
+        # 3. Handle Different File Types
+        try:
+            if extension == ".pdf":
+                # Use your existing PDF converter
+                # We use asyncio.to_thread to keep the event loop responsive during conversion
+                content = await asyncio.to_thread(
+                    convert_pdf_to_markdown, pdf_path=resolved_path, prune_references=True
+                )
+
+            elif extension in [".txt", ".md", ".py", ".json", ".csv", ".yaml", ".yml"]:
+                # Standard text reading
+                def read_text():
+                    with open(resolved_path, "r", encoding="utf-8", errors="replace") as f:
+                        return f.read()
+
+                content = await asyncio.to_thread(read_text)
+
+            else:
+                # Optional: Handle generic text-based mimetypes
+                if mime_type and (mime_type.startswith("text/") or mime_type == "application/json"):
+                    content = await asyncio.to_thread(
+                        lambda: resolved_path.read_text(encoding="utf-8", errors="replace")
+                    )
+                else:
+                    raise ValueError(f"Unsupported file type: {extension} ({mime_type})")
+
+        except Exception as e:
+            # Handle parsing errors (e.g. corrupted PDF or binary file mistaken for text)
+            raise RuntimeError(f"Failed to process file {file_path}: {str(e)}")
+
+        if not content.strip():
+            raise ValueError(f"The file {file_path} appears to be empty or could not be parsed.")
+
+        # 4. Add to Memory
+        self.memory.add_file_to_clipboard(safe_file_path, content)
+
+    async def remove_files(self, path: Path, working_directory: Path | None = None) -> list[Path]:
+        """
+        Method for external workflows to remove files from the agent's clipboard
+        Return a list of Path of files removed
+        """
+
+        # Path Validation
+        current_working_directory = self._get_current_working_directory(working_directory)
+        resolved_path = path.resolve()
+
+        if not resolved_path.is_relative_to(current_working_directory.resolve()):
+            raise ValueError(
+                f"Security Alert: Path to remove {path} is outside of {current_working_directory}"
+            )
+
+        if not resolved_path.exists():
+            raise FileNotFoundError(f"Given path not found: {path}")
+
+        safe_path = resolved_path.relative_to(current_working_directory)
+
+        if safe_path.is_file():
+            if self.memory.remove_file_from_clipboard(safe_path):
+                return [safe_path]
+
+        if safe_path.is_dir():
+            return self.memory.remove_dir_from_clipboard(safe_path)
+
+        return []
 
 
 async def main():

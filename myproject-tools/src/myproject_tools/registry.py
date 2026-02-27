@@ -1,6 +1,10 @@
 from .arxiv import ArxivPaperDetailTool, ArxivSearchTool
 from .base import BaseTool
+from .pdf import PdfToMarkdownTool
+from .rss_utils import RssFetchTool
 from .test_tools import MockTestTool
+from .web_fetch import WebPageFetchTool
+from .web_search import NewsSearchTool, WebSearchTool
 
 
 class ToolRegistry:
@@ -29,8 +33,13 @@ class ToolRegistry:
 tool_registry = ToolRegistry()
 
 tool_registry.register("test_tool", MockTestTool)
-tool_registry.register("arxiv_paper_detail_tool", ArxivPaperDetailTool)
-tool_registry.register("arxiv_paper_search_tool", ArxivSearchTool)
+tool_registry.register("get_arxiv_paper_detail", ArxivPaperDetailTool)
+tool_registry.register("search_arxiv_paper", ArxivSearchTool)
+tool_registry.register("convert_pdf_to_markdown_tool", PdfToMarkdownTool)
+tool_registry.register("fetch_rss_feed", RssFetchTool)
+tool_registry.register("fetch_web_page", WebPageFetchTool)
+tool_registry.register("search_web", WebSearchTool)
+tool_registry.register("search_news", NewsSearchTool)
 
 
 def main():

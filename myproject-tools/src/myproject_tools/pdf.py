@@ -1,6 +1,11 @@
+import asyncio
 from pathlib import Path
+from typing import Any
 
 import pymupdf4llm
+
+from .base import BaseTool
+from .schema import ToolResult
 
 
 def convert_pdf_to_markdown(
@@ -52,6 +57,94 @@ def convert_pdf_to_markdown(
     except Exception as e:
         print(f"Failed to convert {pdf_path}: {e}")
         return ""
+
+
+class PdfToMarkdownTool(BaseTool):
+    name = "pdf_to_markdown"
+    description = (
+        "Convert a local PDF file into Markdown text. "
+        "The converted text will be added to your clipboard for easy reading. "
+        "By default, it prunes references and bibliographies to save context space."
+    )
+    parameters = {
+        "type": "object",
+        "properties": {
+            "pdf_path": {
+                "type": "string",
+                "description": "The relative path to the PDF file to convert.",
+            },
+            "output_dir": {
+                "type": "string",
+                "description": "Optional: Relative path to a directory where the .md file should be saved.",
+            },
+            "prune_references": {
+                "type": "boolean",
+                "default": True,
+                "description": "Whether to cut off the References/Bibliography section to save tokens.",
+            },
+        },
+        "required": ["pdf_path"],
+    }
+
+    async def run(
+        self,
+        working_directory: Path,
+        pdf_path: str,
+        output_dir: str | None = None,
+        prune_references: bool = True,
+        **kwargs: Any,
+    ) -> ToolResult:
+        # 1. Validate Input PDF
+        try:
+            valid_pdf_path = self._validate_path(
+                working_directory, pdf_path, must_exist=True, should_be_file=True
+            )
+        except ValueError as e:
+            return ToolResult(tool_response=str(e), status="error")
+
+        # 2. Validate Output Directory (if provided)
+        valid_output_dir = None
+        if output_dir:
+            try:
+                valid_output_dir = self._validate_path(
+                    working_directory, output_dir, must_exist=True, should_be_dir=True
+                )
+            except ValueError as e:
+                return ToolResult(tool_response=str(e), status="error")
+
+        # 3. Run conversion in a separate thread
+        md_text = await asyncio.to_thread(
+            convert_pdf_to_markdown,
+            pdf_path=valid_pdf_path,
+            output_dir=valid_output_dir,
+            prune_references=prune_references,
+        )
+
+        if not md_text:
+            return ToolResult(
+                status="error",
+                tool_response=f"Failed to convert PDF: {pdf_path}. The file might be corrupted or password protected.",
+            )
+
+        # 4. Prepare Clipboard response
+        results_to_add = []
+        files_to_add = []
+
+        # If we saved a file, tell the system to track it in the clipboard too
+        if valid_output_dir:
+            generated_md = valid_output_dir / (valid_pdf_path.stem + ".md")
+            if generated_md.exists():
+                files_to_add.append(generated_md)
+
+        return ToolResult(
+            status="success",
+            tool_response=(
+                f"Successfully converted '{pdf_path}' to markdown. "
+                "The content has been added to your clipboard."
+            ),
+            results_to_add_to_clipboard=results_to_add,
+            files_to_add_to_clipboard=files_to_add,
+        )
 
 
 def main():

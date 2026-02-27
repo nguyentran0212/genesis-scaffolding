@@ -359,29 +359,20 @@ class ArxivSearchTool(BaseTool):
         download_dir: str = ".",
         **kwargs: Any,
     ) -> ToolResult:
-        download_dir_path = Path(download_dir)
-        if download_dir_path.is_absolute() or not download_dir_path.resolve().is_relative_to(
-            working_directory
-        ):
-            return ToolResult(
-                tool_response="The provided download directory is invalid. You need to provide a relative path that does not resolve outside the working directory",
-                status="error",
+        try:
+            # Hoisted validation
+            valid_download_dir = self._validate_path(
+                working_directory, download_dir, must_exist=True, should_be_dir=True
             )
-        if not download_dir_path.exists():
-            return ToolResult(
-                tool_response="The provided download directory does not exist", status="error"
-            )
-        if download_dir_path.is_file():
-            return ToolResult(
-                tool_response="The provided download directory is invalid. You need to provide a relative path to a directory",
-                status="error",
-            )
+        except ValueError as e:
+            return ToolResult(tool_response=str(e), status="error")
+
         # At this point, the provided path exist, sit within the working directory, and is a valid directory
         results = await asyncio.to_thread(
             search_papers_with_downloads,
             query=query,
             max_results=max_results,
-            download_dir=download_dir_path,
+            download_dir=valid_download_dir,
         )
 
         if not results or len(results) == 0:
@@ -443,28 +434,16 @@ class ArxivPaperDetailTool(BaseTool):
         download_dir: str = ".",
         **kwargs: Any,
     ) -> ToolResult:
-        # 1. Validate the download directory
-        download_dir_path = Path(download_dir)
-
-        # Ensure path is relative and stays within the working directory
-        if download_dir_path.is_absolute() or not (
-            working_directory / download_dir_path
-        ).resolve().is_relative_to(working_directory.resolve()):
-            return ToolResult(
-                status="error",
-                tool_response="Invalid download directory. Please provide a relative path within the current working directory.",
+        try:
+            valid_download_dir = self._validate_path(
+                working_directory, download_dir, must_exist=True, should_be_dir=True
             )
-
-        full_target_dir = working_directory / download_dir_path
-        if not full_target_dir.exists():
-            return ToolResult(
-                status="error", tool_response=f"The directory '{download_dir}' does not exist."
-            )
-
+        except ValueError as e:
+            return ToolResult(tool_response=str(e), status="error")
         # 2. Call the blocking sync function in a separate thread
         # We use asyncio.to_thread to avoid blocking the agent's event loop
         result = await asyncio.to_thread(
-            get_paper_details, paper_id=paper_id, download_dir=full_target_dir, download_pdf=download_pdf
+            get_paper_details, paper_id=paper_id, download_dir=valid_download_dir, download_pdf=download_pdf
         )
 
         if not result:

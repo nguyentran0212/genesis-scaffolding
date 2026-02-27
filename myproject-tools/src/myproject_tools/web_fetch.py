@@ -1,9 +1,13 @@
 import asyncio
 import random
+from pathlib import Path
 from typing import Any
 
 import requests
 import trafilatura
+
+from .base import BaseTool
+from .schema import ToolResult
 
 
 def get_random_user_agent() -> str:
@@ -88,6 +92,66 @@ async def fetch_page(
 
     # Offload the blocking _blocking_fetch to a thread so we can 'await' it
     return await asyncio.to_thread(_blocking_fetch)
+
+
+class WebPageFetchTool(BaseTool):
+    name = "fetch_web_page"
+    description = (
+        "Fetch a URL from the internet, extract its main text content, "
+        "and convert it to Markdown. The content will be added to your clipboard."
+    )
+    parameters = {
+        "type": "object",
+        "properties": {
+            "url": {
+                "type": "string",
+                "description": "The full URL of the webpage to fetch.",
+            },
+            "timeout": {
+                "type": "integer",
+                "default": 15,
+                "description": "How many seconds to wait for the page to load.",
+            },
+            "max_retries": {
+                "type": "integer",
+                "default": 2,
+                "description": "How many times to retry the request if it fails.",
+            },
+        },
+        "required": ["url"],
+    }
+
+    async def run(
+        self,
+        working_directory: Path,
+        url: str,
+        timeout: int = 15,
+        max_retries: int = 2,
+        **kwargs: Any,
+    ) -> ToolResult:
+        # fetch_page is already async and handles its own thread offloading
+        result = await fetch_page(url=url, timeout=timeout, max_retries=max_retries)
+
+        # Handle errors from the fetch function
+        if "error" in result or not result.get("content"):
+            error_msg = result.get("error", "Unknown error or no content found.")
+            return ToolResult(status="error", tool_response=f"Failed to fetch {url}: {error_msg}")
+
+        # Prepare clipboard content
+        page_title = result.get("title", "No Title Found")
+        final_url = result.get("final_url", url)
+        md_content = result.get("content")
+
+        clipboard_text = f"### Web Page: {page_title}\nURL: {final_url}\n---\n\n{md_content}"
+
+        return ToolResult(
+            status="success",
+            tool_response=(
+                f"Successfully fetched '{page_title}'. "
+                "The page content has been converted to markdown and added to your clipboard."
+            ),
+            results_to_add_to_clipboard=[clipboard_text],
+        )
 
 
 async def main():

@@ -29,7 +29,7 @@ class AgentMapTask(BaseTask[AgentMapTaskParams, AgentMapTaskOutput]):
         args = self.params_model.model_validate(params)
 
         # Initialize agent by querying agent registry
-        agent = agent_registry.get_agent(args.agent)
+        agent = agent_registry.create_agent(args.agent)
         if not agent:
             raise Exception(f"Cannot find the requested agent {args.agent}")
 
