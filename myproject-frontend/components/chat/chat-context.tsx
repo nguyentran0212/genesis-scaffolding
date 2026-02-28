@@ -1,0 +1,171 @@
+'use client'
+
+import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
+import { ChatMessage, ChatSession } from '@/types/chat';
+import { getChatHistoryAction, sendChatMessageAction } from '@/app/actions/chat';
+
+interface ChatContextType {
+  session: ChatSession;
+  messages: ChatMessage[];
+  sendMessage: (input: string) => Promise<void>;
+  isRunning: boolean;
+}
+
+const ChatContext = createContext<ChatContextType | null>(null);
+
+export const ChatProvider = ({
+  session: initialSession,
+  initialMessages,
+  children
+}: {
+  session: ChatSession;
+  initialMessages: ChatMessage[];
+  children: React.ReactNode;
+}) => {
+  const [session, setSession] = useState(initialSession);
+
+  const [historicalMessages, setHistoricalMessages] = useState<ChatMessage[]>(initialMessages);
+
+  const activeRunRef = useRef<ChatMessage[]>([]);
+  const [displayActiveMessages, setDisplayActiveMessages] = useState<ChatMessage[]>([]);
+
+  const [isRunning, setIsRunning] = useState(initialSession.is_running);
+
+  // --- 10fps Display Debouncer ---
+  useEffect(() => {
+    if (!isRunning) return;
+
+    const interval = setInterval(() => {
+      setDisplayActiveMessages(
+        activeRunRef.current
+          .filter(Boolean)
+          .map(msg => ({
+            ...msg,
+            tool_calls: Array.isArray(msg.tool_calls) ? [...msg.tool_calls] : undefined
+          }))
+      );
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, [isRunning]);
+
+  const refreshHistory = useCallback(async () => {
+    console.log("🔄 [ChatContext] Refreshing history from DB...");
+    try {
+      const data = await getChatHistoryAction(session.id);
+      setHistoricalMessages(data.messages.map((m: any) => m.payload));
+      activeRunRef.current = [];
+      setDisplayActiveMessages([]);
+    } catch (err) {
+      console.error("❌ [ChatContext] History refresh failed", err);
+    }
+  }, [session.id]);
+
+  // --- Ephemeral SSE Connection ---
+  useEffect(() => {
+    if (!isRunning) return;
+
+    console.group(`📡 [SSE] Connecting to session ${session.id}`);
+
+    const eventSource = new EventSource(`/api/chats/${session.id}/stream`);
+
+    eventSource.onopen = () => console.log("✅ [SSE] Connection established");
+
+    eventSource.addEventListener('catchup', (e) => {
+      const data = JSON.parse(e.data);
+      console.log("📥 [SSE] Catchup received", data.interim_messages);
+      activeRunRef.current = data.interim_messages;
+    });
+
+    eventSource.addEventListener('content', (e) => {
+      const { data, index } = JSON.parse(e.data);
+      if (!activeRunRef.current[index]) {
+        activeRunRef.current[index] = { role: 'assistant', content: '' };
+      }
+      activeRunRef.current[index].content += data;
+    });
+
+    eventSource.addEventListener('reasoning', (e) => {
+      const { data, index } = JSON.parse(e.data);
+      if (!activeRunRef.current[index]) {
+        activeRunRef.current[index] = { role: 'assistant', content: '', reasoning_content: '' };
+      }
+      activeRunRef.current[index].reasoning_content =
+        (activeRunRef.current[index].reasoning_content || "") + data;
+    });
+
+    eventSource.addEventListener('tool_start', (e) => {
+      const { data, index } = JSON.parse(e.data);
+      console.log("🛠️ [SSE] Tool Start", data.name);
+
+      if (!activeRunRef.current[index]) {
+        activeRunRef.current[index] = { role: 'assistant', content: '', tool_calls: [] };
+      }
+      if (!activeRunRef.current[index].tool_calls) {
+        activeRunRef.current[index].tool_calls = [];
+      }
+
+      activeRunRef.current[index].tool_calls!.push({ ...data, status: 'running' });
+    });
+
+    eventSource.addEventListener('tool_result', (e) => {
+      const { data, index } = JSON.parse(e.data);
+      console.log("✅ [SSE] Tool Result", data.name);
+
+      for (let i = activeRunRef.current.length - 1; i >= 0; i--) {
+        const msg = activeRunRef.current[i];
+        if (msg && msg.role === 'assistant' && Array.isArray(msg.tool_calls)) {
+          const tc = msg.tool_calls.find(t => t.name === data.name && t.status === 'running');
+          if (tc) { tc.status = 'completed'; break; }
+        }
+      }
+
+      activeRunRef.current[index] = data;
+    });
+
+    eventSource.onerror = () => {
+      console.log("🔚 [SSE] Connection closed or errored");
+      eventSource.close();
+      console.groupEnd();
+      setIsRunning(false);
+      refreshHistory();
+    };
+
+    return () => { eventSource.close(); console.groupEnd(); }
+  }, [isRunning, session.id, refreshHistory]);
+
+  const sendMessage = async (input: string) => {
+    if (isRunning) return;
+
+    console.group(`🚀 [Message Flow] User Prompt: ${input.substring(0, 20)}...`);
+
+    activeRunRef.current = [{ role: 'user', content: input }];
+    setDisplayActiveMessages([...activeRunRef.current]);
+    console.log("1. Optimistic UI updated");
+
+    try {
+      console.log("2. Sending POST request...");
+      await sendChatMessageAction(session.id, input);
+      console.log("3. POST successful, run created on backend");
+      setIsRunning(true);
+    } catch (error) {
+      console.error("❌ [Message Flow] Failed at step 2", error);
+      setIsRunning(false);
+      console.groupEnd();
+    }
+  };
+
+  const allMessages = [...historicalMessages, ...displayActiveMessages];
+
+  return (
+    <ChatContext.Provider value={{ session, messages: allMessages, sendMessage, isRunning }}>
+      {children}
+    </ChatContext.Provider>
+  );
+};
+
+export const useChat = () => {
+  const context = useContext(ChatContext);
+  if (!context) throw new Error("useChat must be used within ChatProvider");
+  return context;
+};

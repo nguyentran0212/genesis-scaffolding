@@ -198,7 +198,8 @@ async def stream_chat(
                 if item is None:
                     break
 
-                yield f"event: {item['event']}\ndata: {json.dumps(item['data'])}\n\n"
+                payload = {"data": item["data"], "index": item.get("index")}
+                yield f"event: {item['event']}\ndata: {json.dumps(payload)}\n\n"
         finally:
             active_run.remove_client(client_queue)
 

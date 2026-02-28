@@ -1,0 +1,22 @@
+export interface ChatSession {
+  id: number;
+  agent_id: string;
+  title: string;
+  is_running: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ToolCall {
+  name: string;
+  args: Record<string, any>;
+  status: 'running' | 'completed';
+}
+
+export interface ChatMessage {
+  role: 'user' | 'assistant' | 'tool';
+  content: string;
+  reasoning_content?: string;
+  tool_calls?: ToolCall[];
+  name?: string; // Present when role is 'tool'
+}
