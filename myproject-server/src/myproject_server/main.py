@@ -10,7 +10,7 @@ from myproject_core.workspace import WorkspaceManager
 
 from .chat_manager import ChatManager
 from .database import init_db
-from .routers import auth, chat, files, jobs, schedules, users, workflows
+from .routers import agents, auth, chat, files, jobs, schedules, users, workflows
 from .scheduler import SchedulerManager
 
 
@@ -63,6 +63,7 @@ app.include_router(workflows.router)
 app.include_router(jobs.router)
 app.include_router(schedules.router)
 app.include_router(chat.router)
+app.include_router(agents.router)
 
 
 @app.get("/health")

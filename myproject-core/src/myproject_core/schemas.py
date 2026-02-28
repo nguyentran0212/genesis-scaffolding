@@ -68,6 +68,8 @@ class AgentConfig(BaseModel):
     interactive: bool = False
     # System prompt for the agent
     system_prompt: str = "You are a helpful AI agent."
+    # Description of the agent
+    description: str = "An AI Assistant Agent."
     # List of allowed tools
     allowed_tools: list[str] = []
     # List of names of allowed agents for delegation
