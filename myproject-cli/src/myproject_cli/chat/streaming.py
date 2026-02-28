@@ -49,6 +49,13 @@ class CLIStreamHandler:
         self.stop_live()
         self.console.print(f"\n[bold green]🛠️  Executing {name}...[/bold green] [dim]({args})[/dim]")
 
+    async def handle_tool_result(self, name: str, args: dict):
+        self.stop_live()
+        tool_result = args.get("result", "")
+        self.console.print(
+            f"\n[bold green]🛠️  Finished executing tool {name}...[/bold green] [dim]({tool_result})[/dim]"
+        )
+
     def start_live(self):
         if not self.live:
             # We pass the 'display' object itself.

@@ -1,6 +1,5 @@
 import asyncio
 import json
-import mimetypes
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
@@ -175,6 +174,7 @@ class Agent:
         content_chunk_callbacks: list[StreamCallback] | None = None,
         reasoning_chunk_callbacks: list[StreamCallback] | None = None,
         tool_start_callback: list[ToolCallback] | None = None,
+        tool_result_callback: list[ToolCallback] | None = None,
         debug=False,
     ):
         """
@@ -278,6 +278,7 @@ class Agent:
             tool_tasks = []
             for tc in llm_response.tool_calls:
                 args = json.loads(tc.arguments)
+                # Call back to notify tool call starting
                 if tool_start_callback:
                     tool_start_cb = [cb(tc.function_name, args) for cb in tool_start_callback]
                     await asyncio.gather(*tool_start_cb)
@@ -292,6 +293,12 @@ class Agent:
             # Add results to history and LOOP BACK
             for res_msg in tool_results:
                 self.memory.append_memory(res_msg)
+                # Call back to notify tool call results
+                if tool_result_callback:
+                    tool_start_cb = [
+                        cb(res_msg["name"], {"result": res_msg["content"]}) for cb in tool_result_callback
+                    ]
+                    await asyncio.gather(*tool_start_cb)
 
     async def add_file(self, file_path: Path, working_directory: Path | None = None):
         """Method for external workflows to feed files to the agent."""

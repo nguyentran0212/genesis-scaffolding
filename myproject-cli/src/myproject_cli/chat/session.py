@@ -106,6 +106,7 @@ class ChatSession:
                     content_chunk_callbacks=[self.stream_handler.handle_content],
                     reasoning_chunk_callbacks=[self.stream_handler.handle_reasoning],
                     tool_start_callback=[self.stream_handler.handle_tool_start],
+                    tool_result_callback=[self.stream_handler.handle_tool_result],
                 )
 
                 # Cleanup UI after response finishes
