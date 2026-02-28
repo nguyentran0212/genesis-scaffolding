@@ -21,17 +21,39 @@ import {
   Box,
   History,
   FileCode,
-  AlarmClock
+  AlarmClock,
+  MessagesSquare
 } from 'lucide-react';
 import LogoutButton from '@/components/auth/logout-button';
 import Link from 'next/link';
 import DynamicHeader from '@/components/dashboard/dynamic-header';
 
 const navItems = [
-  { title: "Workflow Catalog", url: "/dashboard/workflows", icon: LayoutDashboard },
-  { title: "Job History", url: "/dashboard/jobs", icon: History },
-  { title: "Schedules", url: "/dashboard/schedules", icon: AlarmClock },
-  { title: "Sandbox", url: "/dashboard/sandbox", icon: Box },
+  {
+    title: "Agent Registry",
+    url: "/dashboard/chats",
+    icon: MessagesSquare
+  },
+  {
+    title: "Workflow Catalog",
+    url: "/dashboard/workflows",
+    icon: LayoutDashboard
+  },
+  {
+    title: "Job History",
+    url: "/dashboard/jobs",
+    icon: History
+  },
+  {
+    title: "Schedules",
+    url: "/dashboard/schedules",
+    icon: AlarmClock
+  },
+  {
+    title: "Sandbox",
+    url: "/dashboard/sandbox",
+    icon: Box
+  },
 ];
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {

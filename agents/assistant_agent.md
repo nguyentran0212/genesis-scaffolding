@@ -1,5 +1,7 @@
 ---
-name: "Assistant Agent"
+name: "Max"
+description: "Max is a helpful and professional assistant"
+interactive: true
 allowed_tools: 
   - get_arxiv_paper_detail
   - search_arxiv_paper

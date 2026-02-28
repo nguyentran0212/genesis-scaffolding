@@ -15,9 +15,10 @@ async def list_agents(agent_reg: AgentRegistry = Depends(get_agent_registry)):
     Returns a list of all available agents blueprints.
     """
     results = []
-    for blueprint in agent_reg.blueprints.values():
+    for id, blueprint in agent_reg.blueprints.items():
         results.append(
             AgentRead(
+                id=id,
                 name=blueprint.name,
                 description=blueprint.description,
                 interactive=blueprint.interactive,
@@ -39,6 +40,7 @@ async def get_agent_details(agent_id: str, agent_reg: AgentRegistry = Depends(ge
         raise HTTPException(status_code=404, detail=f"Agent '{agent_id}' not found in registry.")
 
     return AgentRead(
+        id=agent_id,
         name=blueprint.name,
         description=blueprint.description,
         interactive=blueprint.interactive,

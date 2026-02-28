@@ -20,3 +20,13 @@ export interface ChatMessage {
   tool_calls?: ToolCall[];
   name?: string; // Present when role is 'tool'
 }
+
+export interface Agent {
+  id: string;
+  name: string;
+  description: string;
+  interactive: boolean;
+  allowed_tools: string[];
+  allowed_agents: string[];
+  model_name?: string | null;
+}
