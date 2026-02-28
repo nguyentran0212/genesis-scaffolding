@@ -1,3 +1,5 @@
+from contextlib import contextmanager
+
 from myproject_core.configs import settings
 from sqlmodel import Session, SQLModel, create_engine, select
 
@@ -62,6 +64,13 @@ def init_db():
     except Exception as e:
         print(f"Database initialization failed: {e}")
         raise e
+
+
+@contextmanager
+def get_session_context():
+    """Context manager for background tasks or scripts."""
+    with Session(engine) as session:
+        yield session
 
 
 def get_session():

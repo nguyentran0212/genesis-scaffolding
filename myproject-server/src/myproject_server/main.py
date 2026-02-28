@@ -8,8 +8,9 @@ from myproject_core.workflow_engine import WorkflowEngine
 from myproject_core.workflow_registry import WorkflowRegistry
 from myproject_core.workspace import WorkspaceManager
 
+from .chat_manager import ChatManager
 from .database import init_db
-from .routers import auth, files, jobs, schedules, users, workflows
+from .routers import auth, chat, files, jobs, schedules, users, workflows
 from .scheduler import SchedulerManager
 
 
@@ -23,6 +24,7 @@ async def lifespan(app: FastAPI):
     registry = WorkflowRegistry(settings)
     agent_registry = AgentRegistry(settings)
     engine = WorkflowEngine(workspace, agent_registry)
+    chat_manager = ChatManager()
 
     # 3. Initialize & Start Scheduler
     sm = SchedulerManager(engine, registry)
@@ -33,6 +35,7 @@ async def lifespan(app: FastAPI):
 
     # 4. Store in app state for dependencies
     app.state.scheduler = sm
+    app.state.chat_manager = chat_manager
 
     yield
 
@@ -59,6 +62,7 @@ app.include_router(files.router)
 app.include_router(workflows.router)
 app.include_router(jobs.router)
 app.include_router(schedules.router)
+app.include_router(chat.router)
 
 
 @app.get("/health")
