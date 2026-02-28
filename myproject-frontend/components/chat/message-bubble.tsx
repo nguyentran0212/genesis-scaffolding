@@ -70,7 +70,7 @@ export const MessageBubble = memo(({ message }: { message: ChatMessage }) => {
         {/* Content: High quality typography */}
         {message.content && (
           <div className="prose prose-neutral dark:prose-invert max-w-none 
-            text-[16px] leading-[1.6]
+            leading-[1.6]
             prose-p:mb-4 prose-p:last:mb-0
             prose-headings:text-foreground prose-headings:font-semibold
             prose-strong:font-bold">

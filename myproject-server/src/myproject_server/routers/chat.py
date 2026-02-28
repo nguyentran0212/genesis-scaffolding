@@ -100,7 +100,12 @@ async def send_message(
         if chat_session.clipboard_state
         else None
     )
-    memory = AgentMemory(messages=memory_list, agent_clipboard=clipboard)
+    # This is crucial to fix a bug where the agent is initialized with empty messages list
+    # Thus losing the system prompt
+    if memory_list and clipboard:
+        memory = AgentMemory(messages=memory_list, agent_clipboard=clipboard)
+    else:
+        memory = None
 
     # 4. Get Agent & Initialize Run
     agent = agent_reg.create_agent(chat_session.agent_id, working_directory=working_dir, memory=memory)
@@ -140,7 +145,7 @@ async def send_message(
                         bg_db.add(db_msg)
 
                     # Save clipboard and unlock
-                    session_to_update.clipboard_state = agent.memory.agent_clipboard.model_dump()
+                    session_to_update.clipboard_state = agent.memory.agent_clipboard.model_dump(mode="json")
                     session_to_update.is_running = False
                     bg_db.commit()
 

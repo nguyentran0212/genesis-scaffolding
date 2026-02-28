@@ -29,7 +29,8 @@ export function ChatInput() {
     <div className="px-4 pb-6 pt-2">
       {/* This container is the only part with a border/background */}
       <div className={cn(
-        "relative flex items-end gap-2 p-3 bg-card border rounded-2xl shadow-sm transition-all focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/30",
+        "relative flex items-end gap-2 p-3 bg-card border border-muted-foreground/20 rounded-2xl shadow-sm transition-all duration-200",
+        "focus-within:border-primary/40 focus-within:ring-[3px] focus-within:ring-primary/5",
         isRunning && "opacity-70 bg-muted/50"
       )}>
         <TextareaAutosize
@@ -38,8 +39,8 @@ export function ChatInput() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Message Max..."
-          className="flex-1 bg-transparent border-none focus:ring-0 resize-none min-h-[44px] max-h-60 py-2 px-1 text-sm leading-relaxed"
+          placeholder="Message..."
+          className="flex-1 bg-transparent border-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 resize-none min-h-[44px] max-h-60 py-2 px-1 text-sm leading-relaxed"
           maxRows={10}
         />
 
