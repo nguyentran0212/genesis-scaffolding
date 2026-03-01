@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
-from sqlmodel import Field, Relationship, SQLModel
+from sqlmodel import Field, Relationship, SQLModel, UniqueConstraint
 
 if TYPE_CHECKING:
     from .user import User
@@ -22,6 +22,11 @@ class FileRecordBase(SQLModel):
 
 
 class FileRecord(FileRecordBase, table=True):
+    __table_args__ = (UniqueConstraint("user_id", "relative_path", name="unique_user_file_path"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    user: "User" = Relationship()
     id: int | None = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id", index=True)
     user: "User" = Relationship()

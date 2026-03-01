@@ -13,6 +13,7 @@ from ..dependencies import get_current_active_user, get_user_inbox_path
 from ..models.file_record import FileRecord
 from ..models.user import User
 from ..schemas.file_record import FileRecordRead, FileUploadResponse
+from ..utils.files import sync_folder_shallow
 
 router = APIRouter(prefix="/files", tags=["files"])
 
@@ -25,6 +26,14 @@ async def upload_file(
     session: Annotated[Session, Depends(get_session)],
     subfolder: str = ".",
 ):
+    """
+    Upload a file to subfolder/filename.ext
+    The subfolder exist underneath user inbox declared in user_path
+    So, the real path on disk would be user_path/subfolder/filename.ext
+    """
+    if not user.id:
+        raise HTTPException(status_code=403, detail="User not found")
+
     if not file.filename:
         raise HTTPException(status_code=400, detail="File name is missing")
 
@@ -45,34 +54,58 @@ async def upload_file(
         shutil.copyfileobj(file.file, buffer)
 
     # 3. Calculate paths for DB
+    # Turn everything relative to avoid leaking absolute path of server
     # Relative to the global inbox for physical access
     physical_rel_path = dest_path.relative_to(settings.path.inbox_directory)
     # Relative to user's root for their UI/filtering
     user_rel_path = dest_path.relative_to(user_path)
 
-    db_record = FileRecord(
-        filename=safe_filename,
-        file_path=str(physical_rel_path),
-        relative_path=str(user_rel_path),
-        folder=str(user_rel_path.parent),
-        mime_type=file.content_type,
-        size=dest_path.stat().st_size,
-        user_id=user.id,  # type: ignore
+    # 4. UPSERT LOGIC: Check if file record already exists
+    statement = select(FileRecord).where(
+        FileRecord.user_id == user.id, FileRecord.relative_path == str(user_rel_path)
     )
+    existing_record = session.exec(statement).first()
 
-    session.add(db_record)
+    if existing_record:
+        # Update existing record
+        existing_record.size = dest_path.stat().st_size
+        existing_record.mime_type = file.content_type
+        # Optional: update a modified_at timestamp if you add one to your model
+        session.add(existing_record)
+        db_record = existing_record
+        message = "File updated successfully"
+    else:
+        # Create new record
+        db_record = FileRecord(
+            filename=safe_filename,
+            file_path=str(physical_rel_path),
+            relative_path=str(user_rel_path),
+            folder=str(user_rel_path.parent),
+            mime_type=file.content_type,
+            size=dest_path.stat().st_size,
+            user_id=user.id,
+        )
+        session.add(db_record)
+        message = "File uploaded successfully"
+
     session.commit()
     session.refresh(db_record)
 
-    return {"message": "File uploaded successfully", "file": db_record}
+    return {"message": message, "file": db_record}
 
 
 @router.get("/", response_model=list[FileRecordRead])
 async def list_files(
     user: Annotated[User, Depends(get_current_active_user)],
+    user_path: Annotated[Path, Depends(get_user_inbox_path)],
     session: Annotated[Session, Depends(get_session)],
-    folder: str | None = None,
+    folder: str = ".",
 ):
+    if not user.id:
+        raise HTTPException(status_code=403, detail="User not found")
+
+    sync_folder_shallow(session, user.id, user_path, folder)
+
     statement = select(FileRecord).where(FileRecord.user_id == user.id)
 
     if folder:
