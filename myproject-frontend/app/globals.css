@@ -138,8 +138,20 @@
 }
 
 @layer components {
-  /* This ensures the Header, Messages, and Input always share the same grid */
   .chat-viewport-container {
-    @apply mx-auto w-full max-w-5xl px-4 md:px-8;
+    /* Use smaller padding on mobile (px-4) and larger on desktop (md:px-8) */
+    @apply mx-auto w-full max-w-3xl px-4 md:px-8;
+  }
+
+  /* Force long text/links/code to wrap so they don't cause horizontal scrolling */
+  /* .prose-chat { */
+  /*   @apply prose prose-neutral dark:prose-invert max-w-none  */
+  /*          break-words overflow-wrap-anywhere; */
+  /* } */
+  
+  /* Ensure the main message list container never allows horizontal scroll */
+  .no-horizontal-scroll {
+    overflow-x: hidden;
+    width: 100%;
   }
 }

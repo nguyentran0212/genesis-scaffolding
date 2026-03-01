@@ -27,7 +27,7 @@ export function ChatInput() {
 
   return (
     <div className="w-full">
-      <div className="chat-viewport-container py-6">
+      <div className="chat-viewport-container py-3 lg:py-6">
         <div className={cn(
           "relative flex items-end gap-2 p-3 bg-card border border-muted-foreground/20 rounded-2xl shadow-sm transition-all duration-200",
           "focus-within:border-primary/40 focus-within:ring-[3px] focus-within:ring-primary/5",
@@ -63,7 +63,7 @@ export function ChatInput() {
           </div>
 
           {/* Shortcut Hint */}
-          <div className="absolute -bottom-6 right-2 flex gap-3 text-[10px] text-muted-foreground/60 uppercase tracking-widest font-medium">
+          <div className="hidden lg:flex absolute -bottom-6 right-2 gap-3 text-[10px] text-muted-foreground/60 uppercase tracking-widest font-medium">
             <span>{navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'} + Enter to send</span>
           </div>
         </div>
