@@ -21,6 +21,7 @@ export interface ChatMessage {
   name?: string; // Present when role is 'tool'
 }
 
+
 export interface Agent {
   id: string;
   name: string;

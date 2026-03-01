@@ -22,6 +22,7 @@ import {
   FileCode,
   AlarmClock,
   MessagesSquare,
+  History,
   Zap,
   User
 } from 'lucide-react';
@@ -39,6 +40,12 @@ const navGroups = [
         url: "/dashboard/chats",
         icon: MessagesSquare,
         tooltip: "Chat with AI Agents"
+      },
+      {
+        title: "Chat History", // New Navigation Item
+        url: "/dashboard/history",
+        icon: History,
+        tooltip: "Resume past conversations"
       }
     ]
   },
