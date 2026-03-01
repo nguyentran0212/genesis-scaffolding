@@ -29,7 +29,7 @@ class AgentMapTask(BaseTask[AgentMapTaskParams, AgentMapTaskOutput]):
         args = self.params_model.model_validate(params)
 
         # Initialize agent by querying agent registry
-        agent = agent_registry.create_agent(args.agent)
+        agent = agent_registry.create_agent(args.agent, working_directory=context.root)
         if not agent:
             raise Exception(f"Cannot find the requested agent {args.agent}")
 
@@ -50,6 +50,7 @@ class AgentMapTask(BaseTask[AgentMapTaskParams, AgentMapTaskOutput]):
             else:
                 prompt_string = prompt
             response_text = await agent.step(prompt_string, context.root)
+
             all_responses.append(str(response_text))
 
         # Handle file writing logic

@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
@@ -194,7 +195,7 @@ class Agent:
         self.memory.forget()
 
         # Remove the deleted files from the clipboard
-        self.memory.remove_deleted_files()
+        self.memory.remove_deleted_files(working_dir=current_working_directory)
 
         debug = True
         if debug:
@@ -305,25 +306,27 @@ class Agent:
 
         # 1. Path Validation
         current_working_directory = self._get_current_working_directory(working_directory)
-        resolved_path = file_path.resolve()
+        logical_path = Path(os.path.normpath(current_working_directory / file_path))
+        print(f"CURRENT WORKING DIRECTORY {current_working_directory}")
+        print(f"RESOLVED PATH {logical_path}")
 
-        if not resolved_path.is_relative_to(current_working_directory.resolve()):
+        if not logical_path.is_relative_to(current_working_directory.resolve()):
             raise ValueError(f"Security Alert: Path {file_path} is outside of {current_working_directory}")
 
-        if not resolved_path.exists():
+        if not logical_path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
 
         # 2. Determine File Type
-        extension = resolved_path.suffix.lower()
+        extension = logical_path.suffix.lower()
 
         content = ""
-        safe_file_path = resolved_path.relative_to(current_working_directory)
-        extension = resolved_path.suffix.lower()
+        safe_file_path = logical_path.relative_to(current_working_directory)
+        extension = logical_path.suffix.lower()
 
         # 1. Handle Known Non-Text Formats first
         if extension == ".pdf":
             return await asyncio.to_thread(
-                convert_pdf_to_markdown, pdf_path=resolved_path, prune_references=True
+                convert_pdf_to_markdown, pdf_path=logical_path, prune_references=True
             )
 
         # List of extensions to explicitly ignore (binaries/assets)
@@ -366,24 +369,25 @@ class Agent:
         # 2. Heuristic: Check if the file is binary or text
         def is_text_and_read():
             # Check first 1024 bytes for null character
-            with open(resolved_path, "rb") as f:
+            with open(logical_path, "rb") as f:
                 chunk = f.read(1024)
                 if b"\0" in chunk:
                     return None  # It's a binary file
 
             # If no null byte, attempt to read as text
             try:
-                with open(resolved_path, "r", encoding="utf-8", errors="replace") as f:
+                with open(logical_path, "r", encoding="utf-8", errors="replace") as f:
                     return f.read()
             except Exception:
                 return None
 
         content = await asyncio.to_thread(is_text_and_read)
         if content is None:
-            raise ValueError(f"File {resolved_path.name} appears to be binary or unreadable.")
+            raise ValueError(f"File {logical_path.name} appears to be binary or unreadable.")
 
         # 4. Add to Memory
         self.memory.add_file_to_clipboard(safe_file_path, content)
+        print(f"ADDED FILE TO CLIPBOARD: {self.memory.get_clipboard_message()}")
 
     async def remove_files(self, path: Path, working_directory: Path | None = None) -> list[Path]:
         """

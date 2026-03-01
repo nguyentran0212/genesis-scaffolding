@@ -25,12 +25,16 @@ class AgentMemory:
         self.messages = []
         self.agent_clipboard = AgentClipboard()
 
-    def remove_deleted_files(self) -> list[Path]:
+    def remove_deleted_files(self, working_dir: Path = Path(".")) -> list[Path]:
         """
         Automatically remove deleted files from the clipboard
+
+        working_dir is important for the server use where files are located using relative paths rather than absolute paths
         """
         accessed_files_paths = self.agent_clipboard.get_accessed_files_paths()
-        files_to_remove = [file_path for file_path in accessed_files_paths if not file_path.exists()]
+        files_to_remove = [
+            file_path for file_path in accessed_files_paths if not (working_dir / file_path).exists()
+        ]
         files_removed = []
         for file_path in files_to_remove:
             if self.agent_clipboard.remove_file_from_clipboard(file_path):
