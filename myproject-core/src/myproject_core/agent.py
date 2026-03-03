@@ -235,6 +235,39 @@ class Agent:
             )
         return current_working_directory
 
+    def _inject_clipboard(self, history: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """
+        Utility function for injecting clipboard into LLM context
+        without mutating the original history list or its dictionaries.
+        """
+        last_user_index: int | None = None
+        for i in range(len(history) - 1, -1, -1):
+            if history[i]["role"] == "user":
+                last_user_index = i
+                break
+
+        # Get the clipboard message (assuming this returns a dict like {"role": "...", "content": "..."})
+        clipboard_msg = self.memory.get_clipboard_message()
+        clipboard_text = clipboard_msg.get("content", "")
+
+        # 1. Attach clipboard context directly into last tool response if it exists
+        if history[-1]["role"] == "tool":
+            # Create a SHALLOW COPY of the dictionary so we don't mutate the original
+            tool_result_with_clipboard = history[-1].copy()
+            tool_result_with_clipboard["content"] = (
+                f"{tool_result_with_clipboard.get('content', '')}\n\nClipboard context:\n{clipboard_text}"
+            )
+            # Use [:-1] to only remove the last message we just replaced
+            return history[:-1] + [tool_result_with_clipboard]
+
+        # 2. Attach clipboard context just before last user message
+        if last_user_index is not None:
+            # Slicing creates a new list, so this is safe for the list structure
+            return history[:last_user_index] + [clipboard_msg] + history[last_user_index:]
+
+        # 3. Fringe case: No user message found. Append to end.
+        return history + [clipboard_msg]
+
     async def step(
         self,
         input: str,
@@ -272,26 +305,11 @@ class Agent:
 
         # Start the tool call loop
         # Significantly reduce the number of turn for testing
-        for turn in range(3):
+        for turn in range(10):
             # Build the ephemeral payload for the LLM
             # Current memory.messages is [..., UserMsg]
             history = self.memory.get_messages()
-            last_user_index = None
-
-            for i in range(len(history) - 1, -1, -1):
-                if history[i]["role"] == "user":
-                    last_user_index = i
-                    break
-            clipboard_context = [self.memory.get_clipboard_message()]
-            full_payload = []
-
-            if last_user_index is None:
-                # this should not happen, but I kept it here for unexpected fringe cases
-                # The clipboard would be injected to the end of the chat history to send to LLM
-                full_payload = history + clipboard_context
-            else:
-                # Insert clipboard before the last user's message
-                full_payload = history[:last_user_index] + clipboard_context + history[last_user_index:]
+            full_payload = self._inject_clipboard(history=history)
 
             # Call LLM for response
             # Allow caller to override the streaming and callbacks for displaying chunks, but default to the callbacks aassigned to the agent at creation time
