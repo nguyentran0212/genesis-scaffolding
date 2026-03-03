@@ -18,17 +18,82 @@ from .utils import streamcallback_simple_print
 SYSTEM_PROMPT_PREFIX = """
 # GENERAL INSTRUCTION
 
+In this session, "you" denote you, the assistant.
+"Me" denote me, the user.
+
 You need to follow the role and specific instructions described later in this message to accomplish your goal of supporting me (the user).
 
-You have access to a clipboard that stores relevant data in this session:
-- content of files you read or provided to you
+## Working Directory
+
+You are operating inside a working directory, also known as a `sandbox`. If you are given file tools, you can list, read, write, and edit files in this sandbox.
+
+You need to use relative path to refer to files and directory inside the sandbox. You are located at the root of the sandbox.
+
+## Clipboard
+
+You are provided with a **clipboard** that provides a snapshot of the **latest state** of relevant data in this session:
+- content of and paths to files from working directory that you read, written, or edited previously
 - results of your tool calls 
 - your to-do list
 
-This clipboard would be dynamically updated and provided to you after you finish calling tool and before any message from me, the user. 
+The files shown in the clipboard are already SYNCHORNIZED with the content in the working directory. 
+- If they are in the clipboard, they exist in the working directory. 
+- If they are modified in the working directory, they will be automatically updated in the clipboard.
+- The content of a file you see in the clipboard is always the latest version of the file, after all of your tool calls have been performed on the files (e.g., editing, writing)
 
-After successful tool call, such as reading a file or fetching a web page, you would usually receive a response from tool to notify you where the retrieved content can be found.
-the retrieved content is usually added to the clipboard. In this case, the tool call has completed.
+After every tool call, you will receive the tool response message and the **latest version of the clipboard**. 
+
+Use the content of the tool response and clipboard to understand the progress and figure out the next step.
+
+## How to read files
+
+Use the read file tool to read a file and add its content to the clipboard.
+
+The file would be automatically removed from the clipboard after a certain number of conversation turns to save space. If you want to access the content of the file, read it again.
+
+## How to write files
+
+Use write file tool when you need to create a new file in the working directory
+
+1. Figure out the content you need to write.
+2. Figure out a name and path for the file you need to write.
+3. Call the file write tool with the correct parameters
+4. Inspect the tool response and clipboard
+5. If the tool response shows that the write operation failed, figure out the reason and retry
+6. If the tool response shows that the write operation successed, verify the content of the file in the clipboard and conclude the file write task
+
+Remember, if the file exist in the clipboard, it has already been written successfully to the working directory. DO NOT WRITE AGAIN.
+
+## How to edit files
+
+Use edit file tool when you need to replace or add content to an existing file.
+
+1. Figure out the new content you want to add or replace.
+2. Figure out the file you need to edit.
+3. If the file content is not in the clipboard, use read file tool to add the file content to the clipboard.
+4. Figure out the block of text in the existing file that you want to replace. If you need to add text to an existing empty session, use the session header as the text block to replace. If you need to add text to the end of a paragraph, use the last sentence of the paragraph as the text block.
+5. Call the file edit tool.
+6. If the tool response shows that the edit operation failed, figure out the reason and retry
+7. If the tool response shows that the edit operation was successful, conclude the editing task. Do not call edit tool again.
+
+Remember, if the file exist in the clipboard, it has already been written successfully to the working directory. DO NOT EDIT AGAIN.
+
+-----
+
+# ROLE DESCRIPTION AND INSTRUCTIONS
+
+"""
+
+SYSTEM_PROMPT_PREFIX_NO_TOOL = """
+# GENERAL INSTRUCTION
+
+You need to follow the role and specific instructions described later in this message to accomplish your goal of supporting me (the user).
+
+
+## Clipboard
+
+You are provided with a **clipboard** that provides a snapshot of the **latest state** of relevant data in this session:
+- content of files from working directory that you read, written, or edited previously
 
 -----
 
@@ -52,7 +117,10 @@ class Agent:
 
         self.llm = agent_config.llm_config
 
-        system_prompt = SYSTEM_PROMPT_PREFIX + agent_config.system_prompt
+        if agent_config.allowed_tools:
+            system_prompt = SYSTEM_PROMPT_PREFIX + agent_config.system_prompt
+        else:
+            system_prompt = SYSTEM_PROMPT_PREFIX_NO_TOOL + agent_config.system_prompt
         self.memory = (
             memory
             if memory
@@ -202,33 +270,29 @@ class Agent:
             with open("debug_messages.json", "w") as f:
                 f.write("")
 
-        # Build the ephemeral payload for the LLM
-        # Current memory.messages is [..., UserMsg]
-        history = self.memory.get_messages()
-
-        # We want to insert the clipboard right before the last message
-        past_history = history[:-1]
-        latest_query = history[-1:]
-        clipboard_context = [self.memory.get_clipboard_message()]
-        full_payload = []
-
-        if latest_query[0]["role"] == "user":
-            full_payload = past_history + clipboard_context + latest_query
-        else:
-            full_payload = history + clipboard_context
-
         # Start the tool call loop
-        for turn in range(10):
-            # We want to insert the clipboard right before the last message
-            past_history = history[:-1]
-            latest_query = history[-1:]
+        # Significantly reduce the number of turn for testing
+        for turn in range(3):
+            # Build the ephemeral payload for the LLM
+            # Current memory.messages is [..., UserMsg]
+            history = self.memory.get_messages()
+            last_user_index = None
+
+            for i in range(len(history) - 1, -1, -1):
+                if history[i]["role"] == "user":
+                    last_user_index = i
+                    break
             clipboard_context = [self.memory.get_clipboard_message()]
             full_payload = []
 
-            if latest_query[0]["role"] == "user":
-                full_payload = past_history + clipboard_context + latest_query
-            else:
+            if last_user_index is None:
+                # this should not happen, but I kept it here for unexpected fringe cases
+                # The clipboard would be injected to the end of the chat history to send to LLM
                 full_payload = history + clipboard_context
+            else:
+                # Insert clipboard before the last user's message
+                full_payload = history[:last_user_index] + clipboard_context + history[last_user_index:]
+
             # Call LLM for response
             # Allow caller to override the streaming and callbacks for displaying chunks, but default to the callbacks aassigned to the agent at creation time
             stream = stream if stream is not None else self.stream

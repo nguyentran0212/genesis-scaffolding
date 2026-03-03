@@ -14,7 +14,7 @@ export interface ToolCall {
 }
 
 export interface ChatMessage {
-  role: 'user' | 'assistant' | 'tool';
+  role: 'user' | 'assistant' | 'tool' | 'system';
   content: string;
   reasoning_content?: string;
   tool_calls?: ToolCall[];

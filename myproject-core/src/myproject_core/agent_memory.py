@@ -44,6 +44,7 @@ class AgentMemory:
     def forget(self):
         self.agent_clipboard.reduce_ttl()
         self.agent_clipboard.remove_expired_items()
+        self.agent_clipboard.commit()
 
     def get_clipboard_message(self, shorten: bool = False) -> dict[str, str]:
         """

@@ -33,22 +33,49 @@ async def list_sessions(db: Session = Depends(get_session), user: User = Depends
 @router.post("/", response_model=ChatSessionRead)
 async def create_session(
     config: ChatSessionCreate,
-    db: Session = Depends(get_session),
-    user: User = Depends(get_current_active_user),
-    agent_reg: AgentRegistry = Depends(get_agent_registry),
+    db: Annotated[Session, Depends(get_session)],
+    user: Annotated[User, Depends(get_current_active_user)],
+    agent_reg: Annotated[AgentRegistry, Depends(get_agent_registry)],
+    working_dir: Annotated[Path, Depends(get_user_inbox_path)],
 ):
-    # Validate agent exists
-
+    # 1. Validate agent exists
     if config.agent_id not in agent_reg.get_all_agent_types():
         raise HTTPException(status_code=404, detail="Agent not found")
 
     if not user.id:
         raise HTTPException(status_code=400, detail="User not found")
 
+    # 2. Create the Session object
     new_session = ChatSession(user_id=user.id, agent_id=config.agent_id, title=config.title or "New Chat")
+
     db.add(new_session)
-    db.commit()
-    db.refresh(new_session)
+    # Flush sends the 'INSERT' to the DB to generate the ID, but doesn't commit the transaction yet
+    db.flush()
+
+    if not new_session.id:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to create session")
+
+    # 3. Initialize Agent to get starting messages (System prompts, greetings, etc.)
+    agent = agent_reg.create_agent(config.agent_id, working_directory=working_dir)
+    agent_messages = agent.memory.get_messages()
+
+    # 4. Add initial messages to the database
+    for msg in agent_messages:
+        db_msg = ChatMessage(
+            session_id=new_session.id,  # Use the ID generated during flush
+            payload=msg,
+        )
+        db.add(db_msg)
+
+    # 5. Commit all changes at once
+    try:
+        db.commit()
+        db.refresh(new_session)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to create session: {str(e)}")
+
     return new_session
 
 
@@ -121,6 +148,9 @@ async def send_message(
             # We record the length to know exactly which messages are "new"
             initial_memory_length = len(agent.memory.messages)
 
+            # print("AGENT MEMORY BEFORE CALLING STEP")
+            # print(agent.memory.get_messages())
+            # print(initial_memory_length)
             # Execution with callbacks!
             await agent.step(
                 input=user_input,
@@ -135,6 +165,8 @@ async def send_message(
             # Extract only the newly generated messages (user message + agent responses + tools)
             new_messages = agent.memory.messages[initial_memory_length:]
 
+            # print("NEW MESSAGES TO WRITE TO DATABASE")
+            # print(new_messages)
             # We need a fresh DB session for the background task
             with get_session_context() as bg_db:  # Assuming you have a context manager for DB
                 session_to_update = bg_db.get(ChatSession, session_id)

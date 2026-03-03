@@ -136,8 +136,10 @@ class ListFilesTool(BaseTool):
 class WriteFileTool(BaseTool):
     name = "write_file"
     description = (
-        "Creates a new file or overwrites an existing file with new content. "
-        "The directory path will be created if it does not exist."
+        "Creates a NEW file in the working directory. "
+        "IMPORTANT: This tool is strictly for creating new files only. It is NOT allowed to overwrite or modify existing files. "
+        "If you need to update or change a file that already exists, you must use the edit tool instead. "
+        "After successful writing, the file content will be added to your clipboard."
     )
     parameters = {
         "type": "object",
@@ -156,13 +158,21 @@ class WriteFileTool(BaseTool):
 
     async def run(self, working_directory: Path, file_path: str, content: str, **kwargs: Any) -> ToolResult:
         try:
-            # 1. Validate path (must_exist=False because we might be creating it)
-            # We also check that it's not a directory if it DOES exist.
+            # 1. Validate path
             validated_path = self._validate_path(
                 working_directory, file_path, must_exist=False, should_be_file=True
             )
 
-            # 2. Perform I/O in a thread to avoid blocking the event loop
+            # 2. Check if file already exists to prevent overwriting
+            if validated_path.exists():
+                error_msg = (
+                    f"Error: The file '{file_path}' already exists. "
+                    f"The 'write_file' tool cannot be used to overwrite files. "
+                    f"Please use the appropriate edit tool to modify this existing file."
+                )
+                return ToolResult(status="error", tool_response=error_msg)
+
+            # 3. Perform I/O in a thread to avoid blocking the event loop
             def perform_write():
                 # Ensure parent directories exist
                 validated_path.parent.mkdir(parents=True, exist_ok=True)
@@ -172,12 +182,14 @@ class WriteFileTool(BaseTool):
 
             await asyncio.to_thread(perform_write)
 
-            # 3. Return success
-            # We add the path to 'files_to_add_to_clipboard' so the agent
-            # immediately sees the result of its work in the next turn.
+            # 4. Return success
+            response_message = "File write operation completed successfully.\nResults:\n"
+            response_message += f"- The content was written to a NEW file at: '{file_path}'.\n"
+
             return ToolResult(
                 status="success",
-                tool_response=f"Successfully wrote the content to '{file_path}'.",
+                tool_response=response_message,
+                files_to_add_to_clipboard=[validated_path],
             )
 
         except ValueError as e:
@@ -190,8 +202,8 @@ class EditFileTool(BaseTool):
     name = "edit_file"
     description = (
         "Replaces a single specific block of text in a file with new text. "
-        "The 'old_str' must match the file content EXACTLY, including indentation. "
-        "The 'old_str' must be unique within the file so the system knows exactly where to apply the change."
+        "Use this tool to add or replace content of an existing file."
+        "After succcesful editing the actual file in the working directory, the latest content of the file would be added to your clipboard for future tasks."
     )
     parameters = {
         "type": "object",
@@ -202,7 +214,7 @@ class EditFileTool(BaseTool):
             },
             "old_str": {
                 "type": "string",
-                "description": "The exact block of text you want to replace. Copy it exactly from the file.",
+                "description": "The exact block of text you want to replace. It must match the file content EXACTLY, including identation.",
             },
             "new_str": {
                 "type": "string",
@@ -231,16 +243,17 @@ class EditFileTool(BaseTool):
                 if occurrence_count == 0:
                     # Provide a helpful error if the model messed up the copy-paste
                     raise ValueError(
-                        f"Could not find 'old_str' in '{file_path}'. "
-                        "Please check the file content on your clipboard and ensure your 'old_str' "
+                        f"Could not find the old string you specified: {old_str}"
+                        f"Please check the file content of {file_path} on your clipboard and ensure your old string "
                         "matches the indentation and characters exactly."
+                        "Write smaller old string could help."
                     )
 
                 if occurrence_count > 1:
                     # Provide a helpful error if the string isn't unique enough
                     raise ValueError(
-                        f"Found {occurrence_count} occurrences of 'old_str' in '{file_path}'. "
-                        "Please include more surrounding lines in 'old_str' to make the match unique."
+                        f"Found {occurrence_count} occurrences of old string in '{file_path}'. "
+                        "Please include more surrounding lines in old string to make the match unique."
                     )
 
                 # Perform the replacement
@@ -251,9 +264,13 @@ class EditFileTool(BaseTool):
             await asyncio.to_thread(apply_edit)
 
             # 3. Return success and trigger a clipboard refresh
+            response_message = (
+                f"File edit operation **completed successfully on the file {file_path}**\n"
+                "The new version of the file has been added to the clipboard. Compare the old and the new version to verify the file edit task."
+            )
             return ToolResult(
                 status="success",
-                tool_response=f"Successfully edited '{file_path}'. The updated content is now on your clipboard.",
+                tool_response=response_message,
                 files_to_add_to_clipboard=[validated_path],
             )
 

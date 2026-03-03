@@ -27,6 +27,10 @@ export const MessageBubble = memo(({ message }: { message: ChatMessage }) => {
     );
   }
 
+  if (message.role === 'system') {
+    return null;
+  }
+
   if (message.role === 'tool') {
     return (
       <div className="flex justify-start mb-4">

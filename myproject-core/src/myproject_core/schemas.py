@@ -81,9 +81,13 @@ class AgentClipboardFile(BaseModel):
     # Path to the file
     file_path: Path
     # Content of the file (support textual content only for now)
-    file_content: str
+    current_file_content: str
+    previous_file_content: str | None = None
     # How many turns left until the file is removed from clipboard
     ttl: int = 10
+    # These flags make it easier to filter and parse
+    is_new: bool = False  # Has the file just been added in this turn?
+    is_edited: bool = False  # Has the file been modified in this turn?
 
 
 class AgentClipboardToolResult(BaseModel):
@@ -111,8 +115,17 @@ class AgentClipboard(BaseModel):
 
     def add_file_to_clipboard(self, file_path: Path, content: str):
         """Adds or updates a file in the clipboard."""
-        new_file = AgentClipboardFile(file_path=file_path, file_content=content)
-        self.accessed_files[str(file_path)] = new_file
+        if str(file_path) not in self.accessed_files.keys():
+            # If the file does not exist in the clipboard, then add it
+            new_file = AgentClipboardFile(file_path=file_path, current_file_content=content, is_new=True)
+            self.accessed_files[str(file_path)] = new_file
+        else:
+            # If the file is already in the clipboard, add a new version of the content
+            old_file = self.accessed_files[str(file_path)]
+            old_file.previous_file_content = old_file.current_file_content
+            old_file.current_file_content = content
+            old_file.is_new = False
+            old_file.is_edited = True
 
     def add_tool_result_to_clipboard(self, tool_name: str, tool_call_id: str, tool_call_results: list[str]):
         """Add results of tool call to the clipboard"""
@@ -147,6 +160,15 @@ class AgentClipboard(BaseModel):
 
         self.tool_results = {key: result for key, result in self.tool_results.items() if result.ttl > 0}
 
+    def commit(self):
+        """
+        Remove previous version of existing files from clipboard
+        """
+        for clipboard_file in self.accessed_files.values():
+            clipboard_file.is_new = False
+            clipboard_file.is_edited = False
+            clipboard_file.previous_file_content = None
+
     def render_to_markdown(self, shorten: bool = False) -> str:
         """Converts clipboard contents into a structured Markdown string."""
         sections = []
@@ -161,30 +183,65 @@ class AgentClipboard(BaseModel):
 
         # Render Files
         if self.accessed_files:
-            file_section = "### ACCESSED FILES\n"
+            new_files = [file for file in self.accessed_files.values() if file.is_new]
+            edited_files = [file for file in self.accessed_files.values() if file.is_edited]
+            file_section = "### ACCESSED FILES\n\n"
+            file_section += "The following files have been read, written, or edited **by you** so far.\n"
+            file_section += "\n\n"
+
+            if new_files:
+                file_section += (
+                    f"You have read and added **{len(new_files)} files** to the clipboard recently\n"
+                )
+                file_section += "List of newly added files:\n"
+                for new_file in new_files:
+                    file_section += f"- `{new_file.file_path}`\n"
+                file_section += "\n\n"
+
+            if edited_files:
+                file_section += f"You have edited **{len(edited_files)} files** recently:\n"
+                file_section += "List of recently edited files:\n"
+                for edited_file in edited_files:
+                    file_section += f"- `{edited_file.file_path}`\n"
+                file_section += "\n\n"
+
             for _, file in self.accessed_files.items():
                 file_section += f"#### File: {file.file_path}\n"
-                file_section += f"This file would be removed from clipboard in {file.ttl} turns\n\n"
+                if file.is_new:
+                    file_section += "**Status: Recently Added**\n"
+                if file.is_edited:
+                    file_section += "**Status: Recently Modified**\n"
+
                 if not shorten:
-                    file_section += f"```\n{file.file_content}\n```\n"
+                    file_section += f"**Current File Content:**\n```\n{file.current_file_content}\n```\n\n"
+                    if file.previous_file_content:
+                        file_section += (
+                            f"**Previous File Content:**\n```\n{file.previous_file_content}\n```\n"
+                        )
                 else:
-                    file_section += f"```\n{file.file_content[0:50]}...\n```\n"
+                    file_section += (
+                        f"**Current File Content:**\n```\n{file.current_file_content[0:50]}...\n```\n"
+                    )
+                    if file.previous_file_content:
+                        file_section += (
+                            f"**Previous File Content:**\n```\n{file.previous_file_content[0:50]}...\n```\n"
+                        )
+                file_section += "\n\n-----\n\n"
             sections.append(file_section)
 
         # Render tool results
         if self.tool_results:
-            tool_section = "### TOOL CALL RESULTS\n"
+            tool_section = "### TOOL CALL RESULTS\n\n"
             for _, tool_result in self.tool_results.items():
                 tool_section += f"#### Tool Call ID: {tool_result.tool_call_id}\n"
                 tool_section += f"Tool: {tool_result.tool_name}\n"
-                tool_section += (
-                    f"This tool call result would be removed from clipboard in {tool_result.ttl} turns\n\n"
-                )
                 for res in tool_result.tool_call_results:
                     if not shorten:
                         tool_section += f"```\n{res}\n```\n"
                     else:
                         tool_section += f"```\n{res[:50]}...\n```\n"
+
+                    tool_section += "\n\n-----\n\n"
             sections.append(tool_section)
 
         if not sections:
