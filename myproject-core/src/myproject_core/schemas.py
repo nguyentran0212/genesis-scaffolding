@@ -25,17 +25,24 @@ class JobContext:
 
 ### LLM Configs
 class LLMProvider(BaseModel):
-    base_url: str
-    api_key: str
+    """Configuration for an LLM API provider (e.g., OpenRouter, OpenAI, Anthropic)."""
+
+    name: str | None = "openrouter"
+    base_url: str | None = "https://openrouter.ai/api/v1"
+    api_key: str = Field(default=...)
 
 
-class LLMModel(BaseModel):
+class LLMModelConfig(BaseModel):
     """
-    TODO: support other inference parameters such as temperature and repeat penalty
+    Configuration for a specific model instance.
+    'provider' matches a key in the providers dictionary.
+    'model' is the actual model string passed to LiteLLM.
+    'params' contains extra arguments like temperature, max_tokens, reasoning_effort, etc.
     """
 
-    provider: LLMProvider
+    provider: str
     model: str
+    params: Dict[str, Any] = Field(default_factory=dict)
 
 
 ### LLM Response Message
@@ -63,7 +70,9 @@ class AgentConfig(BaseModel):
     # Name of the agent for referring to it in the system
     name: str
     # LLM Configuration to be used by this model
-    llm_config: LLMModel | None = None
+    llm_config: LLMModelConfig | None = None
+    # LLM Configuration to be used by this model
+    provider_config: LLMProvider | None = None
     # Only interactive agent can be used in chat
     interactive: bool = False
     # System prompt for the agent

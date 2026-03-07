@@ -1,20 +1,18 @@
 import asyncio
 from typing import Any, cast
 
-from httpx import get
 import litellm
 from litellm import CustomStreamWrapper, ModelResponse, acompletion
 from litellm.types.utils import Choices, StreamingChoices
 
-from .configs import get_config
-from .schemas import LLMModel, LLMProvider, LLMResponse, StreamCallback, ToolCall
-from .utils import streamcallback_simple_print
+from .schemas import LLMProvider, LLMResponse, LLMModelConfig, StreamCallback, ToolCall
 
 litellm.suppress_debug_info = True  # Silences provider suggestion logs
 
 
 async def get_llm_response(
-    llm_model: LLMModel,
+    llm_model_config: LLMModelConfig,
+    provider_config: LLMProvider,
     messages: list[Any],
     stream=False,
     content_chunk_callbacks: list[StreamCallback] | None = None,
@@ -29,7 +27,8 @@ async def get_llm_response(
     The caller can pass callback functions to handle each of the content and reasoning chunk coming from the model (e.g., to display to UI)
 
     Args:
-        llm_model: An LLMModel configuration object containing provider credentials and model identifiers.
+        llm_model_config: An LLMModel configuration object containing details about the models to call and additional params.
+        provider_config: base url and api key of the model provider
         messages: A list of message dictionaries (role/content) representing the conversation history.
         stream: If True, the function iterates over the response stream and triggers callbacks. Defaults to False.
         content_chunk_callbacks: An optional list of async functions triggered every time a new 'content' text chunk is received during streaming. Useful for real-time UI updates.
@@ -40,18 +39,17 @@ async def get_llm_response(
 
     Raises:
         RuntimeError: If the returned LiteLLM object does not match the requested 'stream' mode.
-
-    TODO:
-        - Implement support for `tool_calls` and function calling logic within both the streaming and static response paths.
+        ValueError: If the provider config does not match the model config
     """
     response: Any = await acompletion(
-        base_url=llm_model.provider.base_url,
-        api_key=llm_model.provider.api_key,
-        model=llm_model.model,
+        base_url=provider_config.base_url,
+        api_key=provider_config.api_key,
+        model=f"{provider_config.name}/{llm_model_config.model}",
         messages=messages,
         stream=stream,
         stream_options={"include_usage": True},
         tools=tools,
+        **llm_model_config.params,
     )
 
     full_content = ""
@@ -120,33 +118,3 @@ async def get_llm_response(
     return LLMResponse(
         content=full_content, reasoning_content=full_reasoning_content, tool_calls=final_tool_calls
     )
-
-
-async def main():
-    settings = get_config()
-    # We pull credentials from settings to build our Provider and Model schemas.
-    llm_provider = LLMProvider(base_url=settings.llm.base_url, api_key=settings.llm.api_key)
-    llm_model = LLMModel(provider=llm_provider, model=settings.llm.model)
-
-    # 3. Execute the LLM Call with Streaming
-    # Note how we use the SAME callback for both reasoning and content.
-    # In a real UI, you might send reasoning to a 'thought bubble'
-    # and content to the 'chat bubble'.
-    llm_response = await get_llm_response(
-        llm_model,
-        [{"content": "Hello, how are you?", "role": "user"}],
-        stream=True,
-        content_chunk_callbacks=[streamcallback_simple_print],
-        reasoning_chunk_callbacks=[streamcallback_simple_print],
-    )
-
-    # 4. Access the Final Accumulated Data
-    # Even though we streamed the output above, the 'get_llm_response'
-    # function has collected all chunks into a final LLMResponse object.
-    print("\n\n--- SUMMARY ---")
-    print(f"Reasoning content captured:\n{llm_response.reasoning_content}\n")
-    print(f"Final response captured:\n{llm_response.content}\n")
-
-
-if __name__ == "__main__":
-    asyncio.run(main())

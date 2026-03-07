@@ -12,7 +12,7 @@ from myproject_tools.schema import ToolResult
 from .agent_memory import AgentMemory
 from .configs import get_config
 from .llm import get_llm_response
-from .schemas import AgentConfig, LLMModel, LLMProvider, StreamCallback, ToolCallback
+from .schemas import AgentConfig, LLMProvider, LLMModelConfig, StreamCallback, ToolCallback
 from .utils import streamcallback_simple_print
 
 SYSTEM_PROMPT_PREFIX = """
@@ -103,10 +103,14 @@ class Agent:
         reasoning_chunk_callbacks: list[StreamCallback] | None = None,
     ) -> None:
         self.agent_config = agent_config
+        if not agent_config.provider_config:
+            raise Exception(f"Agent {agent_config.name} does not have LLM provider configuration.")
+
         if not agent_config.llm_config:
             raise Exception(f"Agent {agent_config.name} does not have llm configuration.")
 
-        self.llm = agent_config.llm_config
+        self.llm_model_config = agent_config.llm_config
+        self.provider_config = agent_config.provider_config
 
         if agent_config.allowed_tools:
             system_prompt = SYSTEM_PROMPT_PREFIX + agent_config.system_prompt
@@ -317,7 +321,8 @@ class Agent:
             if debug:
                 self._log_debug_messages(full_payload, turn)
             llm_response = await get_llm_response(
-                llm_model=self.llm,
+                llm_model_config=self.llm_model_config,
+                provider_config=self.provider_config,
                 messages=full_payload,
                 stream=stream if stream is not None else self.stream,
                 content_chunk_callbacks=content_chunk_callbacks,
@@ -498,14 +503,14 @@ class Agent:
 
 async def main():
     settings = get_config()
-    llm_provider = LLMProvider(base_url=settings.llm.base_url, api_key=settings.llm.api_key)
-    llm_model = LLMModel(provider=llm_provider, model=settings.llm.model)
-    agent_config = AgentConfig(name="my-test-agent", llm_config=llm_model)
-    print(agent_config)
+    [llm_model, llm_provider] = settings.default_llm_config
+    agent_config = AgentConfig(name="my-test-agent", llm_config=llm_model, provider_config=llm_provider)
     agent = Agent(
         agent_config=agent_config,
+        timezone=settings.server.timezone,
         content_chunk_callbacks=[streamcallback_simple_print],
         reasoning_chunk_callbacks=[streamcallback_simple_print],
+        working_directory=settings.path.working_directory,
     )
 
     print(
@@ -514,9 +519,7 @@ async def main():
 
     await agent.add_file(Path(__file__).resolve())
 
-    print(
-        f"Turn 2:\n{await agent.step('Can you explain to me the file in the clipboard?', working_directory=Path(__file__).parent)}\n-----"
-    )
+    print(f"Turn 2:\n{await agent.step('Can you explain to me the file in the clipboard?')}\n-----")
 
     messages = agent.memory.get_messages()
     print(f"\n\nAll of the messages:\n{messages}")

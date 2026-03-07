@@ -1,30 +1,20 @@
 import secrets
 from functools import lru_cache
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 import yaml
-from pydantic import BaseModel, Field, computed_field
+from pydantic import BaseModel, Field, computed_field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# This resolves to .../myproject-core/src/myproject_core
-# Agents and workflows are now subdirectories of this path
+from .schemas import LLMModelConfig, LLMProvider
+
 PACKAGE_ROOT = Path(__file__).parent.resolve()
 
 
-class LLMConfig(BaseModel):
-    base_url: str = "https://openrouter.ai/api/v1"
-    api_key: str = Field(default=...)
-    model: str = "openrouter/nvidia/nemotron-3-nano-30b-a3b:free"
-
-
 class PathConfigs(BaseModel):
-    # The 'root' for the current execution context.
-    # In CLI: This is where the user runs the command.
-    # In Server: This is the user's isolated home directory.
     working_directory: Path = Field(default_factory=lambda: Path.cwd().resolve())
 
-    # The location where server would store user's working directory when the system runs in server mode
     @property
     def server_users_directory(self) -> Path:
         return self.working_directory / "user_directories"
@@ -33,27 +23,16 @@ class PathConfigs(BaseModel):
     def internal_state_dir(self) -> Path:
         return self.working_directory / ".myproject"
 
-    # --- Discovery Paths (Read-Only) ---
-    # We look for YAMLs in the user's local folder first, then fallback to package defaults.
-
     @computed_field
     @property
     def agent_search_paths(self) -> List[Path]:
-        return [
-            PACKAGE_ROOT / "agents",
-            self.internal_state_dir / "agents",
-        ]
+        return [PACKAGE_ROOT / "agents", self.internal_state_dir / "agents"]
 
     @computed_field
     @property
     def workflow_search_paths(self) -> List[Path]:
-        return [
-            PACKAGE_ROOT / "workflows",
-            self.internal_state_dir / "workflows",
-        ]
+        return [PACKAGE_ROOT / "workflows", self.internal_state_dir / "workflows"]
 
-    # --- Runtime Paths (Read-Write) ---
-    # We use a hidden folder to avoid polluting the user's working directory.
     @computed_field
     @property
     def workspace_directory(self) -> Path:
@@ -65,7 +44,6 @@ class PathConfigs(BaseModel):
         return self.internal_state_dir / "inbox"
 
     def ensure_dirs(self):
-        """Creates the necessary runtime directories."""
         self.workspace_directory.mkdir(parents=True, exist_ok=True)
         self.inbox_directory.mkdir(parents=True, exist_ok=True)
         self.server_users_directory.mkdir(parents=True, exist_ok=True)
@@ -88,7 +66,6 @@ class DatabaseConfig(BaseModel):
     dsn: Optional[str] = None
     db_name: str = "myproject.db"
     echo_sql: bool = False
-    # Where the SQLite file lives (Server-wide)
     db_directory: Path = Field(default_factory=lambda: Path.cwd() / "database")
 
     @computed_field
@@ -106,35 +83,81 @@ class Config(BaseSettings):
         extra="ignore",
     )
 
-    llm: LLMConfig
+    # Dictionaries of providers and models
+    # Key is the nickname used in the app
+    providers: Dict[str, LLMProvider] = Field(default_factory=dict)
+    models: Dict[str, LLMModelConfig] = Field(default_factory=dict)
+
+    # Optional: pointer to which model nickname to use by default
+    default_model: str = "default"
+
     path: PathConfigs = Field(default_factory=PathConfigs)
     server: ServerConfig = Field(default_factory=ServerConfig)
     db: DatabaseConfig = Field(default_factory=DatabaseConfig)
 
+    @model_validator(mode="after")
+    def validate_llm_references(self) -> "Config":
+        """
+        Ensures all models point to valid providers and the default_model exists.
+        """
+        # 1. Check if all models reference an existing provider
+        for model_nickname, model_cfg in self.models.items():
+            if model_cfg.provider not in self.providers:
+                available = list(self.providers.keys())
+                raise ValueError(
+                    f"Model '{model_nickname}' references unknown provider '{model_cfg.provider}'. "
+                    f"Available providers: {available}"
+                )
+
+        # 2. Check if default_model actually exists in the models dict
+        # We only check this if models are actually defined
+        if self.models and self.default_model not in self.models:
+            raise ValueError(
+                f"default_model '{self.default_model}' is not defined in the 'models' dictionary."
+            )
+
+        return self
+
+    @property
+    def default_llm_config(self) -> tuple[LLMModelConfig, LLMProvider]:
+        """Convenience property to get the currently selected default LLM details."""
+        m = self.models[self.default_model]
+        p = self.providers[m.provider]
+        return m, p
+
+
+def deep_merge(base: dict, update: dict) -> dict:
+    """
+    Recursively merges two dictionaries.
+    This ensures that adding a new model in YAML doesn't delete existing models from .env.
+    """
+    for key, value in update.items():
+        if isinstance(value, dict) and key in base and isinstance(base[key], dict):
+            base[key] = deep_merge(base[key], value)
+        else:
+            base[key] = value
+    return base
+
 
 @lru_cache()
 def get_config(user_workdir: Optional[Path] = None, override_yaml: Optional[Path] = None) -> Config:
-    """
-    Factory to retrieve the configuration.
+    # 1. Initialize from Environment Variables / .env
+    # Pydantic BaseSettings automatically populates this
+    conf_dict = Config().model_dump()
 
-    1. Loads global defaults from Environment Variables / .env
-    2. If user_workdir is provided, anchors all paths to that location.
-    3. If override_yaml is provided, merges that YAML file into the config.
-    """
-    # Initialize with Env Vars
-    conf = Config()  # type: ignore
-
-    # Apply User Workspace Isolation
-    if user_workdir:
-        conf.path.working_directory = user_workdir.resolve()
-
-    # Apply YAML Overrides (e.g. for custom LLM keys or specific user preferences)
+    # 2. Apply YAML Overrides (Merging instead of overwriting)
     if override_yaml and override_yaml.exists():
         with open(override_yaml, "r") as f:
             yaml_data = yaml.safe_load(f)
             if yaml_data:
-                # model_copy with update performs a deep merge of the dict
-                conf = conf.model_copy(update=yaml_data, deep=True)
+                conf_dict = deep_merge(conf_dict, yaml_data)
+
+    # Re-validate the merged dictionary into the Config model
+    conf = Config(**conf_dict)
+
+    # 3. Apply User Workspace Isolation
+    if user_workdir:
+        conf.path.working_directory = user_workdir.resolve()
 
     # Ensure runtime directories exist
     conf.path.ensure_dirs()
@@ -142,5 +165,4 @@ def get_config(user_workdir: Optional[Path] = None, override_yaml: Optional[Path
     return conf
 
 
-# Default singleton for simple scripts/CLI use
 settings = get_config()

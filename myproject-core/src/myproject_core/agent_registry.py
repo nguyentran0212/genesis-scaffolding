@@ -1,3 +1,4 @@
+import asyncio
 import re
 from pathlib import Path
 from typing import Any
@@ -8,7 +9,7 @@ from myproject_core.agent import Agent
 
 from .agent_memory import AgentMemory
 from .configs import Config, get_config
-from .schemas import AgentConfig, LLMModel, LLMProvider
+from .schemas import AgentConfig, LLMModelConfig, LLMProvider
 
 
 class AgentRegistry:
@@ -33,7 +34,7 @@ class AgentRegistry:
 
                     # Automatically add default LLM config to the agent if the agent does not have LLM config
                     if not raw_data.get("llm_config"):
-                        raw_data["llm_config"] = self._get_llm_model_config()
+                        [raw_data["llm_config"], raw_data["provider_config"]] = self._get_llm_model_config()
 
                     config = AgentConfig.model_validate(raw_data)
                     # Store the name from the file stem or manifest
@@ -180,18 +181,36 @@ class AgentRegistry:
     def get_all_agent_types(self):
         return self.blueprints.keys()
 
-    def _get_llm_model_config(self) -> LLMModel:
-        base_url = self.settings.llm.base_url
-        api_key = self.settings.llm.api_key
-        llm_model = self.settings.llm.model
-        return LLMModel(provider=LLMProvider(base_url=base_url, api_key=api_key), model=llm_model)
+    def _get_llm_model_config(self, model_name: str | None = None) -> tuple[LLMModelConfig, LLMProvider]:
+        if not model_name:
+            return self.settings.default_llm_config
+
+        if model_name not in self.settings.models.keys():
+            raise ValueError(f"Cannot find LLM model {model_name}")
+
+        llm_model_config = self.settings.models[model_name]
+        provider_config = self.settings.providers[llm_model_config.provider]
+        return (llm_model_config, provider_config)
 
 
-def main():
+async def main():
     settings = get_config()
     agent_registry = AgentRegistry(settings=settings)
     print(agent_registry.get_all_agent_types())
 
+    agent = agent_registry.create_agent("assistant_agent", settings.path.working_directory)
+
+    print(
+        f"Turn 1:\n{await agent.step('hello, how are you?', working_directory=Path(__file__).parent)}\n-----"
+    )
+
+    await agent.add_file(Path(__file__).resolve())
+
+    print(f"Turn 2:\n{await agent.step('Can you explain to me the file in the clipboard?')}\n-----")
+
+    messages = agent.memory.get_messages()
+    print(f"\n\nAll of the messages:\n{messages}")
+
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
