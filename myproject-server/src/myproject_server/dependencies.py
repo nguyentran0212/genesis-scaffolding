@@ -6,7 +6,7 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
 from myproject_core.agent_registry import AgentRegistry
-from myproject_core.configs import Config, get_config
+from myproject_core.configs import Config, get_config, settings
 from myproject_core.workflow_engine import WorkflowEngine
 from myproject_core.workflow_registry import WorkflowRegistry
 from myproject_core.workspace import WorkspaceManager
@@ -22,7 +22,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 # -- Get server settings ---
 async def get_server_settings() -> Config:
-    return get_config()
+    return settings
 
 
 # --- Get current authenticated user ---
@@ -37,12 +37,16 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
+        print(token)
+        print(settings.server.jwt_secret_key)
+        print(settings.server.algorithm)
         payload = jwt.decode(token, settings.server.jwt_secret_key, algorithms=[settings.server.algorithm])
         if not payload.get("sub"):
             raise credentials_exception
         username: str = str(payload.get("sub"))
         token_data = TokenData(username=username)
     except InvalidTokenError:
+        print("InvalidTokenError encountered")
         raise credentials_exception
 
     # Query the actual database

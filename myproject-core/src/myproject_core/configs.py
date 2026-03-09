@@ -139,7 +139,7 @@ def deep_merge(base: dict, update: dict) -> dict:
     return base
 
 
-@lru_cache()
+# @lru_cache()
 def get_config(user_workdir: Optional[Path] = None, override_yaml: Optional[Path] = None) -> Config:
     # 1. Initialize from Environment Variables / .env
     # Pydantic BaseSettings automatically populates this

@@ -3,8 +3,10 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from myproject_core.configs import settings
+from myproject_core.configs import Config
 from sqlmodel import Session, select
+
+from myproject_server.dependencies import get_server_settings
 
 from ..auth.security import create_access_token, create_refresh_token, decode_token_payload, verify_password
 from ..database import get_session
@@ -18,6 +20,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 async def login_for_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     session: Annotated[Session, Depends(get_session)],
+    settings: Annotated[Config, Depends(get_server_settings)],
 ) -> Token:
     # Fetch user from DB
     statement = select(User).where(User.username == form_data.username)
@@ -44,6 +47,7 @@ async def login_for_access_token(
 @router.post("/refresh")
 async def refresh_access_token(
     session: Annotated[Session, Depends(get_session)],
+    settings: Annotated[Config, Depends(get_server_settings)],
     refresh_token: str = Body(..., embed=True),
 ) -> Token:
     [username, token_type] = decode_token_payload(refresh_token=refresh_token)

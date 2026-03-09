@@ -1,3 +1,4 @@
+// components/dashboard/page-container.tsx
 import React from "react";
 import { cn } from "@/lib/utils";
 
@@ -11,41 +12,46 @@ interface PageContainerProps extends React.HTMLAttributes<HTMLDivElement> {
 const PageContainer = React.forwardRef<HTMLDivElement, PageContainerProps>(
   ({ variant = "dashboard", children, className, ...props }, ref) => {
 
-    // Define variant-specific styles
-    const variantStyles: Record<PageVariant, string> = {
-      // 1. Prose: Centered, constrained width, readable padding
-      prose: "max-w-5xl mx-auto p-4 md:p-10 overflow-y-auto",
+    // 1. SCROLLER: This div is ALWAYS full width to keep the scrollbar at the screen edge
+    const scrollerStyles: Record<PageVariant, string> = {
+      prose: "overflow-y-auto w-full",
+      dashboard: "overflow-y-auto w-full",
+      app: "overflow-hidden flex flex-col w-full", // App variant doesn't scroll at this level
+    };
 
-      // 2. Dashboard: Wider, standard padding for grids/tables
-      dashboard: "max-w-[1600px] mx-auto p-4 md:p-6 overflow-y-auto",
-
-      // 3. App: Edge-to-edge, no scroll (internal components handle scroll)
-      app: "max-w-none p-0 overflow-hidden flex flex-col",
+    // 2. CENTERING BOX: This div constrains the content width
+    const innerStyles: Record<PageVariant, string> = {
+      prose: "max-w-5xl mx-auto w-full h-full",
+      dashboard: "max-w-[1600px] mx-auto w-full h-full",
+      app: "max-w-none w-full h-full flex flex-col",
     };
 
     return (
       <div
         ref={ref}
         className={cn(
-          // Base styles for all pages: fill the slot provided by layout
-          "h-full w-full min-h-0 min-w-0",
-          variantStyles[variant],
+          "h-full min-h-0 min-w-0", // Base height limits
+          scrollerStyles[variant],
           className
         )}
         {...props}
       >
-        {children}
+        <div className={innerStyles[variant]}>
+          {children}
+        </div>
       </div>
     );
   }
 );
 
-const PageBody = React.forwardRef<HTMLDivElement, PageContainerProps>(
+const PageBody = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ children, className, ...props }, ref) => {
     return (
       <div
+        ref={ref}
         className={cn(
-          "flex flex-col gap-6", // This is your repeated "Source of Truth"
+          // Standard padding and vertical spacing
+          "flex flex-col gap-6 p-4 md:p-6 lg:p-10",
           className
         )}
         {...props}

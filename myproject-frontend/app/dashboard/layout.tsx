@@ -24,7 +24,8 @@ import {
   MessagesSquare,
   History,
   Zap,
-  User
+  User,
+  Settings
 } from 'lucide-react';
 import LogoutButton from '@/components/auth/logout-button';
 import Link from 'next/link';
@@ -148,18 +149,35 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           ))}
         </SidebarContent>
 
-        <SidebarFooter className="border-t bg-slate-50/50 p-4 dark:bg-slate-900/50">
-          <div className="flex flex-col gap-4">
-            {/* User Profile Section */}
-            <div className="flex items-center gap-3 px-2 group-data-[collapsible=icon]:hidden">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 dark:bg-slate-800">
-                <User className="h-4 w-4 text-slate-600 dark:text-slate-400" />
-              </div>
-              <div className="flex flex-col overflow-hidden text-left text-sm leading-tight">
-                <span className="truncate font-semibold uppercase">{user.username}</span>
-                <span className="truncate text-xs text-muted-foreground italic">Personal Workspace</span>
-              </div>
-            </div>
+        <SidebarFooter className="border-t bg-slate-50/50 p-2 dark:bg-slate-900/50">
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                size="lg"
+                tooltip="Workspace Settings"
+                className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+              >
+                <Link href="/dashboard/settings" className="flex items-center gap-3 px-2">
+                  {/* User Icon/Avatar - Always visible even when collapsed */}
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-200 dark:bg-slate-800">
+                    <User className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+                  </div>
+
+                  {/* User Info - Hidden when collapsed */}
+                  <div className="flex flex-1 flex-col overflow-hidden text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
+                    <span className="truncate font-semibold uppercase">{user.username}</span>
+                    <span className="truncate text-[10px] text-muted-foreground italic">Workspace Settings</span>
+                  </div>
+
+                  {/* Add a small settings icon at the end for clarity */}
+                  <Settings className="ml-auto h-3 w-3 opacity-50 group-data-[collapsible=icon]:hidden" />
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+
+          <div className="mt-2 px-2">
             <LogoutButton />
           </div>
         </SidebarFooter>
