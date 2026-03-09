@@ -91,7 +91,6 @@ async def get_user_config(
     """
     # Path to the user's optional override config
     user_override_yaml = user_workdir / "config.yaml"
-
     # Generate a config instance tailored to this user's path
     # get_config will handle merging global defaults with user overrides
     user_specific_settings = get_config(user_workdir=user_workdir, override_yaml=user_override_yaml)
