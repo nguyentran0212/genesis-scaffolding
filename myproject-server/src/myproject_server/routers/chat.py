@@ -19,12 +19,27 @@ from ..schemas.chat import ChatHistoryRead, ChatSessionCreate, ChatSessionRead
 router = APIRouter(prefix="/chats", tags=["chats"])
 
 
-# 1. GET ALL SESSIONS
+# GET ALL CHAT SESSIONS
 @router.get("/", response_model=list[ChatSessionRead])
-async def list_sessions(db: Session = Depends(get_session), user: User = Depends(get_current_active_user)):
+async def list_sessions(
+    db: Annotated[Session, Depends(get_session)],
+    user: Annotated[User, Depends(get_current_active_user)],
+    agent_reg: Annotated[AgentRegistry, Depends(get_agent_registry)],
+):
+    # 1. Get the IDs of all currently available agents from the registry
+    # agent_reg.get_all_agent_types() returns the keys (filenames) of existing agents
+    active_agent_ids = list(agent_reg.get_all_agent_types())
+
+    # 2. If no agents are registered, return an empty list immediately
+    # (prevents SQL errors or unnecessary queries)
+    if not active_agent_ids:
+        return []
+
+    # 3. Filter the query so it only returns sessions where the agent_id
+    # is still in the registry
     return db.exec(
         select(ChatSession)
-        .where(ChatSession.user_id == user.id)
+        .where(ChatSession.user_id == user.id, col(ChatSession.agent_id).in_(active_agent_ids))
         .order_by(col(ChatSession.updated_at).desc())
     ).all()
 
