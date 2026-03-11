@@ -275,6 +275,8 @@ class Agent:
         tool_start_callback: list[ToolCallback] | None = None,
         tool_result_callback: list[ToolCallback] | None = None,
         debug=False,
+        max_turns: int = 20,  # Increased for long-horizon tasks
+        max_repetitions: int = 3,  # Stop if same tool called N times
     ):
         """
         Agent calls LLM to progress to the next step
@@ -295,6 +297,10 @@ class Agent:
         # Remove the deleted files from the clipboard
         self.memory.remove_deleted_files(working_dir=current_working_directory)
 
+        # Track tool call history to detect loops
+        tool_call_history = []
+
+        # Temp solution to observe the LLM response. Will migrate to something better later
         debug = True
         if debug:
             with open("debug_messages.json", "w") as f:
@@ -302,10 +308,21 @@ class Agent:
 
         # Start the tool call loop
         # Significantly reduce the number of turn for testing
-        for turn in range(10):
+        for turn in range(max_turns):
             # Build the ephemeral payload for the LLM
             # Current memory.messages is [..., UserMsg]
             history = self.memory.get_messages()
+
+            # If we are nearing the turn limit, nudge the model
+            # This message would not be embedded into the chat history
+            if turn == max_turns - 3:
+                history.append(
+                    {
+                        "role": "system",
+                        "content": "WARNING: You are nearing the maximum step limit. Please finalize your work and provide a conclusion in the next 1-2 turns.",
+                    }
+                )
+
             full_payload = self._inject_clipboard(history=history)
 
             # Call LLM for response
@@ -355,6 +372,25 @@ class Agent:
                 # No more tools? Return the final text
                 return llm_response.content
 
+            # --- LOOP DETECTION LOGIC ---
+            # Stopping the weak model from calling the same tool again and again
+            # This heuristic is still not very smart. To be improved in the future
+            # Create a hashable signature of current tool calls
+            current_calls_signature = sorted(
+                [(tc.function_name, tc.arguments) for tc in llm_response.tool_calls]
+            )
+
+            # Check if this exact set of tool calls has been made repeatedly
+            if tool_call_history and current_calls_signature == tool_call_history[-1]:
+                repeat_count = (
+                    sum(1 for x in reversed(tool_call_history) if x == current_calls_signature) + 1
+                )
+                if repeat_count >= max_repetitions:
+                    # Naive solution: just stop the agent loop for now. We will find a more elegant handling in the future
+                    return f"Agent terminated: Detected a loop in tool calls ({llm_response.tool_calls[0].function_name})."
+
+            tool_call_history.append(current_calls_signature)
+
             # 6. Execute Tools in Parallel
             tool_tasks = []
             for tc in llm_response.tool_calls:
@@ -380,6 +416,8 @@ class Agent:
                         cb(res_msg["name"], {"result": res_msg["content"]}) for cb in tool_result_callback
                     ]
                     await asyncio.gather(*tool_start_cb)
+
+        return "Agent reached maximum allowed turns without reaching a conclusion."
 
     async def add_file(self, file_path: Path, working_directory: Path | None = None):
         """Method for external workflows to feed files to the agent."""
