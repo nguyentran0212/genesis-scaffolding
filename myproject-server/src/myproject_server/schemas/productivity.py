@@ -47,6 +47,15 @@ class TaskRead(ProductivityBase):
     project_ids: List[int] = []
 
 
+class TaskBulkUpdate(BaseModel):
+    ids: List[int]
+    updates: TaskUpdate
+    # Optional: If provided, these projects will be ADDED to all selected tasks
+    add_project_ids: Optional[List[int]] = None
+    # Optional: If provided, these projects will be REMOVED from all selected tasks
+    remove_project_ids: Optional[List[int]] = None
+
+
 # --- Project Schemas ---
 class ProjectCreate(BaseModel):
     name: str
