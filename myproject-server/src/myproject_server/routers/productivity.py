@@ -131,37 +131,6 @@ def list_tasks(
     return session.exec(statement).all()
 
 
-@router.get("/tasks/{task_id}", response_model=TaskRead)
-def get_task(task_id: int, session: ProdSessionDep):
-    # Use selectinload to ensure project_ids are populated
-    statement = select(Task).where(Task.id == task_id).options(selectinload(getattr(Task, "projects")))
-    db_task = session.exec(statement).first()
-    if not db_task:
-        raise HTTPException(status_code=404, detail="Task not found")
-    return db_task
-
-
-@router.patch("/tasks/{task_id}", response_model=TaskRead)
-def update_task(task_id: int, data: TaskUpdate, session: ProdSessionDep):
-    db_task = session.get(Task, task_id)
-    if not db_task:
-        raise HTTPException(status_code=404, detail="Task not found")
-
-    update_data = data.model_dump(exclude_unset=True)
-
-    # Logic: if status is changed to completed, set completed_at automatically
-    if update_data.get("status") == "completed" and db_task.status != "completed":
-        db_task.completed_at = datetime.now(timezone.utc)
-
-    for key, value in update_data.items():
-        setattr(db_task, key, value)
-
-    session.add(db_task)
-    session.commit()
-    session.refresh(db_task)
-    return db_task
-
-
 @router.patch("/tasks/bulk", status_code=status.HTTP_200_OK)
 def bulk_update_tasks(data: TaskBulkUpdate, session: ProdSessionDep):
     """
@@ -209,6 +178,37 @@ def bulk_update_tasks(data: TaskBulkUpdate, session: ProdSessionDep):
 
     session.commit()
     return {"message": f"Successfully updated {len(tasks)} tasks"}
+
+
+@router.get("/tasks/{task_id}", response_model=TaskRead)
+def get_task(task_id: int, session: ProdSessionDep):
+    # Use selectinload to ensure project_ids are populated
+    statement = select(Task).where(Task.id == task_id).options(selectinload(getattr(Task, "projects")))
+    db_task = session.exec(statement).first()
+    if not db_task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return db_task
+
+
+@router.patch("/tasks/{task_id}", response_model=TaskRead)
+def update_task(task_id: int, data: TaskUpdate, session: ProdSessionDep):
+    db_task = session.get(Task, task_id)
+    if not db_task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    update_data = data.model_dump(exclude_unset=True)
+
+    # Logic: if status is changed to completed, set completed_at automatically
+    if update_data.get("status") == "completed" and db_task.status != "completed":
+        db_task.completed_at = datetime.now(timezone.utc)
+
+    for key, value in update_data.items():
+        setattr(db_task, key, value)
+
+    session.add(db_task)
+    session.commit()
+    session.refresh(db_task)
+    return db_task
 
 
 # --- JOURNALS ---
