@@ -60,6 +60,14 @@ def list_projects(
     return session.exec(statement).all()
 
 
+@router.get("/projects/{project_id}", response_model=ProjectRead)
+def get_project(project_id: int, session: ProdSessionDep):
+    db_project = session.get(Project, project_id)
+    if not db_project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return db_project
+
+
 @router.patch("/projects/{project_id}", response_model=ProjectRead)
 def update_project(project_id: int, data: ProjectUpdate, session: ProdSessionDep):
     db_project = session.get(Project, project_id)
@@ -121,6 +129,16 @@ def list_tasks(
 
     statement = apply_sorting(statement, Task, sort_by, order)
     return session.exec(statement).all()
+
+
+@router.get("/tasks/{task_id}", response_model=TaskRead)
+def get_task(task_id: int, session: ProdSessionDep):
+    # Use selectinload to ensure project_ids are populated
+    statement = select(Task).where(Task.id == task_id).options(selectinload(getattr(Task, "projects")))
+    db_task = session.exec(statement).first()
+    if not db_task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return db_task
 
 
 @router.patch("/tasks/{task_id}", response_model=TaskRead)
@@ -221,6 +239,14 @@ def list_journals(
 
     statement = apply_sorting(statement, JournalEntry, sort_by, order)
     return session.exec(statement).all()
+
+
+@router.get("/journals/{journal_id}", response_model=JournalEntryRead)
+def get_journal(journal_id: int, session: ProdSessionDep):
+    db_entry = session.get(JournalEntry, journal_id)
+    if not db_entry:
+        raise HTTPException(status_code=404, detail="Journal entry not found")
+    return db_entry
 
 
 @router.patch("/journals/{journal_id}", response_model=JournalEntryRead)
