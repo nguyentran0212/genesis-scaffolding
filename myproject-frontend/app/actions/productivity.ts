@@ -170,23 +170,51 @@ export async function updateJournalAction(id: string | number, data: any) {
 export async function findOrCreateJournalAction(data: {
   entry_type: JournalType;
   reference_date: string;
+  project_id?: number;
   title?: string;
 }) {
-  // 1. Check if it exists
-  const entries = await getJournalsAction({
-    entry_type: data.entry_type,
-    reference_date: data.reference_date
-  });
+  // 1. Define uniqueness criteria
+  const isPeriodic = ["daily", "weekly", "monthly", "yearly"].includes(data.entry_type);
+  const isProject = data.entry_type === "project";
 
-  if (entries.length > 0) {
-    return entries[0]; // Return the existing one
+  // 2. Logic for finding existing entries
+  let existingEntry = null;
+
+  if (isPeriodic) {
+    // Periodic notes are 1:1 with the date
+    const entries = await getJournalsAction({
+      entry_type: data.entry_type,
+      reference_date: data.reference_date,
+    });
+    if (entries.length > 0) existingEntry = entries[0];
+  }
+  else if (isProject && data.project_id) {
+    // Project notes are 1:1 with Project + Date + (Optional) Title
+    // If you want to allow multiple DIFFERENT notes for the same project on the same day,
+    // we should also check if the title matches.
+    const entries = await getJournalsAction({
+      entry_type: "project",
+      reference_date: data.reference_date,
+      project_id: data.project_id,
+    });
+
+    // If a title is provided, try to find a note with that exact title
+    if (data.title) {
+      existingEntry = entries.find(e => e.title === data.title);
+    } else {
+      // If no title provided, return the first "Untitled" project note for today
+      existingEntry = entries.find(e => !e.title || e.title === "Untitled");
+    }
   }
 
-  // 2. Otherwise create it
+  // 3. If we found a match based on the logic above, return it
+  if (existingEntry) {
+    return existingEntry;
+  }
+
+  // 4. Otherwise (or if entry_type is 'general'), create a new one
   return await createJournalAction({
     ...data,
-    content: "", // Start with empty content
+    content: "",
   });
 }
-
-

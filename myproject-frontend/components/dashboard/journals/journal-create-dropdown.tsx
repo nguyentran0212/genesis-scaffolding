@@ -49,28 +49,32 @@ export function JournalCreateDropdown() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel>Daily Logs</DropdownMenuLabel>
+        <DropdownMenuLabel>Daily</DropdownMenuLabel>
         <DropdownMenuItem onClick={() => handleCreate('daily', today)}>Today</DropdownMenuItem>
         <DropdownMenuItem onClick={() => handleCreate('daily', subDays(today, 1))}>Yesterday</DropdownMenuItem>
         <DropdownMenuItem onClick={() => handleCreate('daily', addDays(today, 1))}>Tomorrow</DropdownMenuItem>
 
         <DropdownMenuSeparator />
-        <DropdownMenuLabel>Planning</DropdownMenuLabel>
+        <DropdownMenuLabel>Weekly</DropdownMenuLabel>
         <DropdownMenuItem onClick={() => handleCreate('weekly', startOfWeek(today, { weekStartsOn: 1 }))}>This Week</DropdownMenuItem>
         <DropdownMenuItem onClick={() => handleCreate('weekly', startOfWeek(addDays(today, 7), { weekStartsOn: 1 }))}>Next Week</DropdownMenuItem>
 
         <DropdownMenuSeparator />
+        <DropdownMenuLabel>Monthly</DropdownMenuLabel>
         <DropdownMenuItem onClick={() => handleCreate('monthly', startOfMonth(today))}>This Month</DropdownMenuItem>
         <DropdownMenuItem onClick={() => handleCreate('monthly', startOfMonth(addMonths(today, 1)))}>Next Month</DropdownMenuItem>
 
         <DropdownMenuSeparator />
+        <DropdownMenuLabel>Yearly</DropdownMenuLabel>
         <DropdownMenuItem onClick={() => handleCreate('yearly', startOfYear(today))}>This Year</DropdownMenuItem>
         <DropdownMenuItem onClick={() => handleCreate('yearly', startOfYear(addYears(today, 1)))}>Next Year</DropdownMenuItem>
 
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => router.push('/dashboard/journals/create')}>
-          General Note...
-        </DropdownMenuItem>
+        <DropdownMenuLabel>Project</DropdownMenuLabel>
+        <DropdownMenuItem onClick={() => handleCreate('project', today)}>Project Note</DropdownMenuItem>
+
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => handleCreate('general', today)}>General Note...</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

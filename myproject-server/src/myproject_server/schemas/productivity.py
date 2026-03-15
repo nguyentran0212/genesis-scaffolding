@@ -92,6 +92,7 @@ class JournalEntryUpdate(BaseModel):
     title: Optional[str] = None
     content: Optional[str] = None
     reference_date: Optional[date] = None
+    project_id: Optional[int] = None
 
 
 class JournalEntryRead(JournalEntryCreate, ProductivityBase):

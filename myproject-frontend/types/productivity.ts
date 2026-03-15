@@ -1,5 +1,5 @@
 export type Status = 'backlog' | 'todo' | 'in_progress' | 'completed' | 'canceled';
-export type JournalType = 'daily' | 'weekly' | 'monthly' | 'yearly' | 'project';
+export type JournalType = 'daily' | 'weekly' | 'monthly' | 'yearly' | 'project' | 'general';
 
 export interface Project {
   id: number;

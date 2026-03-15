@@ -16,6 +16,7 @@ class JournalType(str, Enum):
     MONTHLY = "monthly"
     YEARLY = "yearly"
     PROJECT = "project"
+    GENERAL = "general"
 
 
 class Status(str, Enum):

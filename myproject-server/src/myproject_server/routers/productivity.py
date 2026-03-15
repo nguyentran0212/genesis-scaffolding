@@ -303,6 +303,7 @@ def update_journal(journal_id: int, data: JournalEntryUpdate, session: ProdSessi
         raise HTTPException(status_code=404, detail="Journal entry not found")
 
     update_data = data.model_dump(exclude_unset=True)
+    print(update_data)
     for key, value in update_data.items():
         setattr(db_entry, key, value)
 
