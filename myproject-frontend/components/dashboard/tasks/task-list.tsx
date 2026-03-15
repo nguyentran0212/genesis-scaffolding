@@ -8,7 +8,8 @@ import { updateTaskAction } from "@/app/actions/productivity";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Edit2 } from "lucide-react";
+import Link from "next/link";
 
 export function TaskList({ tasks, defaultProjectId }: { tasks: Task[], defaultProjectId?: number }) {
   const router = useRouter();
@@ -72,10 +73,13 @@ export function TaskList({ tasks, defaultProjectId }: { tasks: Task[], defaultPr
               />
 
               <div className="flex-1 min-w-0">
-                <p className={`font-medium transition-all duration-300 ${task.status === 'completed' ? 'line-through text-muted-foreground italic' : ''
-                  }`}>
+                <Link
+                  href={`/dashboard/tasks/${task.id}`}
+                  className={`block font-medium transition-all duration-300 hover:text-primary hover:underline decoration-primary/30 underline-offset-4 ${task.status === 'completed' ? 'line-through text-muted-foreground italic' : ''
+                    }`}
+                >
                   {task.title}
-                </p>
+                </Link>
                 {task.assigned_date && (
                   <p className="text-xs text-muted-foreground mt-0.5">
                     Scheduled: {task.assigned_date}
@@ -93,6 +97,13 @@ export function TaskList({ tasks, defaultProjectId }: { tasks: Task[], defaultPr
                 >
                   {task.status.replace('_', ' ')}
                 </Badge>
+                <Link
+                  href={`/dashboard/tasks/${task.id}/edit`}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-background rounded text-muted-foreground hover:text-primary"
+                  title="Edit Task"
+                >
+                  <Edit2 className="h-4 w-4" />
+                </Link>
               </div>
             </motion.div>
           ))}

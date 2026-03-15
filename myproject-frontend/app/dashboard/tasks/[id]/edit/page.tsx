@@ -137,15 +137,15 @@ export default async function EditTaskPage({
           </section>
 
           <div className="flex gap-4 justify-between border-t pt-8">
-            <Button variant="destructive" type="button" form="delete-form">Delete Task</Button>
+            <Button variant="destructive" formAction={handleDelete}>
+              Delete Task
+            </Button>
             <div className="flex gap-2">
               <Button variant="ghost" type="button" asChild><Link href={`/dashboard/tasks/${task.id}`}>Cancel</Link></Button>
               <Button type="submit">Update Task</Button>
             </div>
           </div>
         </form>
-
-        <form id="delete-form" action={handleDelete} className="hidden" />
       </PageBody>
     </PageContainer>
   );

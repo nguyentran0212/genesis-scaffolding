@@ -29,7 +29,7 @@ export default async function ProjectsPage() {
           <div className="flex flex-col items-center justify-center py-24 border-2 border-dashed rounded-lg">
             <p className="text-muted-foreground mb-4">No projects found.</p>
             <Button variant="outline" asChild>
-              <Link href="/dashboard/projects/create text-sm">Create your first project</Link>
+              <Link href="/dashboard/projects/create">Create your first project</Link>
             </Button>
           </div>
         ) : (

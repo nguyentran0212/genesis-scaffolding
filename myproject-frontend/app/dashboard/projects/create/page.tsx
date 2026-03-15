@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import Link from "next/link";
 
 export default function CreateProjectPage() {
   async function handleSubmit(formData: FormData) {
@@ -41,7 +42,9 @@ export default function CreateProjectPage() {
           </div>
 
           <div className="flex gap-4 justify-end">
-            <Button variant="ghost" type="button">Cancel</Button>
+            <Button variant="ghost" asChild>
+              <Link href={`/dashboard/projects`}>Cancel</Link>
+            </Button>
             <Button type="submit">Create Project</Button>
           </div>
         </form>

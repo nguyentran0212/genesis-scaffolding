@@ -29,7 +29,10 @@ export default async function JournalsPage({ searchParams }: { searchParams: Pro
             <TabsTrigger value="all" asChild><Link href="/dashboard/journals">All</Link></TabsTrigger>
             <TabsTrigger value="daily" asChild><Link href="/dashboard/journals?type=daily">Daily</Link></TabsTrigger>
             <TabsTrigger value="weekly" asChild><Link href="/dashboard/journals?type=weekly">Weekly</Link></TabsTrigger>
+            <TabsTrigger value="monthly" asChild><Link href="/dashboard/journals?type=monthly">Monthly</Link></TabsTrigger>
+            <TabsTrigger value="yearly" asChild><Link href="/dashboard/journals?type=yearly">Yearly</Link></TabsTrigger>
             <TabsTrigger value="project" asChild><Link href="/dashboard/journals?type=project">Projects</Link></TabsTrigger>
+            <TabsTrigger value="misc" asChild><Link href="/dashboard/journals?type=general">Misc.</Link></TabsTrigger>
           </TabsList>
         </Tabs>
 
