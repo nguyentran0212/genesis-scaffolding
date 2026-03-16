@@ -29,6 +29,7 @@ import {
   Briefcase,
   ListTodo,
   BookOpen,
+  Calendar,
 } from 'lucide-react';
 import LogoutButton from '@/components/auth/logout-button';
 import Link from 'next/link';
@@ -50,6 +51,12 @@ const navGroups = [
         url: "/dashboard/tasks",
         icon: ListTodo,
         tooltip: "View global backlog"
+      },
+      {
+        title: "Calendar",
+        url: "/dashboard/calendar",
+        icon: Calendar,
+        tooltip: "View scheduled appointments"
       },
       {
         title: "Journal",
