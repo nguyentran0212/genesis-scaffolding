@@ -62,7 +62,6 @@ class ServerConfig(BaseModel):
     admin_username: Optional[str] = None
     admin_password: Optional[str] = None
     admin_email: Optional[str] = None
-    timezone: str = "Australia/Adelaide"
 
 
 class DatabaseConfig(BaseModel):
@@ -86,6 +85,9 @@ class Config(BaseSettings):
         env_nested_delimiter="__",
         extra="ignore",
     )
+
+    # Timezone for this specific working context (single user CLI use, or per-user on server)
+    timezone: str = "Australia/Adelaide"
 
     # Dictionaries of providers and models
     # Key is the nickname used in the app

@@ -2,7 +2,7 @@ from datetime import date, datetime, time, timezone
 from enum import Enum
 from typing import Optional
 
-from sqlalchemy import MetaData
+from sqlalchemy import Column, DateTime, MetaData
 from sqlmodel import Field, Relationship, SQLModel
 
 # 1. Define a dedicated metadata for productivity models to avoid collision
@@ -59,17 +59,28 @@ class Task(SQLModel, table=True):
     title: str = Field(index=True)
     description: Optional[str] = None
 
-    # Timing Logic
-    hard_deadline: Optional[datetime] = None  # The "Boss" deadline
-    assigned_date: Optional[date] = None  # "I want to do this Friday"
+    # --- ABSOLUTE TIME (UTC) ---
+    # We use sa_column to force SQLModel/SQLAlchemy to treat these as
+    # Timezone-aware. SQLite will store these as ISO strings.
+    created_at: datetime = Field(
+        default_factory=get_utc_now, sa_column=Column(DateTime(timezone=True), nullable=False)
+    )
+    completed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    # The "Boss" deadline. If it's 5pm, it's 5pm in a specific TZ.
+    hard_deadline: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
 
-    # Appointment Logic
-    start_time: Optional[time] = None  # Specific time of day
-    duration_minutes: Optional[int] = None  # For calendar blocking
+    # --- FLOATING TIME (Calendar Dates) ---
+    # They represent "The day the user sees on their wall calendar."
+    assigned_date: Optional[date] = None
+
+    # --- APPOINTMENT (Absolute UTC) ---
+    # User says: "Dentist at 9:00 AM Adelaide time."
+    # The Frontend converts "9:00 AM Friday Adelaide" -> "11:30 PM Thursday UTC"
+    # We store the UTC version here.
+    scheduled_start: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    duration_minutes: int | None = None
 
     status: Status = Field(default=Status.TODO)
-    created_at: datetime = Field(default_factory=get_utc_now)
-    completed_at: Optional[datetime] = None
 
     # Relationships
     projects: list[Project] = Relationship(back_populates="tasks", link_model=ProjectTaskLink)
@@ -85,12 +96,6 @@ class JournalEntry(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     entry_type: JournalType = Field(index=True)
 
-    # The date this entry refers to:
-    # - For Daily: The specific day
-    # - For Weekly: The Monday of that week
-    # - For Monthly: The 1st of the month
-    reference_date: date = Field(index=True)
-
     title: Optional[str] = None
     content: str  # Markdown text for goals, reviews, logs
 
@@ -98,5 +103,12 @@ class JournalEntry(SQLModel, table=True):
     project_id: Optional[int] = Field(default=None, foreign_key="project.id")
     project: Optional[Project] = Relationship(back_populates="journals")
 
-    created_at: datetime = Field(default_factory=get_utc_now)
-    updated_at: datetime = Field(default_factory=get_utc_now)
+    # The date this entry refers to:
+    # - For Daily: The specific day
+    # - For Weekly: The Monday of that week
+    # - For Monthly: The 1st of the month
+    reference_date: date = Field(index=True)
+
+    created_at: datetime = Field(default_factory=get_utc_now, sa_column=Column(DateTime(timezone=True)))
+
+    updated_at: datetime = Field(default_factory=get_utc_now, sa_column=Column(DateTime(timezone=True)))

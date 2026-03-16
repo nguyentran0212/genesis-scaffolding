@@ -62,7 +62,7 @@ export async function getTaskAction(id: string | number): Promise<Task> {
   return res.json();
 }
 
-export async function updateTaskAction(id: number, data: any) {
+export async function updateTaskAction(id: number, data: Partial<Task>) {
   // We wrap the single ID into a list and use the bulk endpoint
   const payload = {
     ids: [id],
@@ -70,10 +70,13 @@ export async function updateTaskAction(id: number, data: any) {
       title: data.title,
       description: data.description,
       status: data.status,
-      assigned_date: data.assigned_date,
-      hard_deadline: data.hard_deadline,
+      assigned_date: data.assigned_date, // Should be "YYYY-MM-DD"
+      hard_deadline: data.hard_deadline, // Should be ISO String
+      scheduled_start: data.scheduled_start, // Should be ISO String
+      duration_minutes: data.duration_minutes,
+      completed_at: data.completed_at,
     },
-    set_project_ids: data.project_ids, // Pass the new project list here
+    set_project_ids: data.project_ids,
   };
 
   const res = await apiFetch(`/productivity/tasks/bulk`, {

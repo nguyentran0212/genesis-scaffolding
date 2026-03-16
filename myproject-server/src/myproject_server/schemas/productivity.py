@@ -1,8 +1,40 @@
-from datetime import date, datetime, time
-from typing import Optional
+from datetime import date, datetime, time, timezone
+from typing import Annotated, Optional
 
 from myproject_core.productivity.models import JournalType, Status
-from pydantic import BaseModel, ConfigDict
+from pydantic import AfterValidator, BaseModel, ConfigDict, PlainSerializer
+
+# --- Utilities ---
+
+
+def ensure_utc(dt: Optional[datetime]) -> Optional[datetime]:
+    """
+    Validator to ensure that any incoming datetime is converted to UTC
+    and remains timezone-aware.
+    """
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        # If the frontend forgot to send a timezone, we assume UTC
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def serialize_utc(dt: datetime) -> str:
+    """Output: Ensures outgoing datetimes have the 'Z' suffix and 3ms decimals."""
+    if dt is None:
+        return None
+    # Ensure it's treated as UTC even if the DB returned it as naive
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    # Format: 2024-10-25T14:30:00.000Z
+    return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+
+
+# Type alias for cleaner code
+UtcDatetime = Annotated[
+    datetime, AfterValidator(ensure_utc), PlainSerializer(serialize_utc, when_used="json")
+]
 
 
 class ProductivityBase(BaseModel):
@@ -13,37 +45,42 @@ class ProductivityBase(BaseModel):
 class TaskCreate(BaseModel):
     title: str
     description: Optional[str] = None
-    hard_deadline: Optional[datetime] = None
+    # Absolute Point in Time (UTC)
+    hard_deadline: Optional[UtcDatetime] = None
+
+    # The Intent/Planning Day (Floating Date)
     assigned_date: Optional[date] = None
-    start_time: Optional[time] = None
+
+    # The Appointment (Calendar Block - Absolute UTC)
+    scheduled_start: Optional[UtcDatetime] = None
     duration_minutes: Optional[int] = None
+
     status: Status = Status.TODO
-    # Efficiency fix: Allow linking projects during creation
     project_ids: Optional[list[int]] = None
 
 
 class TaskUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
-    hard_deadline: Optional[datetime] = None
+    hard_deadline: Optional[UtcDatetime] = None
     assigned_date: Optional[date] = None
-    start_time: Optional[time] = None
+    scheduled_start: Optional[UtcDatetime] = None
     duration_minutes: Optional[int] = None
     status: Optional[Status] = None
-    completed_at: Optional[datetime] = None
+    completed_at: Optional[UtcDatetime] = None
 
 
 class TaskRead(ProductivityBase):
     id: int
     title: str
     description: Optional[str]
-    hard_deadline: Optional[datetime]
+    hard_deadline: Optional[UtcDatetime]
     assigned_date: Optional[date]
-    start_time: Optional[time]
+    scheduled_start: Optional[UtcDatetime]
     duration_minutes: Optional[int]
     status: Status
-    created_at: datetime
-    completed_at: Optional[datetime]
+    created_at: UtcDatetime
+    completed_at: Optional[UtcDatetime]
     project_ids: list[int] = []
 
 
@@ -97,5 +134,5 @@ class JournalEntryUpdate(BaseModel):
 
 class JournalEntryRead(JournalEntryCreate, ProductivityBase):
     id: int
-    created_at: datetime
-    updated_at: datetime
+    created_at: UtcDatetime
+    updated_at: UtcDatetime

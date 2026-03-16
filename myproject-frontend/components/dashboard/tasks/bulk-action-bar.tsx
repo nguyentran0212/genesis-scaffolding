@@ -97,16 +97,15 @@ export function BulkActionBar({ selectedIds, onClear, projects }: BulkActionBarP
               <CalendarIcon className="h-5 w-5" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="center" side="top" sideOffset={16}>
+          <PopoverContent className="w-auto p-0" align="center" side="top">
             <Calendar
               mode="single"
               onSelect={(date) => {
                 if (date) {
-                  // Format as "2024-05-20" to satisfy the backend Date type
+                  // Planning is floating: "2024-10-25"
                   handleBulkUpdate({ assigned_date: format(date, "yyyy-MM-dd") });
                 }
               }}
-              initialFocus
             />
           </PopoverContent>
         </Popover>
@@ -118,16 +117,17 @@ export function BulkActionBar({ selectedIds, onClear, projects }: BulkActionBarP
               <Flag className="h-5 w-5" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="center" side="top" sideOffset={16}>
+          <PopoverContent className="w-auto p-0" align="center" side="top">
             <Calendar
               mode="single"
               onSelect={(date) => {
                 if (date) {
-                  // Format as "2024-05-20"
-                  handleBulkUpdate({ hard_deadline: format(date, "yyyy-MM-dd") });
+                  // Deadline is absolute. 
+                  const endOfDay = new Date(date);
+                  endOfDay.setHours(23, 59, 59, 999);
+                  handleBulkUpdate({ hard_deadline: endOfDay.toISOString() });
                 }
               }}
-              initialFocus
             />
           </PopoverContent>
         </Popover>

@@ -10,6 +10,21 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Folder, Calendar, FileText } from "lucide-react";
 import Link from "next/link";
+import { Status } from "@/types/productivity";
+
+
+/**
+ * Helper to format a UTC ISO string for a 'datetime-local' input.
+ * HTML datetime-local expects: YYYY-MM-DDTHH:mm (no Z, no offset)
+ */
+function formatForInput(utcString?: string) {
+  if (!utcString) return "";
+  const date = new Date(utcString);
+  // This trick gets the local YYYY-MM-DDTHH:mm format regardless of server TZ
+  const offset = date.getTimezoneOffset() * 60000;
+  const localISOTime = new Date(date.getTime() - offset).toISOString().slice(0, 16);
+  return localISOTime;
+}
 
 export default async function EditTaskPage({
   params
@@ -22,20 +37,49 @@ export default async function EditTaskPage({
 
   async function handleUpdate(formData: FormData) {
     "use server";
+
+    const title = formData.get("title") as string;
+    const description = (formData.get("description") as string) || undefined;
+    const status = formData.get("status") as Status; // Cast to the Enum type
+
+    const assigned_date = (formData.get("assigned_date") as string) || undefined;
+    const raw_deadline = (formData.get("hard_deadline") as string) || undefined;
+    const start_time = (formData.get("start_time") as string) || undefined;
+    const duration_minutes = formData.get("duration_minutes")
+      ? Number(formData.get("duration_minutes"))
+      : undefined;
+
+    // 1. Logic for Hard Deadline
+    let hard_deadline: string | undefined = undefined;
+    if (raw_deadline) {
+      const d = new Date(`${raw_deadline}T23:59:59`);
+      hard_deadline = d.toISOString();
+    }
+
+    // 2. Logic for Scheduled Start (Appointment)
+    const raw_scheduled = formData.get("scheduled_start") as string;
+    let scheduled_start: string | undefined = undefined;
+    if (raw_scheduled) {
+      // Passing a YYYY-MM-DDTHH:mm string to new Date() interprets it as local time
+      const d = new Date(raw_scheduled);
+      scheduled_start = d.toISOString(); // Automatically converts to UTC
+    }
+
     const selectedProjectIds = projects
       .filter(p => formData.get(`project-${p.id}`) === "on")
       .map(p => p.id);
 
     await updateTaskAction(Number(id), {
-      title: formData.get("title"),
-      description: formData.get("description"),
-      status: formData.get("status"),
-      assigned_date: formData.get("assigned_date") || null,
-      hard_deadline: formData.get("hard_deadline") || null,
-      start_time: formData.get("start_time") || null,
-      duration_minutes: formData.get("duration_minutes") ? Number(formData.get("duration_minutes")) : null,
+      title,
+      description,
+      status,
+      assigned_date,
+      hard_deadline,
+      scheduled_start, // Replaces start_time
+      duration_minutes,
       project_ids: selectedProjectIds,
     });
+
 
     redirect(`/dashboard/tasks/${id}`);
   }
@@ -102,19 +146,35 @@ export default async function EditTaskPage({
             <div className="grid grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="assigned_date">Assigned Date</Label>
-                <Input id="assigned_date" name="assigned_date" type="date" defaultValue={task.assigned_date || ""} />
+                <Input
+                  id="assigned_date"
+                  name="assigned_date"
+                  type="date"
+                  defaultValue={task.assigned_date || ""}
+                />
                 <p className="text-[10px] text-muted-foreground">Your personal plan: When you intend to start or do this task.</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="hard_deadline">Hard Deadline</Label>
-                <Input id="hard_deadline" name="hard_deadline" type="date" defaultValue={task.hard_deadline?.split('T')[0] || ""} />
+                <Input
+                  id="hard_deadline"
+                  name="hard_deadline"
+                  type="date"
+                  defaultValue={task.hard_deadline ? task.hard_deadline.split('T')[0] : ""}
+                />
                 <p className="text-[10px] text-destructive">The actual limit: When this task MUST be finished.</p>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label htmlFor="start_time">Start Time</Label>
-                <Input id="start_time" name="start_time" type="time" defaultValue={task.start_time || ""} />
+                <Label htmlFor="scheduled_start">Scheduled Appointment</Label>
+                <Input
+                  id="scheduled_start"
+                  name="scheduled_start"
+                  type="datetime-local"
+                  defaultValue={formatForInput(task.scheduled_start)}
+                />
+                <p className="text-[10px] text-muted-foreground">Fixed time: Blocks your calendar.</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="duration_minutes">Duration (Minutes)</Label>

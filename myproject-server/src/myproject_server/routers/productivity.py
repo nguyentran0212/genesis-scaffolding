@@ -75,7 +75,7 @@ def update_project(project_id: int, data: ProjectUpdate, session: ProdSessionDep
         raise HTTPException(status_code=404, detail="Project not found")
 
     # Update only provided fields
-    update_data = data.model_dump(exclude_unset=True)
+    update_data = data.model_dump(exclude_unset=True, mode="python")
     for key, value in update_data.items():
         setattr(db_project, key, value)
 
@@ -102,7 +102,7 @@ def delete_project(project_id: int, session: ProdSessionDep):
 @router.post("/tasks", response_model=TaskRead)
 def create_task(data: TaskCreate, session: ProdSessionDep):
     # 1. Create task object (excluding the project_ids helper field)
-    task_data = data.model_dump(exclude={"project_ids"})
+    task_data = data.model_dump(exclude={"project_ids"}, mode="python")
     db_task = Task.model_validate(task_data)
 
     # 2. Atomic Link: If project_ids provided, link them now
@@ -124,7 +124,9 @@ def list_tasks(
     assigned_on: date | None = None,
     project_id: int | None = None,
     include_completed: bool = False,
-    sort_by: Literal["assigned_date", "hard_deadline", "title", "status", "created_at"] = "assigned_date",
+    sort_by: Literal[
+        "assigned_date", "hard_deadline", "scheduled_start", "title", "status", "created_at"
+    ] = "assigned_date",
     order: Literal["asc", "desc"] = "asc",
 ):
     statement = select(Task).options(selectinload(getattr(Task, "projects")))
@@ -162,14 +164,20 @@ def bulk_update_tasks(data: TaskBulkUpdate, session: ProdSessionDep):
         raise HTTPException(status_code=404, detail="No tasks found for provided IDs")
 
     # Extract field updates (excluding relationships)
-    field_updates = data.updates.model_dump(exclude_unset=True)
+    field_updates = data.updates.model_dump(exclude_unset=True, mode="python")
 
     # Apply updates to each task
     for task in tasks:
-        # Apply field updates
+        # Automatic completion timestamp
+        if field_updates.get("status") == "completed" and task.status != "completed":
+            task.completed_at = datetime.now(timezone.utc)
+
+        # Reopening a task
+        if field_updates.get("status") == "todo" and task.status == "completed":
+            task.completed_at = None
+
+        # Apply field updates (this will handle scheduled_start, hard_deadline, etc.)
         for key, value in field_updates.items():
-            if key == "status" and value == "completed" and task.status != "completed":
-                task.completed_at = datetime.now(timezone.utc)
             setattr(task, key, value)
 
         # Handle Project Sets (Replaces everything)
@@ -228,15 +236,20 @@ def get_task(task_id: int, session: ProdSessionDep):
 
 @router.patch("/tasks/{task_id}", response_model=TaskRead)
 def update_task(task_id: int, data: TaskUpdate, session: ProdSessionDep):
-    db_task = session.get(Task, task_id)
+    # Fetch with projects loaded so TaskRead can return them
+    statement = select(Task).where(Task.id == task_id).options(selectinload(getattr(Task, "projects")))
+    db_task = session.exec(statement).first()
+
     if not db_task:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    update_data = data.model_dump(exclude_unset=True)
+    update_data = data.model_dump(exclude_unset=True, mode="python")
 
-    # Logic: if status is changed to completed, set completed_at automatically
+    # Automatic completion timestamp logic
     if update_data.get("status") == "completed" and db_task.status != "completed":
         db_task.completed_at = datetime.now(timezone.utc)
+    elif update_data.get("status") is not None and update_data.get("status") != "completed":
+        db_task.completed_at = None
 
     for key, value in update_data.items():
         setattr(db_task, key, value)
@@ -274,15 +287,15 @@ def create_journal(data: JournalEntryCreate, session: ProdSessionDep):
 def list_journals(
     session: ProdSessionDep,
     entry_type: JournalType | None = None,
-    ref_date: date | None = None,
+    reference_date: date | None = None,
     sort_by: Literal["reference_date", "created_at", "updated_at"] = "reference_date",
     order: Literal["asc", "desc"] = "desc",  # Journals default to newest first
 ):
     statement = select(JournalEntry)
     if entry_type:
         statement = statement.where(JournalEntry.entry_type == entry_type)
-    if ref_date:
-        statement = statement.where(JournalEntry.reference_date == ref_date)
+    if reference_date:
+        statement = statement.where(JournalEntry.reference_date == reference_date)
 
     statement = apply_sorting(statement, JournalEntry, sort_by, order)
     return session.exec(statement).all()
@@ -302,7 +315,7 @@ def update_journal(journal_id: int, data: JournalEntryUpdate, session: ProdSessi
     if not db_entry:
         raise HTTPException(status_code=404, detail="Journal entry not found")
 
-    update_data = data.model_dump(exclude_unset=True)
+    update_data = data.model_dump(exclude_unset=True, mode="python")
     print(update_data)
     for key, value in update_data.items():
         setattr(db_entry, key, value)
