@@ -77,7 +77,7 @@ const navGroups = [
       },
       {
         title: "Chat History", // New Navigation Item
-        url: "/dashboard/history",
+        url: "/dashboard/chats",
         icon: History,
         tooltip: "Resume past conversations"
       }
