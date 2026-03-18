@@ -9,6 +9,7 @@ import { JobProvider } from "@/components/dashboard/job-context";
 import { JobStepChecklist } from "@/components/dashboard/job-step-checklist";
 import { JobResultsSection } from "@/components/dashboard/job-results-section";
 import { PageBody, PageContainer } from "@/components/dashboard/page-container";
+import { PageHeader } from "@/components/dashboard/page-header";
 
 
 
@@ -32,6 +33,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
     return (
       <PageContainer variant="dashboard">
         <PageBody>
+          <PageHeader />
           <JobProvider initialJob={job} manifest={manifest}>
             <header>
               <h1 className="text-3xl font-bold tracking-tight">Execution Detail</h1>

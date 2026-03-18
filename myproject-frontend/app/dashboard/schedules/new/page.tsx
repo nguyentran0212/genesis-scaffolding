@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, Zap } from 'lucide-react';
 import Link from 'next/link';
 import { PageBody, PageContainer } from '@/components/dashboard/page-container';
+import { PageHeader } from '@/components/dashboard/page-header';
 
 export const metadata = {
   title: 'New Schedule | Genesis Scaffolding',
@@ -24,11 +25,6 @@ export default async function NewSchedulePage({
       <PageContainer variant='dashboard'>
         <PageBody>
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" asChild>
-              <Link href="/dashboard/schedules">
-                <ArrowLeft className="h-4 w-4" />
-              </Link>
-            </Button>
             <div className="space-y-1">
               <h1 className="text-3xl font-bold tracking-tight">Select Workflow</h1>
               <p className="text-muted-foreground">
@@ -68,12 +64,8 @@ export default async function NewSchedulePage({
   return (
     <PageContainer variant='dashboard'>
       <PageBody>
+        <PageHeader />
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" asChild>
-            <Link href="/dashboard/schedules/new">
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-          </Button>
           <div className="space-y-1">
             <h1 className="text-3xl font-bold tracking-tight">Configure Schedule</h1>
             <p className="text-muted-foreground">

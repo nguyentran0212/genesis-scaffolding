@@ -16,6 +16,7 @@ import {
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import ReactMarkdown from 'react-markdown';
+import { PageHeader } from "@/components/dashboard/page-header";
 
 export default async function TaskDetailPage({
   params
@@ -44,18 +45,13 @@ export default async function TaskDetailPage({
       <PageBody className="pb-24">
 
         {/* Top Navigation */}
-        <div className="mb-8 flex items-center justify-between">
-          <Button variant="ghost" size="sm" asChild className="-ml-2">
-            <Link href="/dashboard/tasks">
-              <ArrowLeft className="mr-2 h-4 w-4" /> Back to Tasks
-            </Link>
-          </Button>
+        <PageHeader>
           <Button variant="outline" size="sm" asChild>
             <Link href={`/dashboard/tasks/${task.id}/edit`}>
               <Edit3 className="mr-2 h-4 w-4" /> Edit Task
             </Link>
           </Button>
-        </div>
+        </PageHeader>
 
         <div className="flex flex-col lg:flex-row gap-8 items-start">
 

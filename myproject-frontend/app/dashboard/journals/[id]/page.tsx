@@ -5,6 +5,7 @@ import { Edit3, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
 import ReactMarkdown from "react-markdown";
+import { PageHeader } from "@/components/dashboard/page-header";
 
 export default async function JournalDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -13,11 +14,7 @@ export default async function JournalDetailPage({ params }: { params: Promise<{ 
   return (
     <PageContainer variant="prose">
       <PageBody>
-        <Button variant="ghost" size="sm" asChild className="-ml-2 mb-6">
-          <Link href="/dashboard/journals">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Timeline
-          </Link>
-        </Button>
+        <PageHeader />
 
         <article className="space-y-8">
           <header className="space-y-2 border-b pb-8">

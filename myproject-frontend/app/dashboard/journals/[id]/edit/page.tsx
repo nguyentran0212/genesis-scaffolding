@@ -2,6 +2,7 @@ import { getJournalAction, getProjectsAction, updateJournalAction } from "@/app/
 import { PageContainer, PageBody } from "@/components/dashboard/page-container";
 import { redirect } from "next/navigation";
 import { JournalEditForm } from "@/components/dashboard/journals/journal-edit-form";
+import { PageHeader } from "@/components/dashboard/page-header";
 
 export default async function EditJournalPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -24,6 +25,7 @@ export default async function EditJournalPage({ params }: { params: Promise<{ id
   return (
     <PageContainer variant="prose">
       <PageBody>
+        <PageHeader />
         <h1 className="text-2xl font-bold mb-6">Edit Journal Entry</h1>
         <JournalEditForm
           entry={entry}

@@ -4,6 +4,7 @@ import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { PageContainer, PageBody } from "@/components/dashboard/page-container";
+import { PageHeader } from "@/components/dashboard/page-header";
 
 interface EditAgentPageProps {
   params: Promise<{ id: string }>;
@@ -27,14 +28,8 @@ export default async function EditAgentPage({ params }: EditAgentPageProps) {
   return (
     <PageContainer variant="dashboard">
       <PageBody>
+        <PageHeader />
         <header className="space-y-4">
-          <Link
-            href="/dashboard/agents"
-            className="flex items-center text-sm text-muted-foreground hover:text-primary transition-colors"
-          >
-            <ChevronLeft className="mr-1 h-4 w-4" />
-            Back to Registry
-          </Link>
           <div className="space-y-1">
             <h1 className="text-3xl font-bold tracking-tight">Edit Agent</h1>
             <p className="text-muted-foreground">

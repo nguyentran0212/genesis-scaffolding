@@ -7,6 +7,7 @@ import { getJobsAction } from '@/app/actions/job';
 import { JobsTable } from '@/components/dashboard/jobs-table';
 import { formatRelativeTime } from '@/lib/date-utils';
 import { PageBody, PageContainer } from '@/components/dashboard/page-container';
+import { PageHeader } from '@/components/dashboard/page-header';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -25,13 +26,9 @@ export default async function ScheduleDetailsPage({ params }: PageProps) {
   return (
     <PageContainer variant='dashboard'>
       <PageBody>
+        <PageHeader />
         {/* Header */}
         <div className="flex items-start gap-4">
-          <Button variant="ghost" size="icon" asChild>
-            <Link href="/dashboard/schedules">
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-          </Button>
           <div className="space-y-1">
             <div className="flex items-center gap-3">
               <h1 className="text-3xl font-bold tracking-tight">{schedule.name}</h1>

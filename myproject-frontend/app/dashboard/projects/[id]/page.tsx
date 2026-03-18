@@ -8,6 +8,7 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { TaskList } from "@/components/dashboard/tasks/task-list"
 import { QuickAddTask } from "@/components/dashboard/tasks/quick-add-task";
+import { PageHeader } from "@/components/dashboard/page-header";
 
 export default async function ProjectDetailPage({
   params
@@ -26,11 +27,13 @@ export default async function ProjectDetailPage({
     <PageContainer variant="dashboard">
       <PageBody className="pb-24">
         <div className="mb-6">
-          <Button variant="ghost" size="sm" asChild className="-ml-2 mb-4">
-            <Link href="/dashboard/projects">
-              <ArrowLeft className="mr-2 h-4 w-4" /> Back to Projects
-            </Link>
-          </Button>
+          <PageHeader>
+            <Button variant="outline" asChild>
+              <Link href={`/dashboard/projects/${project.id}/edit`}>
+                <Edit3 className="mr-2 h-4 w-4" /> Edit Project
+              </Link>
+            </Button>
+          </PageHeader>
 
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
@@ -41,11 +44,6 @@ export default async function ProjectDetailPage({
               <p className="text-muted-foreground max-w-2xl">{project.description}</p>
             </div>
 
-            <Button variant="outline" asChild>
-              <Link href={`/dashboard/projects/${project.id}/edit`}>
-                <Edit3 className="mr-2 h-4 w-4" /> Edit Project
-              </Link>
-            </Button>
           </div>
         </div>
 

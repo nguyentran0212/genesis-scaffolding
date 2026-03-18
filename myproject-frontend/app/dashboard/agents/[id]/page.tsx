@@ -9,6 +9,7 @@ import { Bot, ChevronLeft, Pencil, Wrench, Users, Terminal } from "lucide-react"
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageContainer, PageBody } from "@/components/dashboard/page-container";
+import { PageHeader } from "@/components/dashboard/page-header";
 
 interface AgentDetailPageProps {
   params: Promise<{ id: string }>;
@@ -33,16 +34,11 @@ export default async function AgentDetailPage({ params }: AgentDetailPageProps) 
   return (
     <PageContainer variant="dashboard">
       <PageBody>
+        <PageHeader>
+        </PageHeader>
         {/* Navigation & Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center justify-between">
           <div className="space-y-1">
-            <Link
-              href="/dashboard/agents"
-              className="flex items-center text-sm text-muted-foreground hover:text-primary transition-colors mb-2"
-            >
-              <ChevronLeft className="mr-1 h-4 w-4" />
-              Back to Registry
-            </Link>
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-50 rounded-lg">
                 <Bot className="h-8 w-8 text-blue-600" />
