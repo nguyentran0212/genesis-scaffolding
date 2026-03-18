@@ -1,16 +1,29 @@
 import React from "react";
 import { cn } from "@/lib/utils";
+import { FloatingActionMenu } from "./floating-action-menu";
 
+type FloatingMenuPosition = "bottom-right" | "bottom-left" | "top-right" | "top-left";
 type PageVariant = "prose" | "dashboard" | "app";
 
 interface PageContainerProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: PageVariant;
+  hasFloatingActionMenu?: boolean;
+  floatingActionMenuLocation?: FloatingMenuPosition;
+  floatingActionMenuProjectId?: number; // Added to pass project context
   children: React.ReactNode;
 }
 
 const PageContainer = React.forwardRef<HTMLDivElement, PageContainerProps>(
-  ({ variant = "dashboard", children, className, ...props }, ref) => {
-
+  ({
+    variant = "dashboard",
+    hasFloatingActionMenu = true, // Default to true
+    floatingActionMenuLocation = "bottom-right", // Default to bottom-right
+    floatingActionMenuProjectId,
+    children,
+    className,
+    ...props
+  },
+    ref) => {
     // 1. SCROLLER: This div is ALWAYS full width to keep the scrollbar at the screen edge
     const scrollerStyles: Record<PageVariant, string> = {
       prose: "overflow-y-auto w-full flex-1",
@@ -37,6 +50,13 @@ const PageContainer = React.forwardRef<HTMLDivElement, PageContainerProps>(
       >
         <div className={innerStyles[variant]}>
           {children}
+
+          {hasFloatingActionMenu && (
+            <FloatingActionMenu
+              position={floatingActionMenuLocation}
+              defaultProjectId={floatingActionMenuProjectId}
+            />
+          )}
         </div>
       </div>
     );

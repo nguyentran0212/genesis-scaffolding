@@ -14,7 +14,7 @@ export default async function TasksPage({ searchParams }: PageProps) {
   const projects = await getProjectsAction();
 
   return (
-    <PageContainer variant="dashboard">
+    <PageContainer variant="dashboard" hasFloatingActionMenu={false}>
       <PageBody>
         <div className="space-y-8">
           <div>

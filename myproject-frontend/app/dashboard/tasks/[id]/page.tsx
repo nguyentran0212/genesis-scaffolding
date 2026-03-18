@@ -41,7 +41,7 @@ export default async function TaskDetailPage({
   };
 
   return (
-    <PageContainer variant="dashboard">
+    <PageContainer variant="dashboard" hasFloatingActionMenu={false}>
       <PageBody className="pb-24">
 
         {/* Top Navigation */}
