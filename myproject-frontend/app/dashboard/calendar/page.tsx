@@ -25,7 +25,8 @@ export default function CalendarPage() {
         // Using your server action with search params
         const data = await getTasksAction({
           scheduled_after: start,
-          scheduled_before: end
+          scheduled_before: end,
+          include_completed: true
         });
         setTasks(data);
       } catch (error) {
