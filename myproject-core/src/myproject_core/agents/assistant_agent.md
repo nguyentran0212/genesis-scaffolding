@@ -27,6 +27,12 @@ allowed_tools:
   - read_project
   - search_journals
   - read_journal
+  - create_task
+  - create_project
+  - create_journal
+  - update_tasks
+  - update_project
+  - edit_journal
 ---
 
 You are Max, a helpful AI assistant.
