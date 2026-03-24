@@ -11,6 +11,20 @@ from .file import (
     WriteFileTool,
 )
 from .pdf import PdfToMarkdownTool
+from .productivity_tools import (
+    CreateJournalTool,
+    CreateProjectTool,
+    CreateTaskTool,
+    EditJournalTool,
+    ReadJournalTool,
+    ReadProjectTool,
+    ReadTaskTool,
+    SearchJournalsTool,
+    SearchProjectsTool,
+    SearchTasksTool,
+    UpdateProjectTool,
+    UpdateTasksTool,
+)
 from .rss_utils import RssFetchTool
 from .test_tools import MockTestTool
 from .web_fetch import WebPageFetchTool
@@ -58,10 +72,21 @@ tool_registry.register("find_files", FindFilesTool)
 tool_registry.register("delete_file", DeleteFileTool)
 tool_registry.register("move_or_rename_file", MoveFileTool)
 tool_registry.register("search_file_content", SearchFileContentTool)
+tool_registry.register("search_tasks", SearchTasksTool)
+tool_registry.register("read_task", ReadTaskTool)
+tool_registry.register("search_projects", SearchProjectsTool)
+tool_registry.register("read_project", ReadProjectTool)
+tool_registry.register("search_journals", SearchJournalsTool)
+tool_registry.register("read_journal", ReadJournalTool)
+tool_registry.register("create_task", CreateTaskTool)
+tool_registry.register("create_project", CreateProjectTool)
+tool_registry.register("create_journal", CreateJournalTool)
+tool_registry.register("update_tasks", UpdateTasksTool)
+tool_registry.register("update_project", UpdateProjectTool)
+tool_registry.register("edit_journal", EditJournalTool)
 
 
 def main():
-    print(tool_registry.get_all_tool_names())
     for tool_name in tool_registry.get_all_tool_names():
         tool = tool_registry.get_tool(tool_name)
         if tool:
