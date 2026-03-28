@@ -41,8 +41,7 @@ def _format_result(
 
 
 def download_paper_pdf(paper_id: str, download_dir: Path, convert_to_markdown: bool = True) -> Path | None:
-    """
-    Directly download the PDF of a specific paper by its arXiv ID without using the search client.
+    """Directly download the PDF of a specific paper by its arXiv ID without using the search client.
 
     Args:
         paper_id (str): arXiv ID of the paper (e.g. "2107.05580").
@@ -50,6 +49,7 @@ def download_paper_pdf(paper_id: str, download_dir: Path, convert_to_markdown: b
 
     Returns:
         Path | None: Path to the downloaded PDF, or None if the download failed.
+
     """
     # Predictable direct PDF URL
     url = f"https://arxiv.org/pdf/{paper_id}.pdf"
@@ -66,8 +66,7 @@ def download_paper_pdf(paper_id: str, download_dir: Path, convert_to_markdown: b
             response.raise_for_status()
 
             with open(pdf_path, "wb") as f:
-                for chunk in response.iter_bytes():
-                    f.write(chunk)
+                f.writelines(response.iter_bytes())
 
         convert_pdf_to_markdown(pdf_path=pdf_path, output_dir=download_dir)
 
@@ -82,8 +81,7 @@ def download_paper_pdf(paper_id: str, download_dir: Path, convert_to_markdown: b
 
 
 def download_paper_source(paper_id: str, download_dir: Path) -> Path | None:
-    """
-    Download the LaTeX source of a specific paper by its arXiv ID.
+    """Download the LaTeX source of a specific paper by its arXiv ID.
 
     Args:
         paper_id (str): arXiv ID of the paper (e.g. "2107.05580" or "quant-ph/0201082v1")
@@ -91,6 +89,7 @@ def download_paper_source(paper_id: str, download_dir: Path) -> Path | None:
 
     Returns:
         Path | None: Path to the extracted source folder, or empty if cannot download
+
     """
     # Direct e-print URL
     url = f"https://arxiv.org/e-print/{paper_id}"
@@ -101,8 +100,7 @@ def download_paper_source(paper_id: str, download_dir: Path) -> Path | None:
     with httpx.stream("GET", url, follow_redirects=True) as response:
         response.raise_for_status()
         with open(archive_path, "wb") as f:
-            for chunk in response.iter_bytes():
-                f.write(chunk)
+            f.writelines(response.iter_bytes())
 
     source_dir = download_dir / paper_id
     source_dir.mkdir(exist_ok=True)
@@ -117,12 +115,11 @@ def download_paper_source(paper_id: str, download_dir: Path) -> Path | None:
         return source_dir
     except Exception as e:
         print(f"Extraction failed: {e}")
-        return
+        return None
 
 
 def extract_arxiv_id(input_str: str) -> str:
-    """
-    Extracts an arXiv ID from a URL or a string.
+    """Extracts an arXiv ID from a URL or a string.
     Supports:
     - Modern IDs: 2301.12345, 0704.0001
     - Legacy IDs: hep-th/9901001, math.CO/0101001
@@ -151,11 +148,9 @@ def get_paper_details(
     download_pdf: bool = False,
     download_source: bool = False,
 ) -> dict | None:
-    """
-    Get detailed information about a specific paper by its arXiv ID.
+    """Get detailed information about a specific paper by its arXiv ID.
     Optimized to bypass the default library delays by using a custom Client.
     """
-
     # Parse paper ID
     parsed_paper_id: str | None = extract_arxiv_id(paper_id)
 
@@ -216,8 +211,7 @@ def search_papers(
     download_pdf: bool = False,
     download_source: bool = False,
 ) -> list[dict[str, str | list[str] | None]]:
-    """
-    Search for papers on arXiv based on a query, with optional download capabilities.
+    """Search for papers on arXiv based on a query, with optional download capabilities.
 
     Args:
         query (str): Search query string (e.g. "quantum computing", "machine learning")
@@ -228,6 +222,7 @@ def search_papers(
 
     Returns:
         List[Dict]: List of paper information dictionaries
+
     """
     # Map sort_by parameter to arXiv SortCriterion
     sort_mapping = {
@@ -239,7 +234,7 @@ def search_papers(
     sort_criterion = sort_mapping.get(sort_by.lower(), arxiv.SortCriterion.Relevance)
 
     search = arxiv.Search(
-        query=query, max_results=max_results, sort_by=sort_criterion, sort_order=arxiv.SortOrder.Descending
+        query=query, max_results=max_results, sort_by=sort_criterion, sort_order=arxiv.SortOrder.Descending,
     )
 
     client = arxiv.Client(page_size=20, num_retries=2)
@@ -292,11 +287,9 @@ def search_papers_with_downloads(
     max_results: int = 10,
     download_dir: Path | None = None,
 ) -> list[dict]:
-    """
-    Search papers and automatically trigger download/MD conversion for each.
+    """Search papers and automatically trigger download/MD conversion for each.
     Returns a list of dicts where each dict contains metadata + 'pdf_path' + 'md_path'.
     """
-
     search = arxiv.Search(query=query, max_results=max_results, sort_by=arxiv.SortCriterion.Relevance)
     client = arxiv.Client(num_retries=2)
 
@@ -362,7 +355,7 @@ class ArxivSearchTool(BaseTool):
         try:
             # Hoisted validation
             valid_download_dir = self._validate_path(
-                working_directory, download_dir, must_exist=True, should_be_dir=True
+                working_directory, download_dir, must_exist=True, should_be_dir=True,
             )
         except ValueError as e:
             return ToolResult(tool_response=str(e), status="error")
@@ -377,7 +370,7 @@ class ArxivSearchTool(BaseTool):
 
         if not results or len(results) == 0:
             return ToolResult(
-                status="success", tool_response=f"Cannot find any paper for the given search query: {query}"
+                status="success", tool_response=f"Cannot find any paper for the given search query: {query}",
             )
 
         num_results = len(results)
@@ -385,7 +378,7 @@ class ArxivSearchTool(BaseTool):
         files_to_add_to_clipboard: list[Path] = []
         for result in results:
             results_to_add_to_clipboard.append(
-                f"Arxiv Paper ID: {result.get('id', 'unknown')}\nTitle: {result.get('title', 'unknown')}\nSummary: {result.get('summary', 'unknown')}\n\n\n"
+                f"Arxiv Paper ID: {result.get('id', 'unknown')}\nTitle: {result.get('title', 'unknown')}\nSummary: {result.get('summary', 'unknown')}\n\n\n",
             )
             md_path = result.get("md_path")
             if md_path and Path(md_path).exists():
@@ -436,14 +429,14 @@ class ArxivPaperDetailTool(BaseTool):
     ) -> ToolResult:
         try:
             valid_download_dir = self._validate_path(
-                working_directory, download_dir, must_exist=True, should_be_dir=True
+                working_directory, download_dir, must_exist=True, should_be_dir=True,
             )
         except ValueError as e:
             return ToolResult(tool_response=str(e), status="error")
         # 2. Call the blocking sync function in a separate thread
         # We use asyncio.to_thread to avoid blocking the agent's event loop
         result = await asyncio.to_thread(
-            get_paper_details, paper_id=paper_id, download_dir=valid_download_dir, download_pdf=download_pdf
+            get_paper_details, paper_id=paper_id, download_dir=valid_download_dir, download_pdf=download_pdf,
         )
 
         if not result:
@@ -490,7 +483,7 @@ def main():
     # paper_detail = get_paper_details(paper_id="2506.02153")
     # print(paper_detail)
     results = search_papers(
-        "Small language model challenges", download_dir=Path("./inbox"), download_pdf=True, max_results=5
+        "Small language model challenges", download_dir=Path("./inbox"), download_pdf=True, max_results=5,
     )
     print(results)
 

@@ -60,7 +60,7 @@ class ArxivDownloadTask(BaseTask[ArxivDownloadTaskParams, ArxivDownloadTaskOutpu
                     def _do_blocking_download(pid: str):
                         # get_paper_details likely hits the API + the PDF download link
                         details = get_paper_details(
-                            paper_id=pid, download_dir=download_directory, download_pdf=True
+                            paper_id=pid, download_dir=download_directory, download_pdf=True,
                         )
                         if not details:
                             raise ValueError(f"Cannot find paper: {pid}")
@@ -79,11 +79,11 @@ class ArxivDownloadTask(BaseTask[ArxivDownloadTaskParams, ArxivDownloadTaskOutpu
                     if "429" in str(e) and attempt < max_retries - 1:
                         backoff = (attempt + 1) * 10  # 10s, then 20s
                         print(
-                            f"ArXiv Rate Limit hit (429). Retrying in {backoff}s... (Attempt {attempt + 1}/{max_retries})"
+                            f"ArXiv Rate Limit hit (429). Retrying in {backoff}s... (Attempt {attempt + 1}/{max_retries})",
                         )
                         await asyncio.sleep(backoff)
                     else:
-                        print(f"Failed to download {paper_id}: {str(e)}")
+                        print(f"Failed to download {paper_id}: {e!s}")
                         break  # Give up on this specific paper
 
         if args.write_response_to_output:

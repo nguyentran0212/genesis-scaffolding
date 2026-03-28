@@ -21,8 +21,7 @@ async def create_user(
     session: Annotated[Session, Depends(get_session)],
     server_settings: Annotated[Config, Depends(get_server_settings)],
 ):
-    """
-    Create a new user.
+    """Create a new user.
     Checks if username already exists, hashes password, and saves to DB.
     """
     # 1. Check for existing user
@@ -30,7 +29,7 @@ async def create_user(
 
     if existing_user:
         raise HTTPException(
-            status_code=400, detail="The user with this username already exists in the system."
+            status_code=400, detail="The user with this username already exists in the system.",
         )
 
     # 2. Create the DB record
@@ -77,8 +76,7 @@ async def update_user_me(
     current_user: Annotated[User, Depends(get_current_active_user)],
     session: Annotated[Session, Depends(get_session)],
 ):
-    """
-    Update current user information.
+    """Update current user information.
     If changing password, current_password must be verified.
     """
     # 1. Convert input to a dictionary, ignoring fields NOT in the JSON
@@ -95,7 +93,7 @@ async def update_user_me(
 
         if not verify_password(current_password, current_user.hashed_password):
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid current password."
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid current password.",
             )
 
         # Hash the new password and replace the plain text one in our update dict

@@ -18,7 +18,7 @@ class ReadFileTool(BaseTool):
             "file_path": {
                 "type": "string",
                 "description": "The path to the file you want to read, relative to the current working directory.",
-            }
+            },
         },
         "required": ["file_path"],
     }
@@ -27,7 +27,7 @@ class ReadFileTool(BaseTool):
         try:
             # Validate the path is safe and exists
             validated_path = self._validate_path(
-                working_directory, file_path, must_exist=True, should_be_file=True
+                working_directory, file_path, must_exist=True, should_be_file=True,
             )
 
             # Note: We don't read the file here.
@@ -45,7 +45,7 @@ class ReadFileTool(BaseTool):
             # Catch unexpected system errors (e.g., permission issues at the OS level)
             return ToolResult(
                 status="error",
-                tool_response=f"An unexpected error occurred while trying to read '{file_path}': {str(e)}",
+                tool_response=f"An unexpected error occurred while trying to read '{file_path}': {e!s}",
             )
 
 
@@ -62,7 +62,7 @@ class ListFilesTool(BaseTool):
                 "type": "string",
                 "description": "The directory to list, relative to the working directory. Defaults to '.' (root).",
                 "default": ".",
-            }
+            },
         },
     }
 
@@ -90,7 +90,7 @@ class ListFilesTool(BaseTool):
                 # Sort to ensure deterministic output (better for caching)
                 try:
                     entries = sorted(
-                        list(current_dir.iterdir()), key=lambda x: (x.is_file(), x.name.lower())
+                        list(current_dir.iterdir()), key=lambda x: (x.is_file(), x.name.lower()),
                     )
                 except PermissionError:
                     tree_lines.append(f"{prefix}└── [Permission Denied]")
@@ -130,7 +130,7 @@ class ListFilesTool(BaseTool):
         except ValueError as e:
             return ToolResult(status="error", tool_response=str(e))
         except Exception as e:
-            return ToolResult(status="error", tool_response=f"Error listing directory: {str(e)}")
+            return ToolResult(status="error", tool_response=f"Error listing directory: {e!s}")
 
 
 class WriteFileTool(BaseTool):
@@ -160,7 +160,7 @@ class WriteFileTool(BaseTool):
         try:
             # 1. Validate path
             validated_path = self._validate_path(
-                working_directory, file_path, must_exist=False, should_be_file=True
+                working_directory, file_path, must_exist=False, should_be_file=True,
             )
 
             # 2. Check if file already exists to prevent overwriting
@@ -195,7 +195,7 @@ class WriteFileTool(BaseTool):
         except ValueError as e:
             return ToolResult(status="error", tool_response=str(e))
         except Exception as e:
-            return ToolResult(status="error", tool_response=f"Failed to write file '{file_path}': {str(e)}")
+            return ToolResult(status="error", tool_response=f"Failed to write file '{file_path}': {e!s}")
 
 
 class EditFileTool(BaseTool):
@@ -225,12 +225,12 @@ class EditFileTool(BaseTool):
     }
 
     async def run(
-        self, working_directory: Path, file_path: str, old_str: str, new_str: str, **kwargs: Any
+        self, working_directory: Path, file_path: str, old_str: str, new_str: str, **kwargs: Any,
     ) -> ToolResult:
         try:
             # 1. Validate path
             validated_path = self._validate_path(
-                working_directory, file_path, must_exist=True, should_be_file=True
+                working_directory, file_path, must_exist=True, should_be_file=True,
             )
 
             # 2. Perform editing logic
@@ -246,14 +246,14 @@ class EditFileTool(BaseTool):
                         f"Could not find the old string you specified: {old_str}"
                         f"Please check the file content of {file_path} on your clipboard and ensure your old string "
                         "matches the indentation and characters exactly."
-                        "Write smaller old string could help."
+                        "Write smaller old string could help.",
                     )
 
                 if occurrence_count > 1:
                     # Provide a helpful error if the string isn't unique enough
                     raise ValueError(
                         f"Found {occurrence_count} occurrences of old string in '{file_path}'. "
-                        "Please include more surrounding lines in old string to make the match unique."
+                        "Please include more surrounding lines in old string to make the match unique.",
                     )
 
                 # Perform the replacement
@@ -280,7 +280,7 @@ class EditFileTool(BaseTool):
         except Exception as e:
             return ToolResult(
                 status="error",
-                tool_response=f"An unexpected error occurred while editing '{file_path}': {str(e)}",
+                tool_response=f"An unexpected error occurred while editing '{file_path}': {e!s}",
             )
 
 
@@ -309,11 +309,11 @@ class FindFilesTool(BaseTool):
     IGNORE_DIRS = {".git", "__pycache__", "node_modules", ".venv", "venv"}
 
     async def run(
-        self, working_directory: Path, pattern: str, search_dir: str = ".", **kwargs: Any
+        self, working_directory: Path, pattern: str, search_dir: str = ".", **kwargs: Any,
     ) -> ToolResult:
         try:
             root_path = self._validate_path(
-                working_directory, search_dir, must_exist=True, should_be_dir=True
+                working_directory, search_dir, must_exist=True, should_be_dir=True,
             )
 
             def search():
@@ -351,7 +351,7 @@ class FindFilesTool(BaseTool):
             )
 
         except Exception as e:
-            return ToolResult(status="error", tool_response=f"Search failed: {str(e)}")
+            return ToolResult(status="error", tool_response=f"Search failed: {e!s}")
 
 
 class DeleteFileTool(BaseTool):
@@ -363,7 +363,7 @@ class DeleteFileTool(BaseTool):
             "file_path": {
                 "type": "string",
                 "description": "The path to the file to delete, relative to the working directory.",
-            }
+            },
         },
         "required": ["file_path"],
     }
@@ -372,7 +372,7 @@ class DeleteFileTool(BaseTool):
         try:
             # Validate path (must exist and must be a file)
             validated_path = self._validate_path(
-                working_directory, file_path, must_exist=True, should_be_file=True
+                working_directory, file_path, must_exist=True, should_be_file=True,
             )
 
             def perform_delete():
@@ -389,7 +389,7 @@ class DeleteFileTool(BaseTool):
             return ToolResult(status="error", tool_response=str(e))
         except Exception as e:
             return ToolResult(
-                status="error", tool_response=f"Failed to delete file '{file_path}': {str(e)}"
+                status="error", tool_response=f"Failed to delete file '{file_path}': {e!s}",
             )
 
 
@@ -412,7 +412,7 @@ class MoveFileTool(BaseTool):
     }
 
     async def run(
-        self, working_directory: Path, source_path: str, destination_path: str, **kwargs: Any
+        self, working_directory: Path, source_path: str, destination_path: str, **kwargs: Any,
     ) -> ToolResult:
         try:
             src = self._validate_path(working_directory, source_path, must_exist=True, should_be_file=True)
@@ -420,7 +420,7 @@ class MoveFileTool(BaseTool):
 
             if dst.exists():
                 return ToolResult(
-                    status="error", tool_response=f"Destination '{destination_path}' already exists."
+                    status="error", tool_response=f"Destination '{destination_path}' already exists.",
                 )
 
             def perform_move():
@@ -435,7 +435,7 @@ class MoveFileTool(BaseTool):
                 files_to_add_to_clipboard=[dst],  # Refresh clipboard with the new path on the next step
             )
         except Exception as e:
-            return ToolResult(status="error", tool_response=f"Move failed: {str(e)}")
+            return ToolResult(status="error", tool_response=f"Move failed: {e!s}")
 
 
 class SearchFileContentTool(BaseTool):
@@ -474,7 +474,7 @@ class SearchFileContentTool(BaseTool):
     ) -> ToolResult:
         try:
             root_path = self._validate_path(
-                working_directory, search_dir, must_exist=True, should_be_dir=True
+                working_directory, search_dir, must_exist=True, should_be_dir=True,
             )
 
             def perform_search():
@@ -484,7 +484,7 @@ class SearchFileContentTool(BaseTool):
                         continue
 
                     try:
-                        with open(path, "r", encoding="utf-8", errors="ignore") as f:
+                        with open(path, encoding="utf-8", errors="ignore") as f:
                             for i, line in enumerate(f, 1):
                                 if query in line:
                                     rel_path = path.relative_to(working_directory)
@@ -499,7 +499,7 @@ class SearchFileContentTool(BaseTool):
 
             if not results:
                 return ToolResult(
-                    status="success", tool_response=f"No matches found for '{query}' in '{search_dir}'."
+                    status="success", tool_response=f"No matches found for '{query}' in '{search_dir}'.",
                 )
 
             output = f"Search results for '{query}':\n" + "\n".join(results)
@@ -512,4 +512,4 @@ class SearchFileContentTool(BaseTool):
                 results_to_add_to_clipboard=[output],
             )
         except Exception as e:
-            return ToolResult(status="error", tool_response=f"Search failed: {str(e)}")
+            return ToolResult(status="error", tool_response=f"Search failed: {e!s}")

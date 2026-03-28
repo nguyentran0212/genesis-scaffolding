@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlmodel import JSON, Column, Field, SQLModel
@@ -16,8 +16,8 @@ class ChatSession(SQLModel, table=True):
     # Store the exact dump of AgentClipboard
     clipboard_state: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
 
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class ChatMessage(SQLModel, table=True):
@@ -27,4 +27,4 @@ class ChatMessage(SQLModel, table=True):
     # The raw dictionary from myproject_core (role, content, tool_calls, etc.)
     payload: dict[str, Any] = Field(sa_column=Column(JSON))
 
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

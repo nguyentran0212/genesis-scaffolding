@@ -41,7 +41,7 @@ async def handle_add_file(session, args):
     gitignore_path = _find_gitignore(path)
     gitignore_root: Path | None = None
     if gitignore_path:
-        with open(gitignore_path, "r") as f:
+        with open(gitignore_path) as f:
             spec = pathspec.PathSpec.from_lines("gitwildmatch", f)
         gitignore_root = gitignore_path.parent if gitignore_path else None
 
@@ -95,7 +95,7 @@ async def handle_remove_file(session, args):
         return
 
     for f in removed_files:
-        session.console.print(f"[bold green]✔[/bold green] Removed [cyan]{str(f)}[/cyan]")
+        session.console.print(f"[bold green]✔[/bold green] Removed [cyan]{f!s}[/cyan]")
 
 
 # Map of commands to their handler functions

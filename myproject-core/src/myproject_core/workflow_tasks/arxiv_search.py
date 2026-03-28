@@ -1,6 +1,5 @@
 import asyncio
 from pathlib import Path
-from typing import List
 
 # Use the improved tool function
 from myproject_tools.arxiv import search_papers_with_downloads
@@ -18,8 +17,8 @@ class ArxivSearchTaskParams(TaskParams):
 
 
 class ArxivSearchTaskOutput(TaskOutput):
-    pdf_paths: List[Path]
-    md_paths: List[Path]
+    pdf_paths: list[Path]
+    md_paths: list[Path]
 
 
 class ArxivSearchTask(BaseTask[ArxivSearchTaskParams, ArxivSearchTaskOutput]):

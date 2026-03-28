@@ -5,8 +5,7 @@ from pydantic import BaseModel
 
 
 class TrackedEntity(BaseModel):
-    """
-    A signal from a tool to the Agent Loop to pin a database entity to the clipboard.
+    """A signal from a tool to the Agent Loop to pin a database entity to the clipboard.
     This enables progressive disclosure (summary vs detail) and live-syncing.
     """
 

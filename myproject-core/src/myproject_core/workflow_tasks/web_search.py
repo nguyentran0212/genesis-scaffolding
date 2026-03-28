@@ -1,5 +1,5 @@
 import asyncio
-from typing import Any, Union
+from typing import Any
 
 from myproject_tools.web_search import search_web
 
@@ -23,7 +23,7 @@ class WebSearchTask(BaseTask[WebSearchTaskParams, WebSearchTaskOutput]):
     output_model = WebSearchTaskOutput
 
     async def run(
-        self, context: JobContext, agent_registry: AgentRegistry, params: dict
+        self, context: JobContext, agent_registry: AgentRegistry, params: dict,
     ) -> WebSearchTaskOutput:
         args = self.params_model.model_validate(params)
 
@@ -35,8 +35,8 @@ class WebSearchTask(BaseTask[WebSearchTaskParams, WebSearchTaskOutput]):
 
         # 2. Execute all searches concurrently
         # return_exceptions=True ensures one failing query doesn't crash the whole workflow
-        search_results_lists: list[Union[list[Any], BaseException]] = await asyncio.gather(
-            *search_tasks, return_exceptions=True
+        search_results_lists: list[list[Any] | BaseException] = await asyncio.gather(
+            *search_tasks, return_exceptions=True,
         )
 
         # 3. Flatten the results and format into Markdown
@@ -55,7 +55,7 @@ class WebSearchTask(BaseTask[WebSearchTaskParams, WebSearchTaskOutput]):
                 seen_urls.add(res.url)
 
                 # Extract content (Prefer full content over snippet)
-                main_body = res.full_content if res.full_content else res.snippet
+                main_body = res.full_content or res.snippet
 
                 # Create a clean Markdown block
                 md_entry = (
@@ -83,5 +83,5 @@ class WebSearchTask(BaseTask[WebSearchTaskParams, WebSearchTaskOutput]):
 
         # 5. Return the structured output
         return self.output_model(
-            content=formatted_contents, file_paths=all_written_paths if all_written_paths else None
+            content=formatted_contents, file_paths=all_written_paths or None,
         )

@@ -24,7 +24,7 @@ class AgentMapTask(BaseTask[AgentMapTaskParams, AgentMapTaskOutput]):
     output_model = AgentMapTaskOutput
 
     async def run(
-        self, context: JobContext, agent_registry: AgentRegistry, params: dict
+        self, context: JobContext, agent_registry: AgentRegistry, params: dict,
     ) -> AgentMapTaskOutput:
         args = self.params_model.model_validate(params)
 
@@ -66,6 +66,5 @@ class AgentMapTask(BaseTask[AgentMapTaskParams, AgentMapTaskOutput]):
 
             # Returns the list of response strings and the list of output file Paths
             return self.output_model(content=all_responses, file_paths=output_paths)
-        else:
-            # If no files are written, file_paths defaults to an empty list or None
-            return self.output_model(content=all_responses, file_paths=[])
+        # If no files are written, file_paths defaults to an empty list or None
+        return self.output_model(content=all_responses, file_paths=[])

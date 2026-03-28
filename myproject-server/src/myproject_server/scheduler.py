@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -57,8 +57,7 @@ class SchedulerManager:
             pass
 
     async def _execute_scheduled_task(self, schedule_id: int, user_id: int):
-        """
-        The core logic: This function sets up the user's specific environment
+        """The core logic: This function sets up the user's specific environment
         just-in-time for the execution.
         """
         with Session(db_engine) as session:
@@ -99,12 +98,12 @@ class SchedulerManager:
 
             if job and job.id:
                 job.schedule_id = schedule.id
-                schedule.last_run_at = datetime.now(timezone.utc)
+                schedule.last_run_at = datetime.now(UTC)
                 session.add(job)
                 session.add(schedule)
                 session.commit()
 
                 # 4. Run the job using the USER-SPECIFIC engine and registry
                 await run_workflow_job(
-                    job_id=job.id, engine_instance=user_engine, registry_instance=user_registry
+                    job_id=job.id, engine_instance=user_engine, registry_instance=user_registry,
                 )

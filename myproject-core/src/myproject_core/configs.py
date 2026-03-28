@@ -1,7 +1,5 @@
 import secrets
-from functools import lru_cache
 from pathlib import Path
-from typing import Dict, List, Optional
 
 import yaml
 from pydantic import BaseModel, Field, computed_field, model_validator
@@ -28,12 +26,12 @@ class PathConfigs(BaseModel):
 
     @computed_field
     @property
-    def agent_search_paths(self) -> List[Path]:
+    def agent_search_paths(self) -> list[Path]:
         return [PACKAGE_ROOT / "agents", self.internal_state_dir / "agents"]
 
     @computed_field
     @property
-    def workflow_search_paths(self) -> List[Path]:
+    def workflow_search_paths(self) -> list[Path]:
         return [PACKAGE_ROOT / "workflows", self.internal_state_dir / "workflows"]
 
     @computed_field
@@ -55,17 +53,17 @@ class PathConfigs(BaseModel):
 class ServerConfig(BaseModel):
     host: str = "0.0.0.0"
     port: int = 8000
-    cors_origins: List[str] = ["http://localhost:3000"]
+    cors_origins: list[str] = ["http://localhost:3000"]
     jwt_secret_key: str = Field(default_factory=lambda: secrets.token_hex(32))
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 600
-    admin_username: Optional[str] = None
-    admin_password: Optional[str] = None
-    admin_email: Optional[str] = None
+    admin_username: str | None = None
+    admin_password: str | None = None
+    admin_email: str | None = None
 
 
 class DatabaseConfig(BaseModel):
-    dsn: Optional[str] = None
+    dsn: str | None = None
     db_name: str = "myproject.db"
     echo_sql: bool = False
     db_directory: Path = Field(default_factory=lambda: Path.cwd() / ".myproject" / "database")
@@ -91,8 +89,8 @@ class Config(BaseSettings):
 
     # Dictionaries of providers and models
     # Key is the nickname used in the app
-    providers: Dict[str, LLMProvider] = Field(default_factory=dict)
-    models: Dict[str, LLMModelConfig] = Field(default_factory=dict)
+    providers: dict[str, LLMProvider] = Field(default_factory=dict)
+    models: dict[str, LLMModelConfig] = Field(default_factory=dict)
 
     # Optional: pointer to which model nickname to use by default
     default_model: str = "default"
@@ -107,8 +105,7 @@ class Config(BaseSettings):
 
     @model_validator(mode="after")
     def validate_llm_references(self) -> "Config":
-        """
-        Ensures all models point to valid providers and the default_model exists.
+        """Ensures all models point to valid providers and the default_model exists.
         """
         # 1. Check if all models reference an existing provider
         for model_nickname, model_cfg in self.models.items():
@@ -116,14 +113,14 @@ class Config(BaseSettings):
                 available = list(self.providers.keys())
                 raise ValueError(
                     f"Model '{model_nickname}' references unknown provider '{model_cfg.provider}'. "
-                    f"Available providers: {available}"
+                    f"Available providers: {available}",
                 )
 
         # 2. Check if default_model actually exists in the models dict
         # We only check this if models are actually defined
         if self.models and self.default_model not in self.models:
             raise ValueError(
-                f"default_model '{self.default_model}' is not defined in the 'models' dictionary."
+                f"default_model '{self.default_model}' is not defined in the 'models' dictionary.",
             )
 
         return self
@@ -137,8 +134,7 @@ class Config(BaseSettings):
 
 
 def deep_merge(base: dict, update: dict) -> dict:
-    """
-    Recursively merges two dictionaries.
+    """Recursively merges two dictionaries.
     This ensures that adding a new model in YAML doesn't delete existing models from .env.
     """
     for key, value in update.items():
@@ -150,14 +146,14 @@ def deep_merge(base: dict, update: dict) -> dict:
 
 
 # @lru_cache()
-def get_config(user_workdir: Optional[Path] = None, override_yaml: Optional[Path] = None) -> Config:
+def get_config(user_workdir: Path | None = None, override_yaml: Path | None = None) -> Config:
     # 1. Initialize from Environment Variables / .env
     # Pydantic BaseSettings automatically populates this
     conf_dict = Config().model_dump()
 
     # 2. Apply YAML Overrides (Merging instead of overwriting)
     if override_yaml and override_yaml.exists():
-        with open(override_yaml, "r") as f:
+        with open(override_yaml) as f:
             yaml_data = yaml.safe_load(f)
             if yaml_data:
                 conf_dict = deep_merge(conf_dict, yaml_data)

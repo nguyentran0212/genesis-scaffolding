@@ -15,7 +15,6 @@ class BaseTool(ABC):
     @abstractmethod
     async def run(self, working_directory: Path, *args: Any, **kwargs: Any) -> ToolResult:
         """Execute logic and return a ToolResult data object."""
-        pass
 
     def to_llm_schema(self) -> dict[str, Any]:
         return {
@@ -35,8 +34,7 @@ class BaseTool(ABC):
         should_be_dir: bool = False,
         should_be_file: bool = False,
     ) -> Path:
-        """
-        Internal utility to ensure a path is safe and valid.
+        """Internal utility to ensure a path is safe and valid.
         Returns a resolved Path object or raises ValueError with a message for the agent.
         """
         user_path = Path(path_str)

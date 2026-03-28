@@ -13,10 +13,10 @@ from .schemas import AgentClipboard
 
 class AgentMemory:
     def __init__(
-        self, messages: list[Any] | None = None, agent_clipboard: AgentClipboard | None = None
+        self, messages: list[Any] | None = None, agent_clipboard: AgentClipboard | None = None,
     ) -> None:
-        self.messages = messages if messages else []
-        self.agent_clipboard = agent_clipboard if agent_clipboard else AgentClipboard()
+        self.messages = messages or []
+        self.agent_clipboard = agent_clipboard or AgentClipboard()
 
     def append_memory(self, message: Any):
         self.messages.append(message)
@@ -29,9 +29,8 @@ class AgentMemory:
         self.messages = []
         self.agent_clipboard = AgentClipboard()
 
-    def remove_deleted_files(self, working_dir: Path = Path(".")) -> list[Path]:
-        """
-        Automatically remove deleted files from the clipboard
+    def remove_deleted_files(self, working_dir: Path = Path()) -> list[Path]:
+        """Automatically remove deleted files from the clipboard
 
         working_dir is important for the server use where files are located using relative paths rather than absolute paths
         """
@@ -51,8 +50,7 @@ class AgentMemory:
         self.agent_clipboard.commit()
 
     def get_clipboard_message(self, shorten: bool = False, timezone: str = "UTC") -> dict[str, str]:
-        """
-        Formats the clipboard as a system message.
+        """Formats the clipboard as a system message.
         This is ephemeral and should not be stored in self.messages.
         """
         now = datetime.now(ZoneInfo(timezone))
@@ -71,19 +69,17 @@ class AgentMemory:
     def add_tool_results_to_clipboard(self, tool_name: str, tool_call_id: str, results: list[str]):
         """Adds tool results to clipboard"""
         self.agent_clipboard.add_tool_result_to_clipboard(
-            tool_name=tool_name, tool_call_id=tool_call_id, tool_call_results=results
+            tool_name=tool_name, tool_call_id=tool_call_id, tool_call_results=results,
         )
 
     def remove_file_from_clipboard(self, file_path: Path) -> bool:
-        """
-        Remove a file from clipboard
+        """Remove a file from clipboard
         Return False if failed to remove file
         """
         try:
             if self.agent_clipboard.remove_file_from_clipboard(file_path):
                 return True
-            else:
-                return False
+            return False
         except Exception:
             return False
 
@@ -109,8 +105,7 @@ class AgentMemory:
         self.agent_clipboard.pin_entity(item_type, item_id, resolution, ttl)
 
     def sync_entities(self, session: Session):
-        """
-        Iterates over all pinned entities in the clipboard, fetches their
+        """Iterates over all pinned entities in the clipboard, fetches their
         latest state from the database, and converts them to dictionaries for the LLM.
         If an entity was deleted from the database, it removes it from the clipboard.
         """
@@ -140,14 +135,13 @@ class AgentMemory:
 
                 # Special handling for Task's computed property "project_ids"
                 if entity.item_type == "task":
-                    db_item = cast(Task, db_item)
+                    db_item = cast("Task", db_item)
                     data["project_ids"] = db_item.project_ids
 
                 entity.data = data
 
     def estimate_total_tokens(self) -> int:
-        """
-        Estimates the total token count of history + current clipboard.
+        """Estimates the total token count of history + current clipboard.
         Uses a 4-char-per-token heuristic.
         """
         # 1. Calculate History length

@@ -1,27 +1,26 @@
 import asyncio
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class ActiveRun:
     def __init__(self, session_id: int, user_input: str):
         self.session_id = session_id
         # Index 0 is always the User input
-        self.messages: List[Dict[str, Any]] = [{"role": "user", "content": user_input}]
-        self.clients: List[asyncio.Queue] = []
+        self.messages: list[dict[str, Any]] = [{"role": "user", "content": user_input}]
+        self.clients: list[asyncio.Queue] = []
 
     def _get_or_create_assistant_message_index(self) -> int:
-        """
-        Returns the index of the current assistant message.
+        """Returns the index of the current assistant message.
         If the last message isn't an assistant message (e.g. it's a tool response),
         it appends a new assistant message.
         """
         if not self.messages or self.messages[-1]["role"] != "assistant":
             self.messages.append(
-                {"role": "assistant", "content": "", "reasoning_content": "", "tool_calls": []}
+                {"role": "assistant", "content": "", "reasoning_content": "", "tool_calls": []},
             )
         return len(self.messages) - 1
 
-    async def _broadcast(self, event: str, data: Any, index: Optional[int] = None):
+    async def _broadcast(self, event: str, data: Any, index: int | None = None):
         payload = {
             "event": event,
             "data": data,

@@ -4,7 +4,7 @@ import re
 import shutil
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Generic, Type, TypeVar
+from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
@@ -123,16 +123,15 @@ TOutput = TypeVar("TOutput", bound=TaskOutput)
 
 
 class BaseTask(ABC, Generic[TParams, TOutput]):
-    params_model: Type[TParams]
-    output_model: Type[TOutput]
+    params_model: type[TParams]
+    output_model: type[TOutput]
 
     @abstractmethod
     async def run(self, context: JobContext, agent_registry: AgentRegistry, params: dict) -> TOutput:
         pass
 
     def resolve_input_file_paths(self, input_file_paths: list[Path], context: JobContext) -> list[Path]:
-        """
-        Resolve and dedup the input file paths provided to the workflow task
+        """Resolve and dedup the input file paths provided to the workflow task
         """
         resolved_files: list[Path] = []
         for path_str in input_file_paths:
@@ -182,10 +181,8 @@ class BaseTask(ABC, Generic[TParams, TOutput]):
                 if len(content) == 1:
                     if output_filename:
                         return output_filename
-                    else:
-                        return f"{type(self)}_output.{extension}"
-                else:
-                    return f"{output_filename_prefix}_{index}.{extension}"
+                    return f"{type(self)}_output.{extension}"
+                return f"{output_filename_prefix}_{index}.{extension}"
 
             # Determine target directories
             target_dirs: list[Path] = []
@@ -233,8 +230,7 @@ class BaseTask(ABC, Generic[TParams, TOutput]):
         output_filename_prefix: str,
         sub_directory: str | None = None,
     ) -> list[Path]:
-        """
-        Utility to expose internally written files to the output directory.
+        """Utility to expose internally written files to the output directory.
         Tries to symlink first, falls back to copying if symlinking fails.
         """
 

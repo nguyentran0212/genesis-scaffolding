@@ -27,8 +27,7 @@ async def fetch_page(
     headers: dict[str, str] | None = None,
     cookies: dict[str, str] | None = None,
 ) -> dict[str, Any]:
-    """
-    Asynchronously fetches a URL and converts it to Markdown.
+    """Asynchronously fetches a URL and converts it to Markdown.
     Uses asyncio.to_thread to wrap the blocking requests call.
     """
 
@@ -63,7 +62,7 @@ async def fetch_page(
                 response.raise_for_status()
 
                 md_content = trafilatura.extract(
-                    response.text, output_format="markdown", include_formatting=True, include_links=True
+                    response.text, output_format="markdown", include_formatting=True, include_links=True,
                 )
 
                 metadata = trafilatura.extract_metadata(response.text)
@@ -156,7 +155,7 @@ class WebPageFetchTool(BaseTool):
 
 async def main():
     result = await fetch_page(
-        "https://www.neowin.net/news/microsoft-reveals-mu-an-on-device-small-language-model-built-into-windows-11/"
+        "https://www.neowin.net/news/microsoft-reveals-mu-an-on-device-small-language-model-built-into-windows-11/",
     )
     print(result["content"])
 

@@ -1,12 +1,12 @@
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel
 
 
 class ChatSessionCreate(BaseModel):
     agent_id: str
-    title: Optional[str] = "New Chat"
+    title: str | None = "New Chat"
 
 
 class ChatSessionRead(BaseModel):

@@ -34,7 +34,7 @@ async def search_web(query: str, max_results: int = 5, fetch_full: bool = False)
             for r in search_results:
                 # Instantiate the class directly
                 item = SearchResult(
-                    title=r.get("title", ""), url=r.get("href", ""), snippet=r.get("body", "")
+                    title=r.get("title", ""), url=r.get("href", ""), snippet=r.get("body", ""),
                 )
 
                 if fetch_full:

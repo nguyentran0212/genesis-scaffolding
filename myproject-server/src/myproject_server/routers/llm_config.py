@@ -43,11 +43,10 @@ async def delete_provider(
     dependent_models = [m for m, cfg in config.models.items() if cfg.provider == nickname]
     if dependent_models:
         raise HTTPException(
-            status_code=400, detail=f"Cannot delete provider. It is used by models: {dependent_models}"
+            status_code=400, detail=f"Cannot delete provider. It is used by models: {dependent_models}",
         )
 
     update_user_yaml_config(user_dir, "providers", nickname, None)
-    return None
 
 
 @router.post("/models/{nickname}", status_code=status.HTTP_201_CREATED)
@@ -79,7 +78,6 @@ async def delete_model(
         raise HTTPException(status_code=400, detail="Cannot delete the default model")
 
     update_user_yaml_config(user_dir, "models", nickname, None)
-    return None
 
 
 @router.patch("/settings")

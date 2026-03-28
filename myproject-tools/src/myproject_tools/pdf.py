@@ -9,10 +9,9 @@ from .schema import ToolResult
 
 
 def convert_pdf_to_markdown(
-    pdf_path: Path, output_dir: Path | None = None, prune_references: bool = True
+    pdf_path: Path, output_dir: Path | None = None, prune_references: bool = True,
 ) -> str:
-    """
-    Converts a PDF (like an ArXiv paper) to Markdown text.
+    """Converts a PDF (like an ArXiv paper) to Markdown text.
 
     Args:
         pdf_path: Path to the local PDF file.
@@ -20,6 +19,7 @@ def convert_pdf_to_markdown(
 
     Returns:
         str: The converted Markdown content.
+
     """
     try:
         # Convert the PDF to Markdown text
@@ -29,7 +29,7 @@ def convert_pdf_to_markdown(
         # Ensure md_text is a string (handle list-return edge case)
         if isinstance(md_text, list):
             md_text = "\n".join(
-                [page.get("text", "") if isinstance(page, dict) else str(page) for page in md_text]
+                [page.get("text", "") if isinstance(page, dict) else str(page) for page in md_text],
             )
 
         # ArXiv Specific Pruning: Stop at References
@@ -97,7 +97,7 @@ class PdfToMarkdownTool(BaseTool):
         # 1. Validate Input PDF
         try:
             valid_pdf_path = self._validate_path(
-                working_directory, pdf_path, must_exist=True, should_be_file=True
+                working_directory, pdf_path, must_exist=True, should_be_file=True,
             )
         except ValueError as e:
             return ToolResult(tool_response=str(e), status="error")
@@ -107,7 +107,7 @@ class PdfToMarkdownTool(BaseTool):
         if output_dir:
             try:
                 valid_output_dir = self._validate_path(
-                    working_directory, output_dir, must_exist=True, should_be_dir=True
+                    working_directory, output_dir, must_exist=True, should_be_dir=True,
                 )
             except ValueError as e:
                 return ToolResult(tool_response=str(e), status="error")
@@ -149,7 +149,7 @@ class PdfToMarkdownTool(BaseTool):
 
 def main():
     convert_pdf_to_markdown(
-        Path("/home/gentran/Documents/myproject/inbox/2505.08588v1.pdf"), output_dir=Path("./inbox")
+        Path("/home/gentran/Documents/myproject/inbox/2505.08588v1.pdf"), output_dir=Path("./inbox"),
     )
 
 

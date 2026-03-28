@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, status
@@ -27,8 +27,7 @@ router = APIRouter(prefix="/productivity", tags=["productivity"])
 
 
 def apply_sorting(statement, model, sort_by: str, order: str):
-    """
-    Helper to apply order_by to a statement using getattr to satisfy
+    """Helper to apply order_by to a statement using getattr to satisfy
     linters while accessing SQLModel attributes.
     """
     field = getattr(model, sort_by)
@@ -93,7 +92,6 @@ def delete_project(project_id: int, session: ProdSessionDep):
 
     session.delete(db_project)
     session.commit()
-    return None
 
 
 # --- TASKS ---
@@ -125,11 +123,11 @@ def list_tasks(
     project_id: int | None = None,
     include_completed: bool = False,
     sort_by: Literal[
-        "assigned_date", "hard_deadline", "scheduled_start", "title", "status", "created_at"
+        "assigned_date", "hard_deadline", "scheduled_start", "title", "status", "created_at",
     ] = "assigned_date",
     order: Literal["asc", "desc"] = "asc",
 ):
-    statement = select(Task).options(selectinload(getattr(Task, "projects")))
+    statement = select(Task).options(selectinload(Task.projects))
 
     if project_id:
         statement = statement.join(ProjectTaskLink).where(ProjectTaskLink.project_id == project_id)
@@ -146,8 +144,7 @@ def list_tasks(
 
 @router.patch("/tasks/bulk", status_code=status.HTTP_200_OK)
 def bulk_update_tasks(data: TaskBulkUpdate, session: ProdSessionDep):
-    """
-    Perform mass updates on a list of tasks.
+    """Perform mass updates on a list of tasks.
     Supports updating fields (status, date) and modifying project links.
     """
     if not data.ids:
@@ -156,7 +153,7 @@ def bulk_update_tasks(data: TaskBulkUpdate, session: ProdSessionDep):
     # Fetch the tasks that need relationship updates or complex logic
     # We use selectinload to ensure we can modify projects immediately
     statement = (
-        select(Task).where(col(Task.id).in_(data.ids)).options(selectinload(getattr(Task, "projects")))
+        select(Task).where(col(Task.id).in_(data.ids)).options(selectinload(Task.projects))
     )
     tasks = session.exec(statement).all()
 
@@ -170,7 +167,7 @@ def bulk_update_tasks(data: TaskBulkUpdate, session: ProdSessionDep):
     for task in tasks:
         # Automatic completion timestamp
         if field_updates.get("status") == "completed" and task.status != "completed":
-            task.completed_at = datetime.now(timezone.utc)
+            task.completed_at = datetime.now(UTC)
 
         # Reopening a task
         if field_updates.get("status") == "todo" and task.status == "completed":
@@ -227,7 +224,7 @@ def bulk_delete_tasks(task_ids: list[int], session: ProdSessionDep):
 @router.get("/tasks/{task_id}", response_model=TaskRead)
 def get_task(task_id: int, session: ProdSessionDep):
     # Use selectinload to ensure project_ids are populated
-    statement = select(Task).where(Task.id == task_id).options(selectinload(getattr(Task, "projects")))
+    statement = select(Task).where(Task.id == task_id).options(selectinload(Task.projects))
     db_task = session.exec(statement).first()
     if not db_task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -237,7 +234,7 @@ def get_task(task_id: int, session: ProdSessionDep):
 @router.patch("/tasks/{task_id}", response_model=TaskRead)
 def update_task(task_id: int, data: TaskUpdate, session: ProdSessionDep):
     # Fetch with projects loaded so TaskRead can return them
-    statement = select(Task).where(Task.id == task_id).options(selectinload(getattr(Task, "projects")))
+    statement = select(Task).where(Task.id == task_id).options(selectinload(Task.projects))
     db_task = session.exec(statement).first()
 
     if not db_task:
@@ -247,7 +244,7 @@ def update_task(task_id: int, data: TaskUpdate, session: ProdSessionDep):
 
     # Automatic completion timestamp logic
     if update_data.get("status") == "completed" and db_task.status != "completed":
-        db_task.completed_at = datetime.now(timezone.utc)
+        db_task.completed_at = datetime.now(UTC)
     elif update_data.get("status") is not None and update_data.get("status") != "completed":
         db_task.completed_at = None
 
@@ -268,7 +265,6 @@ def delete_task(task_id: int, session: ProdSessionDep):
 
     session.delete(db_task)
     session.commit()
-    return None
 
 
 # --- JOURNALS ---
@@ -320,7 +316,7 @@ def update_journal(journal_id: int, data: JournalEntryUpdate, session: ProdSessi
     for key, value in update_data.items():
         setattr(db_entry, key, value)
 
-    db_entry.updated_at = datetime.now(timezone.utc)
+    db_entry.updated_at = datetime.now(UTC)
     session.add(db_entry)
     session.commit()
     session.refresh(db_entry)
@@ -335,7 +331,6 @@ def delete_journal(journal_id: int, session: ProdSessionDep):
 
     session.delete(db_entry)
     session.commit()
-    return None
 
 
 # --- RELATIONSHIP MANAGEMENT ---
@@ -347,8 +342,8 @@ def link_task_to_project(task_id: int, project_id: int, session: ProdSessionDep)
     # Check if already exists to avoid unique constraint error
     existing = session.exec(
         select(ProjectTaskLink).where(
-            ProjectTaskLink.task_id == task_id, ProjectTaskLink.project_id == project_id
-        )
+            ProjectTaskLink.task_id == task_id, ProjectTaskLink.project_id == project_id,
+        ),
     ).first()
 
     if not existing:
@@ -362,10 +357,9 @@ def link_task_to_project(task_id: int, project_id: int, session: ProdSessionDep)
 def unlink_task_from_project(task_id: int, project_id: int, session: ProdSessionDep):
     """Removes the relationship between a task and a project."""
     statement = select(ProjectTaskLink).where(
-        ProjectTaskLink.task_id == task_id, ProjectTaskLink.project_id == project_id
+        ProjectTaskLink.task_id == task_id, ProjectTaskLink.project_id == project_id,
     )
     link = session.exec(statement).first()
     if link:
         session.delete(link)
         session.commit()
-    return None

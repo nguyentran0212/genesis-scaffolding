@@ -24,7 +24,7 @@ async def create_schedule(
 ):
     # 1. Capture the directory from the dependency
     db_schedule = WorkflowSchedule(
-        **payload.model_dump(), user_id=cast(int, user.id), user_directory=str(user_inbox)
+        **payload.model_dump(), user_id=cast("int", user.id), user_directory=str(user_inbox),
     )
 
     session.add(db_schedule)
@@ -84,7 +84,7 @@ async def update_schedule(
     if db_schedule.enabled:
         scheduler.upsert_schedule(db_schedule)
     else:
-        scheduler.remove_schedule(cast(int, db_schedule.id))
+        scheduler.remove_schedule(cast("int", db_schedule.id))
 
     return db_schedule
 
@@ -101,9 +101,8 @@ async def delete_schedule(
         raise HTTPException(status_code=404, detail="Schedule not found")
 
     # Remove from memory first
-    scheduler.remove_schedule(cast(int, db_schedule.id))
+    scheduler.remove_schedule(cast("int", db_schedule.id))
 
     # Remove from DB
     session.delete(db_schedule)
     session.commit()
-    return

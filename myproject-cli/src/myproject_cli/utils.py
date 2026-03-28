@@ -43,7 +43,7 @@ class RichWorkflowRenderer:
                     title=f"[bold green]✓ {event.step_id} Success[/bold green]",
                     title_align="left",
                     border_style="green",
-                )
+                ),
             )
 
         elif event.event_type == WorkflowEventType.ERROR:

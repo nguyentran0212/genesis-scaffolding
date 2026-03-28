@@ -2,7 +2,6 @@ import mimetypes
 import time
 from pathlib import Path
 
-from myproject_core.configs import Config
 from sqlmodel import Session, select
 
 from ..models.file_record import FileRecord
@@ -13,8 +12,7 @@ _last_sync_cache = {}
 
 
 def sync_folder_shallow(session: Session, user_id: int, user_sandbox_path: Path, folder_path: str = "."):
-    """
-    Syncs only the immediate contents of a specific folder.
+    """Syncs only the immediate contents of a specific folder.
     This is an optimisation to avoid rglob on entire disk every time we touch files endpoint
     """
     current_time = time.time()

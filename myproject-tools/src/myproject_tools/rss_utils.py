@@ -1,8 +1,8 @@
 import asyncio
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 import feedparser
 
@@ -10,12 +10,11 @@ from .base import BaseTool
 from .schema import ToolResult
 
 
-def fetch_single_rss(url: str, since_days: int = 1) -> List[Dict[str, Any]]:
-    """
-    Blocking function to fetch and parse a single RSS feed.
+def fetch_single_rss(url: str, since_days: int = 1) -> list[dict[str, Any]]:
+    """Blocking function to fetch and parse a single RSS feed.
     """
     all_entries = []
-    cutoff_date = datetime.now(timezone.utc) - timedelta(days=since_days)
+    cutoff_date = datetime.now(UTC) - timedelta(days=since_days)
 
     # feedparser.parse is a blocking network call
     feed_data: Any = feedparser.parse(url)
@@ -29,7 +28,7 @@ def fetch_single_rss(url: str, since_days: int = 1) -> List[Dict[str, Any]]:
 
         if published_parsed:
             timestamp = time.mktime(published_parsed)
-            published_dt = datetime.fromtimestamp(timestamp, tz=timezone.utc)
+            published_dt = datetime.fromtimestamp(timestamp, tz=UTC)
 
         # Include if it's within the time window OR if it has no date (to be safe)
         if (published_dt and published_dt >= cutoff_date) or not published_parsed:
@@ -40,7 +39,7 @@ def fetch_single_rss(url: str, since_days: int = 1) -> List[Dict[str, Any]]:
                     "summary": entry.get("summary", ""),
                     "published": published_dt.isoformat() if published_dt else "Unknown",
                     "feed_title": feed_title,
-                }
+                },
             )
 
     return all_entries
@@ -77,7 +76,7 @@ class RssFetchTool(BaseTool):
             entries = await asyncio.to_thread(fetch_single_rss, url=url, since_days=since_days)
         except Exception as e:
             return ToolResult(
-                status="error", tool_response=f"Failed to fetch RSS feed from {url}: {str(e)}"
+                status="error", tool_response=f"Failed to fetch RSS feed from {url}: {e!s}",
             )
 
         if not entries:

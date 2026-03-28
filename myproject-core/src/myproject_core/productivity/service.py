@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from typing import Any, Literal
 
 from sqlalchemy.orm import selectinload
@@ -73,7 +73,7 @@ def delete_project(session: Session, project_id: int) -> bool:
 
 
 def get_task(session: Session, task_id: int) -> Task | None:
-    statement = select(Task).where(Task.id == task_id).options(selectinload(getattr(Task, "projects")))
+    statement = select(Task).where(Task.id == task_id).options(selectinload(Task.projects))
     return session.exec(statement).first()
 
 
@@ -83,11 +83,11 @@ def list_tasks(
     project_id: int | None = None,
     include_completed: bool = False,
     sort_by: Literal[
-        "assigned_date", "hard_deadline", "scheduled_start", "title", "status", "created_at"
+        "assigned_date", "hard_deadline", "scheduled_start", "title", "status", "created_at",
     ] = "assigned_date",
     order: Literal["asc", "desc"] = "asc",
 ) -> list[Task]:
-    statement = select(Task).options(selectinload(getattr(Task, "projects")))
+    statement = select(Task).options(selectinload(Task.projects))
 
     if project_id:
         statement = statement.join(ProjectTaskLink).where(ProjectTaskLink.project_id == project_id)
@@ -118,7 +118,7 @@ def create_task(session: Session, data: dict[str, Any], project_ids: list[int] |
 
 
 def update_task(session: Session, task_id: int, data: dict[str, Any]) -> Task | None:
-    statement = select(Task).where(Task.id == task_id).options(selectinload(getattr(Task, "projects")))
+    statement = select(Task).where(Task.id == task_id).options(selectinload(Task.projects))
     db_task = session.exec(statement).first()
 
     if not db_task:
@@ -126,7 +126,7 @@ def update_task(session: Session, task_id: int, data: dict[str, Any]) -> Task | 
 
     # Handle completion timestamp logic automatically
     if data.get("status") == "completed" and db_task.status != "completed":
-        db_task.completed_at = datetime.now(timezone.utc)
+        db_task.completed_at = datetime.now(UTC)
     elif data.get("status") is not None and data.get("status") != "completed":
         db_task.completed_at = None
 
@@ -162,14 +162,14 @@ def bulk_update_tasks(
         return 0
 
     statement = (
-        select(Task).where(col(Task.id).in_(task_ids)).options(selectinload(getattr(Task, "projects")))
+        select(Task).where(col(Task.id).in_(task_ids)).options(selectinload(Task.projects))
     )
     tasks = session.exec(statement).all()
 
     for task in tasks:
         # Automatic completion timestamp
         if field_updates.get("status") == "completed" and task.status != "completed":
-            task.completed_at = datetime.now(timezone.utc)
+            task.completed_at = datetime.now(UTC)
         if field_updates.get("status") == "todo" and task.status == "completed":
             task.completed_at = None
 
@@ -260,7 +260,7 @@ def update_journal(session: Session, journal_id: int, data: dict[str, Any]) -> J
         if hasattr(db_entry, key):
             setattr(db_entry, key, value)
 
-    db_entry.updated_at = datetime.now(timezone.utc)
+    db_entry.updated_at = datetime.now(UTC)
     session.add(db_entry)
     session.commit()
     session.refresh(db_entry)
@@ -282,8 +282,8 @@ def delete_journal(session: Session, journal_id: int) -> bool:
 def link_task_to_project(session: Session, task_id: int, project_id: int) -> bool:
     existing = session.exec(
         select(ProjectTaskLink).where(
-            ProjectTaskLink.task_id == task_id, ProjectTaskLink.project_id == project_id
-        )
+            ProjectTaskLink.task_id == task_id, ProjectTaskLink.project_id == project_id,
+        ),
     ).first()
 
     if not existing:
@@ -296,7 +296,7 @@ def link_task_to_project(session: Session, task_id: int, project_id: int) -> boo
 
 def unlink_task_from_project(session: Session, task_id: int, project_id: int) -> bool:
     statement = select(ProjectTaskLink).where(
-        ProjectTaskLink.task_id == task_id, ProjectTaskLink.project_id == project_id
+        ProjectTaskLink.task_id == task_id, ProjectTaskLink.project_id == project_id,
     )
     link = session.exec(statement).first()
     if link:

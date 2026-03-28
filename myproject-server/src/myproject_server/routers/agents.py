@@ -1,4 +1,4 @@
-from typing import Annotated, List
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from myproject_core.agent_registry import AgentRegistry
@@ -10,10 +10,9 @@ from ..schemas.agent import AgentCreate, AgentEdit, AgentRead
 router = APIRouter(prefix="/agents", tags=["agents"])
 
 
-@router.get("/", response_model=List[AgentRead])
+@router.get("/", response_model=list[AgentRead])
 async def list_agents(agent_reg: AgentRegistry = Depends(get_agent_registry)):
-    """
-    Returns a list of all available agents blueprints.
+    """Returns a list of all available agents blueprints.
     """
     results = []
     for id, blueprint in agent_reg.blueprints.items():
@@ -28,7 +27,7 @@ async def list_agents(agent_reg: AgentRegistry = Depends(get_agent_registry)):
                 allowed_agents=blueprint.allowed_agents,
                 system_prompt=blueprint.system_prompt,
                 model_name=blueprint.model_name,
-            )
+            ),
         )
     return results
 
@@ -39,8 +38,7 @@ async def create_agent(
     agent_reg: Annotated[AgentRegistry, Depends(get_agent_registry)],
     user_settings: Annotated[Config, Depends(get_user_config)],
 ):
-    """
-    Creates a new custom agent by saving a markdown file to the user's directory.
+    """Creates a new custom agent by saving a markdown file to the user's directory.
     """
     # Prepare data for the registry
     agent_dict = payload.model_dump()
@@ -56,7 +54,7 @@ async def create_agent(
     llm_config = user_settings.models.get(llm_model_name, None)
     if not llm_config:
         raise HTTPException(
-            status_code=400, detail=f"Cannot find the requested llm model: {llm_model_name}"
+            status_code=400, detail=f"Cannot find the requested llm model: {llm_model_name}",
         )
 
     provider_name = llm_config.provider
@@ -88,13 +86,12 @@ async def create_agent(
             model_name=blueprint.model_name,
         )
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Could not create agent: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Could not create agent: {e!s}")
 
 
 @router.get("/{agent_id}", response_model=AgentRead)
 async def get_agent_details(agent_id: str, agent_reg: AgentRegistry = Depends(get_agent_registry)):
-    """
-    Returns the full metadata for a specific agent.
+    """Returns the full metadata for a specific agent.
     """
     blueprint = agent_reg.blueprints.get(agent_id)
     if not blueprint:
@@ -126,8 +123,7 @@ async def delete_agent(
     agent_id: str,
     agent_reg: "AgentRegistry" = Depends(get_agent_registry),  # type: ignore[name-defined]
 ):
-    """
-    Delete an agent from the registry.
+    """Delete an agent from the registry.
 
     - If the agent does not exist, a 404 is returned.
     - If the agent exists but is marked ``read_only``, a 403 is returned.
@@ -156,7 +152,6 @@ async def delete_agent(
         )
 
     # Returning ``None`` with the 204 status code tells FastAPI to send an empty body.
-    return None
 
 
 @router.patch(
@@ -174,8 +169,7 @@ async def update_agent(
     payload: AgentEdit,
     agent_reg: Annotated[AgentRegistry, Depends(get_agent_registry)],
 ):
-    """
-    Update an existing agent definition.
+    """Update an existing agent definition.
 
     * The file is looked up in the **last** directory of ``settings.path.agent_search_paths``.
     * ``system_prompt`` becomes the markdown **body**; all other fields are treated as metadata.

@@ -1,6 +1,5 @@
-from datetime import date, datetime, time, timezone
+from datetime import UTC, date, datetime
 from enum import Enum
-from typing import Optional
 
 from sqlalchemy import Column, DateTime, MetaData
 from sqlmodel import Field, Relationship, SQLModel
@@ -29,23 +28,23 @@ class Status(str, Enum):
 
 def get_utc_now():
     """Helper to handle the deprecated utcnow()"""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class ProjectTaskLink(SQLModel, table=True):
     metadata = productivity_metadata
-    project_id: Optional[int] = Field(default=None, foreign_key="project.id", primary_key=True)
-    task_id: Optional[int] = Field(default=None, foreign_key="task.id", primary_key=True)
+    project_id: int | None = Field(default=None, foreign_key="project.id", primary_key=True)
+    task_id: int | None = Field(default=None, foreign_key="task.id", primary_key=True)
 
 
 class Project(SQLModel, table=True):
     metadata = productivity_metadata
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     name: str = Field(index=True)
-    description: Optional[str] = None
+    description: str | None = None
 
-    start_date: Optional[date] = None
-    deadline: Optional[date] = None
+    start_date: date | None = None
+    deadline: date | None = None
     status: Status = Field(default=Status.TODO)
 
     # Relationships
@@ -55,29 +54,29 @@ class Project(SQLModel, table=True):
 
 class Task(SQLModel, table=True):
     metadata = productivity_metadata
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     title: str = Field(index=True)
-    description: Optional[str] = None
+    description: str | None = None
 
     # --- ABSOLUTE TIME (UTC) ---
     # We use sa_column to force SQLModel/SQLAlchemy to treat these as
     # Timezone-aware. SQLite will store these as ISO strings.
     created_at: datetime = Field(
-        default_factory=get_utc_now, sa_column=Column(DateTime(timezone=True), nullable=False)
+        default_factory=get_utc_now, sa_column=Column(DateTime(timezone=True), nullable=False),
     )
-    completed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    completed_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
     # The "Boss" deadline. If it's 5pm, it's 5pm in a specific TZ.
-    hard_deadline: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    hard_deadline: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
 
     # --- FLOATING TIME (Calendar Dates) ---
     # They represent "The day the user sees on their wall calendar."
-    assigned_date: Optional[date] = None
+    assigned_date: date | None = None
 
     # --- APPOINTMENT (Absolute UTC) ---
     # User says: "Dentist at 9:00 AM Adelaide time."
     # The Frontend converts "9:00 AM Friday Adelaide" -> "11:30 PM Thursday UTC"
     # We store the UTC version here.
-    scheduled_start: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    scheduled_start: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
     duration_minutes: int | None = None
 
     status: Status = Field(default=Status.TODO)
@@ -93,15 +92,15 @@ class Task(SQLModel, table=True):
 
 class JournalEntry(SQLModel, table=True):
     metadata = productivity_metadata
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     entry_type: JournalType = Field(index=True)
 
-    title: Optional[str] = None
+    title: str | None = None
     content: str  # Markdown text for goals, reviews, logs
 
     # Optional link to a project (for project-specific logs)
-    project_id: Optional[int] = Field(default=None, foreign_key="project.id")
-    project: Optional[Project] = Relationship(back_populates="journals")
+    project_id: int | None = Field(default=None, foreign_key="project.id")
+    project: Project | None = Relationship(back_populates="journals")
 
     # The date this entry refers to:
     # - For Daily: The specific day

@@ -9,8 +9,7 @@ from .schemas import JobContext
 
 
 async def streamcallback_simple_print(text: str):
-    """
-    Simple StreamCallback function to display LLM content and reasoning chunks to terminal
+    """Simple StreamCallback function to display LLM content and reasoning chunks to terminal
     'end=""' prevents newlines between chunks.
     'flush=True' forces the character to appear immediately (ignoring output buffering).
     """
@@ -18,12 +17,11 @@ async def streamcallback_simple_print(text: str):
 
 
 def resolve_placeholders(
-    dict_with_placeholders: dict[str, Any], dict_with_source_content: dict[str, Any]
+    dict_with_placeholders: dict[str, Any], dict_with_source_content: dict[str, Any],
 ) -> dict[str, Any]:
     """Recursively renders Jinja2 strings in the params dictionary."""
-
     jinja_env = jinja2.Environment(
-        undefined=jinja2.StrictUndefined  # Errors out if a variable is missing
+        undefined=jinja2.StrictUndefined,  # Errors out if a variable is missing
     )
 
     def render_value(val):
@@ -37,17 +35,16 @@ def resolve_placeholders(
         return val
 
     # The following cast is valid because params is a dict, so render_value would always output a dict after recursion
-    return cast(dict[str, Any], render_value(dict_with_placeholders))
+    return cast("dict[str, Any]", render_value(dict_with_placeholders))
 
 
 def evaluate_condition(condition_str: str, state: dict) -> bool:
-    """
-    Evaluates a Jinja expression string against the current state.
+    """Evaluates a Jinja expression string against the current state.
     Expects conditions like: "steps.agent_step.status == 'success'"
     or "{{ steps.agent_step.content | length > 100 }}"
     """
     jinja_env = jinja2.Environment(
-        undefined=jinja2.StrictUndefined  # Errors out if a variable is missing
+        undefined=jinja2.StrictUndefined,  # Errors out if a variable is missing
     )
     # Clean the string
     # If the user included {{ }}, we strip them to get the raw expression
@@ -68,8 +65,7 @@ def evaluate_condition(condition_str: str, state: dict) -> bool:
 
 
 def slugify(text: str) -> str:
-    """
-    Transforms user input into a filesystem-safe string.
+    """Transforms user input into a filesystem-safe string.
     'My Project!!' -> 'my-project'
     """
     # Normalize unicode (removes accents)
@@ -82,8 +78,7 @@ def slugify(text: str) -> str:
 
 
 def validate_path_safety(job: JobContext, target_path: Path) -> bool:
-    """
-    Security check: Ensures a file operation is within the job root.
+    """Security check: Ensures a file operation is within the job root.
     Use this before any agent-driven 'write' or 'read' operation.
     """
     try:

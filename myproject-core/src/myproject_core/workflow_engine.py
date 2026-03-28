@@ -74,7 +74,7 @@ class WorkflowEngine:
                     # It is a standard 'def' (Synchronous).
                     # We automatically offload it to a thread to prevent blocking the caller.
                     output = await asyncio.to_thread(
-                        task_instance.run, job_context, self.agent_registry, resolved_params
+                        task_instance.run, job_context, self.agent_registry, resolved_params,
                     )
             except Exception as e:
                 if step_callbacks:

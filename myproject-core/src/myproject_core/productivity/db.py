@@ -1,4 +1,4 @@
-from typing import Generator
+from collections.abc import Generator
 
 from sqlmodel import Session, create_engine
 
@@ -11,8 +11,7 @@ _user_engines = {}
 
 
 def get_user_engine(config: Config | None = None, db_url: str | None = None, echo_sql=False):
-    """
-    Returns a SQLModel engine for the user's private database.
+    """Returns a SQLModel engine for the user's private database.
     Ensures the database and tables exist.
     """
     target_url = db_url or (config.user_db.connection_string if config else None)
@@ -35,7 +34,7 @@ def get_user_engine(config: Config | None = None, db_url: str | None = None, ech
 
 
 def get_user_session(
-    config: Config | None = None, db_url: str | None = None
+    config: Config | None = None, db_url: str | None = None,
 ) -> Generator[Session, None, None]:
     """Dependency or context manager to get a session."""
     engine = get_user_engine(config=config, db_url=db_url)

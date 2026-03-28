@@ -46,7 +46,7 @@ class WorkflowRegistry:
 
             # Use model_json_schema to get keys, or model_construct for a dummy obj
             output_keys = task_cls.output_model.model_fields.keys()
-            dummy_output = {key: "dummy_val" for key in output_keys}
+            dummy_output = dict.fromkeys(output_keys, "dummy_val")
 
             fake_state["steps"][step.id] = dummy_output
 

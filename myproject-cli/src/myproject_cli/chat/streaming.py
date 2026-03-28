@@ -5,8 +5,7 @@ from rich.text import Text
 
 
 class StreamingDisplay:
-    """
-    A dedicated class that Rich knows how to render.
+    """A dedicated class that Rich knows how to render.
     It acts as a 'data container' that Rich polls for updates.
     """
 
@@ -53,7 +52,7 @@ class CLIStreamHandler:
         self.stop_live()
         tool_result = args.get("result", "")
         self.console.print(
-            f"\n[bold green]🛠️  Finished executing tool {name}...[/bold green] [dim]({tool_result})[/dim]"
+            f"\n[bold green]🛠️  Finished executing tool {name}...[/bold green] [dim]({tool_result})[/dim]",
         )
 
     def start_live(self):

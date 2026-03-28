@@ -44,13 +44,13 @@ class GenesisCLI:
         def run(
             ctx: typer.Context,
             list_workflows: Annotated[
-                bool, typer.Option("--list", help="List all available workflows", is_eager=True)
+                bool, typer.Option("--list", help="List all available workflows", is_eager=True),
             ] = False,
             workflow_id: Annotated[
-                str | None, typer.Argument(help="The ID of the workflow to execute")
+                str | None, typer.Argument(help="The ID of the workflow to execute"),
             ] = None,
             help: Annotated[
-                bool, typer.Option("--help", help="Show help for the command or a specific workflow")
+                bool, typer.Option("--help", help="Show help for the command or a specific workflow"),
             ] = False,
         ):
             # Handle Global Help (no workflow_id provided)
@@ -150,7 +150,7 @@ class GenesisCLI:
             reset: bool = typer.Option(False, "--reset"),
         ):
             agent = self.agent_registry.create_agent(
-                agent_id, working_directory=self.settings.path.working_directory
+                agent_id, working_directory=self.settings.path.working_directory,
             )
 
             if not agent:
@@ -166,7 +166,7 @@ class GenesisCLI:
                     "Type [bold cyan]/add[/bold cyan] to attach files, [bold cyan]/exit[/bold cyan] to quit.",
                     title="Interactive Session",
                     border_style="blue",
-                )
+                ),
             )
 
             session = ChatSession(agent, self._console)
@@ -182,7 +182,7 @@ class GenesisCLI:
                 title=f"[bold cyan]Workflow: {manifest.name}[/bold cyan]",
                 title_align="left",
                 border_style="cyan",
-            )
+            ),
         )
 
         table = Table(show_header=True, header_style="bold green", box=None)

@@ -14,7 +14,7 @@ class MockTestTool(BaseTool):
     }
 
     async def run(
-        self, working_directory: Path, input_text: str, should_fail: bool = False, **kwargs: Any
+        self, working_directory: Path, input_text: str, should_fail: bool = False, **kwargs: Any,
     ) -> ToolResult:
         if should_fail:
             # Test exception catching

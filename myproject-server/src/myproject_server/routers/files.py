@@ -25,8 +25,7 @@ async def upload_file(
     session: Annotated[Session, Depends(get_session)],
     subfolder: str = ".",
 ):
-    """
-    Upload a file to subfolder/filename.ext
+    """Upload a file to subfolder/filename.ext
     The subfolder exist underneath user inbox declared in user_path
     So, the real path on disk would be user_path/subfolder/filename.ext
     """
@@ -61,7 +60,7 @@ async def upload_file(
 
     # 4. UPSERT LOGIC: Check if file record already exists
     statement = select(FileRecord).where(
-        FileRecord.user_id == user.id, FileRecord.relative_path == str(user_rel_path)
+        FileRecord.user_id == user.id, FileRecord.relative_path == str(user_rel_path),
     )
     existing_record = session.exec(statement).first()
 
@@ -171,7 +170,6 @@ async def delete_file(
     session.delete(file_record)
     session.commit()
 
-    return None
 
 
 @router.get("/folders", response_model=list[str])

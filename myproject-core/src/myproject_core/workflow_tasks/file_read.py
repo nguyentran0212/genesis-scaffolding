@@ -24,7 +24,7 @@ class FileReadTask(BaseTask[TaskParams, TaskOutput]):
                 # Only read text-based files
                 if p.suffix.lower() in [".md", ".txt"]:
                     try:
-                        with open(p, "r", encoding="utf-8") as f:
+                        with open(p, encoding="utf-8") as f:
                             all_contents.append(f.read())
                         valid_paths.append(p)
                     except Exception as e:

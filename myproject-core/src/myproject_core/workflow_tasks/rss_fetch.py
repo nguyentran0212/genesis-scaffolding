@@ -1,7 +1,7 @@
 import asyncio
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Union
+from typing import Any
 
 from myproject_tools.rss_utils import fetch_single_rss
 
@@ -11,7 +11,7 @@ from .base_task import BaseTask, TaskOutput, TaskParams
 
 
 class RSSFetchTaskParams(TaskParams):
-    feed_urls: List[str]
+    feed_urls: list[str]
     since_days: int = 1
     # Default prefix for individual files
     output_filename_prefix: str = "rss_item_"
@@ -27,11 +27,11 @@ class RSSFetchTask(BaseTask[RSSFetchTaskParams, TaskOutput]):
         # 1. Fetch entries in parallel
         fetch_tasks = [asyncio.to_thread(fetch_single_rss, url, args.since_days) for url in args.feed_urls]
 
-        results: List[Union[List[Dict[str, Any]], BaseException]] = await asyncio.gather(
-            *fetch_tasks, return_exceptions=True
+        results: list[list[dict[str, Any]] | BaseException] = await asyncio.gather(
+            *fetch_tasks, return_exceptions=True,
         )
 
-        all_entries: List[Dict[str, Any]] = []
+        all_entries: list[dict[str, Any]] = []
         for i, result in enumerate(results):
             if isinstance(result, BaseException):
                 print(f"Error fetching RSS from {args.feed_urls[i]}: {result}")
@@ -39,8 +39,8 @@ class RSSFetchTask(BaseTask[RSSFetchTaskParams, TaskOutput]):
             all_entries.extend(result)
 
         # 2. Format content for blackboard and generate file paths
-        formatted_content: List[str] = []
-        file_paths: List[Path] = []
+        formatted_content: list[str] = []
+        file_paths: list[Path] = []
 
         if all_entries:
             sub_dir = args.sub_directory or ""

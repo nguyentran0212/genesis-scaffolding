@@ -21,8 +21,6 @@ allowed_tools:
   - search_file_content
   - search_tasks
   - read_task
-  - search_tasks
-  - read_task
   - search_projects
   - read_project
   - search_journals

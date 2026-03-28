@@ -1,6 +1,7 @@
+from collections.abc import Awaitable, Callable
 from enum import Enum
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Dict, List, Literal, Optional
+from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
@@ -8,8 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
 ### JobContext object to be used by workspace manager
 class JobContext:
-    """
-    A value object representing an active job session of a workflow
+    """A value object representing an active job session of a workflow
     This is what the agent or workflow logic interacts with.
     """
 
@@ -33,8 +33,7 @@ class LLMProvider(BaseModel):
 
 
 class LLMModelConfig(BaseModel):
-    """
-    Configuration for a specific model instance.
+    """Configuration for a specific model instance.
     'provider' matches a key in the providers dictionary.
     'model' is the actual model string passed to LiteLLM.
     'params' contains extra arguments like temperature, max_tokens, reasoning_effort, etc.
@@ -42,7 +41,7 @@ class LLMModelConfig(BaseModel):
 
     provider: str
     model: str
-    params: Dict[str, Any] = Field(default_factory=dict)
+    params: dict[str, Any] = Field(default_factory=dict)
 
 
 ### LLM Response Message
@@ -158,13 +157,12 @@ class AgentClipboard(BaseModel):
     def add_tool_result_to_clipboard(self, tool_name: str, tool_call_id: str, tool_call_results: list[str]):
         """Add results of tool call to the clipboard"""
         new_tool_result = AgentClipboardToolResult(
-            tool_name=tool_name, tool_call_id=tool_call_id, tool_call_results=tool_call_results
+            tool_name=tool_name, tool_call_id=tool_call_id, tool_call_results=tool_call_results,
         )
         self.tool_results[tool_call_id] = new_tool_result
 
     def remove_file_from_clipboard(self, file_path: Path) -> bool:
-        """
-        Remove a given file from clipboard
+        """Remove a given file from clipboard
         Return False if file does not exist.
         """
         if str(file_path) in self.accessed_files:
@@ -187,7 +185,7 @@ class AgentClipboard(BaseModel):
             self.pinned_entities[key].ttl = ttl
         else:
             self.pinned_entities[key] = AgentClipboardPinnedEntity(
-                item_type=item_type, item_id=item_id, resolution=resolution, ttl=ttl
+                item_type=item_type, item_id=item_id, resolution=resolution, ttl=ttl,
             )
 
     def reduce_ttl(self):
@@ -217,8 +215,7 @@ class AgentClipboard(BaseModel):
         }
 
     def commit(self):
-        """
-        Remove previous version of existing files from clipboard
+        """Remove previous version of existing files from clipboard
         """
         for clipboard_file in self.accessed_files.values():
             clipboard_file.is_new = False
@@ -354,8 +351,7 @@ class AgentClipboard(BaseModel):
         return "\n\n".join(sections)
 
     def get_accessed_files_paths(self) -> list[Path]:
-        """
-        Return a list of paths of all accessed files
+        """Return a list of paths of all accessed files
         """
         str_paths: list[str] = list(self.accessed_files.keys())
         return [Path(str_path) for str_path in str_paths]
@@ -372,7 +368,7 @@ class WorkflowEventType(str, Enum):
 
 class WorkflowEvent(BaseModel):
     event_type: WorkflowEventType
-    step_id: Optional[str] = None
+    step_id: str | None = None
     message: str
     data: Any | None = None  # Holds the output object or specific metadata
 
@@ -382,8 +378,7 @@ WorkflowCallback = Callable[[WorkflowEvent], Awaitable[None]]
 
 ### Schema for workflow manifest yamls
 class WorkflowInputType(str, Enum):
-    """
-    Data types of workflow inputs for the workflow manifests
+    """Data types of workflow inputs for the workflow manifests
     """
 
     STRING = "string"
@@ -397,15 +392,15 @@ class WorkflowInputType(str, Enum):
 
 
 # Map our WorkflowInputType Enum to actual Python types for Pydantic to do run-time validation
-TYPE_MAP: Dict[WorkflowInputType, Any] = {
+TYPE_MAP: dict[WorkflowInputType, Any] = {
     WorkflowInputType.STRING: str,
     WorkflowInputType.INT: int,
     WorkflowInputType.FLOAT: float,
     WorkflowInputType.BOOL: bool,
     WorkflowInputType.FILE: Path,
     WorkflowInputType.DIR: Path,
-    WorkflowInputType.LIST_STRING: List[str],
-    WorkflowInputType.LIST_FILE: List[Path],
+    WorkflowInputType.LIST_STRING: list[str],
+    WorkflowInputType.LIST_FILE: list[Path],
 }
 
 
@@ -414,7 +409,7 @@ class InputDefinition(BaseModel):
 
     type: WorkflowInputType
     description: str = Field(..., description="Help text for the user")
-    default: Optional[Any] = None
+    default: Any | None = None
     required: bool = False
 
 
@@ -423,12 +418,12 @@ class StepDefinition(BaseModel):
 
     id: str = Field(..., description="Unique ID for this step to reference its data later")
     type: str = Field(..., description="The task type, e.g., 'prompt_agent' or 'file_ingest'")
-    params: Dict[str, Any] = Field(
+    params: dict[str, Any] = Field(
         default_factory=dict,
         description="Configuration passed to the task. Can contain {{ placeholders }}.",
     )
-    condition: Optional[str] = Field(
-        None, description="A Jinja2 expression. If False, the step is skipped."
+    condition: str | None = Field(
+        None, description="A Jinja2 expression. If False, the step is skipped.",
     )
 
 
@@ -437,7 +432,7 @@ class OutputDefinition(BaseModel):
 
     description: str = Field(..., description="Help text for the user")
     value: str = Field(
-        ..., description="Contain {{ placeholders }} that specifies data source for this output."
+        ..., description="Contain {{ placeholders }} that specifies data source for this output.",
     )
 
 
@@ -460,8 +455,7 @@ class WorkflowManifest(BaseModel):
     outputs: dict[str, OutputDefinition]
 
     def validate_runtime_inputs(self, raw_data: dict) -> dict:
-        """
-        Validate the raw input data to a workflow against its type definition stored in input dict
+        """Validate the raw input data to a workflow against its type definition stored in input dict
         """
         validated = {}
         for name, defn in self.inputs.items():
@@ -502,10 +496,9 @@ class WorkflowManifest(BaseModel):
 
     @classmethod
     def from_yaml(cls, path: Path) -> "WorkflowManifest":
+        """Utility function to create a WorkflowManifest object directly from reading a YAML file
         """
-        Utility function to create a WorkflowManifest object directly from reading a YAML file
-        """
-        with open(path, "r") as f:
+        with open(path) as f:
             data = yaml.safe_load(f)
         return cls(**data)
 

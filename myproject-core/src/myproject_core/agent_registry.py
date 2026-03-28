@@ -34,7 +34,7 @@ class AgentRegistry:
 
                     llm_model_name = str(raw_data.get("model_name", ""))
                     [raw_data["llm_config"], raw_data["provider_config"]] = self._get_llm_model_config(
-                        llm_model_name
+                        llm_model_name,
                     )
                     # if llm_model_name == "":
                     #     # If there is no llm_model_name in the config, default to default model.
@@ -65,8 +65,7 @@ class AgentRegistry:
                     continue  # Continue so that it does not break init step if user accidentally write a bad agent
 
     def add_agent(self, agent_data: dict) -> str:
-        """
-        Persists a new agent to the user's local agent directory.
+        """Persists a new agent to the user's local agent directory.
         Returns the agent_id (filename stem).
         """
         # 1. Determine the writeable path (the user-specific internal state dir)
@@ -102,8 +101,7 @@ class AgentRegistry:
         return agent_id
 
     def delete_agent(self, agent_id: str):
-        """
-        Persists a new agent to the user's local agent directory.
+        """Persists a new agent to the user's local agent directory.
         Returns the agent_id (filename stem).
         """
         # Find the requested agent
@@ -128,8 +126,7 @@ class AgentRegistry:
         self.load_all()
 
     def edit_agent(self, agent_id: str, updated_data: dict[str, Any]) -> str:
-        """
-        Update an existing agent’s metadata and/or system prompt.
+        """Update an existing agent’s metadata and/or system prompt.
         """
         write_dir = self.settings.path.agent_search_paths[-1]
         file_path = write_dir / f"{agent_id}.md"
@@ -220,7 +217,7 @@ async def main():
     agent = agent_registry.create_agent("assistant_agent", settings.path.working_directory)
 
     print(
-        f"Turn 1:\n{await agent.step('hello, how are you?', working_directory=Path(__file__).parent)}\n-----"
+        f"Turn 1:\n{await agent.step('hello, how are you?', working_directory=Path(__file__).parent)}\n-----",
     )
 
     await agent.add_file(Path(__file__).resolve())

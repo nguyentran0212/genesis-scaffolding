@@ -1,5 +1,5 @@
-from datetime import date, datetime, time, timezone
-from typing import Annotated, Optional
+from datetime import UTC, date, datetime
+from typing import Annotated
 
 from myproject_core.productivity.models import JournalType, Status
 from pydantic import AfterValidator, BaseModel, ConfigDict, PlainSerializer
@@ -7,17 +7,16 @@ from pydantic import AfterValidator, BaseModel, ConfigDict, PlainSerializer
 # --- Utilities ---
 
 
-def ensure_utc(dt: Optional[datetime]) -> Optional[datetime]:
-    """
-    Validator to ensure that any incoming datetime is converted to UTC
+def ensure_utc(dt: datetime | None) -> datetime | None:
+    """Validator to ensure that any incoming datetime is converted to UTC
     and remains timezone-aware.
     """
     if dt is None:
         return None
     if dt.tzinfo is None:
         # If the frontend forgot to send a timezone, we assume UTC
-        return dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
+        return dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC)
 
 
 def serialize_utc(dt: datetime) -> str:
@@ -26,14 +25,14 @@ def serialize_utc(dt: datetime) -> str:
         return None
     # Ensure it's treated as UTC even if the DB returned it as naive
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
+        dt = dt.replace(tzinfo=UTC)
     # Format: 2024-10-25T14:30:00.000Z
-    return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+    return dt.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
 
 
 # Type alias for cleaner code
 UtcDatetime = Annotated[
-    datetime, AfterValidator(ensure_utc), PlainSerializer(serialize_utc, when_used="json")
+    datetime, AfterValidator(ensure_utc), PlainSerializer(serialize_utc, when_used="json"),
 ]
 
 
@@ -44,43 +43,43 @@ class ProductivityBase(BaseModel):
 # --- Task Schemas ---
 class TaskCreate(BaseModel):
     title: str
-    description: Optional[str] = None
+    description: str | None = None
     # Absolute Point in Time (UTC)
-    hard_deadline: Optional[UtcDatetime] = None
+    hard_deadline: UtcDatetime | None = None
 
     # The Intent/Planning Day (Floating Date)
-    assigned_date: Optional[date] = None
+    assigned_date: date | None = None
 
     # The Appointment (Calendar Block - Absolute UTC)
-    scheduled_start: Optional[UtcDatetime] = None
-    duration_minutes: Optional[int] = None
+    scheduled_start: UtcDatetime | None = None
+    duration_minutes: int | None = None
 
     status: Status = Status.TODO
-    project_ids: Optional[list[int]] = None
+    project_ids: list[int] | None = None
 
 
 class TaskUpdate(BaseModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
-    hard_deadline: Optional[UtcDatetime] = None
-    assigned_date: Optional[date] = None
-    scheduled_start: Optional[UtcDatetime] = None
-    duration_minutes: Optional[int] = None
-    status: Optional[Status] = None
-    completed_at: Optional[UtcDatetime] = None
+    title: str | None = None
+    description: str | None = None
+    hard_deadline: UtcDatetime | None = None
+    assigned_date: date | None = None
+    scheduled_start: UtcDatetime | None = None
+    duration_minutes: int | None = None
+    status: Status | None = None
+    completed_at: UtcDatetime | None = None
 
 
 class TaskRead(ProductivityBase):
     id: int
     title: str
-    description: Optional[str]
-    hard_deadline: Optional[UtcDatetime]
-    assigned_date: Optional[date]
-    scheduled_start: Optional[UtcDatetime]
-    duration_minutes: Optional[int]
+    description: str | None
+    hard_deadline: UtcDatetime | None
+    assigned_date: date | None
+    scheduled_start: UtcDatetime | None
+    duration_minutes: int | None
     status: Status
     created_at: UtcDatetime
-    completed_at: Optional[UtcDatetime]
+    completed_at: UtcDatetime | None
     project_ids: list[int] = []
 
 
@@ -88,28 +87,28 @@ class TaskBulkUpdate(BaseModel):
     ids: list[int]
     updates: TaskUpdate
     # Optional: If provided, these projects will be ADDED to all selected tasks
-    add_project_ids: Optional[list[int]] = None
+    add_project_ids: list[int] | None = None
     # Optional: If provided, these projects will be REMOVED from all selected tasks
-    remove_project_ids: Optional[list[int]] = None
+    remove_project_ids: list[int] | None = None
     # Optional: If provided, replaces all existing project links with these ones
-    set_project_ids: Optional[list[int]] = None
+    set_project_ids: list[int] | None = None
 
 
 # --- Project Schemas ---
 class ProjectCreate(BaseModel):
     name: str
-    description: Optional[str] = None
-    start_date: Optional[date] = None
-    deadline: Optional[date] = None
+    description: str | None = None
+    start_date: date | None = None
+    deadline: date | None = None
     status: Status = Status.TODO
 
 
 class ProjectUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    start_date: Optional[date] = None
-    deadline: Optional[date] = None
-    status: Optional[Status] = None
+    name: str | None = None
+    description: str | None = None
+    start_date: date | None = None
+    deadline: date | None = None
+    status: Status | None = None
 
 
 class ProjectRead(ProjectCreate, ProductivityBase):
@@ -120,16 +119,16 @@ class ProjectRead(ProjectCreate, ProductivityBase):
 class JournalEntryCreate(BaseModel):
     entry_type: JournalType
     reference_date: date
-    title: Optional[str] = None
+    title: str | None = None
     content: str
-    project_id: Optional[int] = None
+    project_id: int | None = None
 
 
 class JournalEntryUpdate(BaseModel):
-    title: Optional[str] = None
-    content: Optional[str] = None
-    reference_date: Optional[date] = None
-    project_id: Optional[int] = None
+    title: str | None = None
+    content: str | None = None
+    reference_date: date | None = None
+    project_id: int | None = None
 
 
 class JournalEntryRead(JournalEntryCreate, ProductivityBase):

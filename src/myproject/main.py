@@ -7,10 +7,8 @@ from myproject_core.workspace import WorkspaceManager
 
 
 def start():
+    """Logic for starting the code
     """
-    Logic for starting the code
-    """
-
     wm = WorkspaceManager(settings)
     registry = WorkflowRegistry(settings)
     agent_registry = AgentRegistry(settings)

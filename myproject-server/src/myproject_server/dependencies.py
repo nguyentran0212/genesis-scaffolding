@@ -74,8 +74,7 @@ async def get_user_workdir(
     current_user: Annotated[User, Depends(get_current_active_user)],
     settings: Annotated[Config, Depends(get_server_settings)],
 ) -> Path:
-    """
-    Determines the base directory for a specific user.
+    """Determines the base directory for a specific user.
     Uses the global 'server_users_directory' defined in the server's settings.
     """
     # Use the global settings to find where user folders are stored
@@ -90,8 +89,7 @@ async def get_user_workdir(
 async def get_user_config(
     user_workdir: Annotated[Path, Depends(get_user_workdir)],
 ) -> Config:
-    """
-    Creates a specialized Config object for the current user.
+    """Creates a specialized Config object for the current user.
     It looks for a 'config.yaml' inside the user's working directory.
     """
     # Path to the user's optional override config
@@ -106,8 +104,7 @@ async def get_user_config(
 async def get_user_inbox_path(
     user_config: Annotated[Config, Depends(get_user_config)],
 ) -> Path:
-    """
-    Returns the resolved Path for the user's private inbox.
+    """Returns the resolved Path for the user's private inbox.
     Now dynamically derived from the user's config.
     """
     # Use user working directory as the inbox
@@ -120,8 +117,7 @@ async def get_user_inbox_path(
 def get_productivity_session(
     user_config: Annotated[Config, Depends(get_user_config)],
 ):
-    """
-    Returns a session for the user's private productivity database.
+    """Returns a session for the user's private productivity database.
     Because get_user_session is a generator, we 'yield from' it.
     """
     yield from get_user_session(user_config)
@@ -131,8 +127,7 @@ def get_productivity_session(
 
 
 async def get_agent_registry(user_config: Annotated[Config, Depends(get_user_config)]) -> AgentRegistry:
-    """
-    Returns an AgentRegistry scoped to the current user's paths and settings.
+    """Returns an AgentRegistry scoped to the current user's paths and settings.
     """
     return AgentRegistry(user_config)
 
@@ -140,8 +135,7 @@ async def get_agent_registry(user_config: Annotated[Config, Depends(get_user_con
 async def get_workflow_registry(
     user_config: Annotated[Config, Depends(get_user_config)],
 ) -> WorkflowRegistry:
-    """
-    Returns a WorkflowRegistry scoped to the current user's paths and settings.
+    """Returns a WorkflowRegistry scoped to the current user's paths and settings.
     """
     return WorkflowRegistry(user_config)
 
@@ -149,8 +143,7 @@ async def get_workflow_registry(
 async def get_workspace_manager(
     user_config: Annotated[Config, Depends(get_user_config)],
 ) -> WorkspaceManager:
-    """
-    Returns a WorkspaceManager pointing to the user's private workspace directory.
+    """Returns a WorkspaceManager pointing to the user's private workspace directory.
     """
     return WorkspaceManager(user_config)
 
@@ -159,8 +152,7 @@ async def get_workflow_engine(
     wm: Annotated[WorkspaceManager, Depends(get_workspace_manager)],
     agent_reg: Annotated[AgentRegistry, Depends(get_agent_registry)],
 ) -> WorkflowEngine:
-    """
-    Returns a WorkflowEngine initialized with the user's specific workspace and agents.
+    """Returns a WorkflowEngine initialized with the user's specific workspace and agents.
     """
     return WorkflowEngine(wm, agent_reg)
 
@@ -169,8 +161,7 @@ async def get_workflow_engine(
 
 
 async def get_scheduler_manager(request: Request) -> SchedulerManager:
-    """
-    The Scheduler usually remains a global system-level service (app.state),
+    """The Scheduler usually remains a global system-level service (app.state),
     as it manages background threads/processes across all users.
     """
     return request.app.state.scheduler

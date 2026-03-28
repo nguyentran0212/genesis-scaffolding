@@ -25,7 +25,7 @@ class ChatSession:
                 {
                     "completion-menu.completion": "bg:#008888 #ffffff",
                     "completion-menu.completion.current": "bg:#00aaaa #000000",
-                }
+                },
             ),
         )
 
@@ -38,12 +38,11 @@ class ChatSession:
                 "/clipboard": None,
                 "/add": PathCompleter(expanduser=True),
                 "/remove": None,
-            }
+            },
         )
 
     def _setup_bindings(self):
-        """
-        Customizes keyboard behavior.
+        """Customizes keyboard behavior.
         """
 
         # Handle the ENTER key

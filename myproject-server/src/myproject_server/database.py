@@ -12,7 +12,7 @@ settings = get_config()
 connect_args = {"check_same_thread": False} if "sqlite" in str(settings.db.connection_string) else {}
 
 engine = create_engine(
-    str(settings.db.connection_string), echo=settings.db.echo_sql, connect_args=connect_args
+    str(settings.db.connection_string), echo=settings.db.echo_sql, connect_args=connect_args,
 )
 
 
@@ -50,8 +50,7 @@ def seed_admin_user(session: Session):
 
 
 def init_db():
-    """
-    Initializes the database.
+    """Initializes the database.
     1. Validates connection (especially for Postgres).
     2. Creates tables if they don't exist (SQLite).
     """

@@ -41,8 +41,7 @@ def create_job_queue(user_id: int, job_id: int) -> asyncio.Queue:
 
 
 class ServerSSERenderer:
-    """
-    Implements the WorkflowCallback interface to push events to SSE.
+    """Implements the WorkflowCallback interface to push events to SSE.
     """
 
     def __init__(self, user_id: int, job_id: int):
@@ -50,8 +49,7 @@ class ServerSSERenderer:
         self.job_id = job_id
 
     async def __call__(self, event: WorkflowEvent) -> None:
-        """
-        The actual callback matching WorkflowCallback type.
+        """The actual callback matching WorkflowCallback type.
         """
         queue = get_job_queue(self.user_id, self.job_id)
         if queue:
@@ -61,20 +59,19 @@ class ServerSSERenderer:
                     "step_id": event.step_id,
                     "message": event.message,
                     # "data": event.data  # Only include if event.data is JSON serializable
-                }
+                },
             )
 
             await queue.put(
                 {
                     "event": event.event_type.value,
                     "data": payload,
-                }
+                },
             )
 
 
 class ConsoleRenderer:
-    """
-    Implements the WorkflowCallback interface to write output to terminal for debugging
+    """Implements the WorkflowCallback interface to write output to terminal for debugging
     """
 
     def __init__(self, user_id: int, job_id: int):
@@ -90,8 +87,7 @@ class ConsoleRenderer:
 
 
 class DatabaseProgressRenderer:
-    """
-    Implements the WorkflowCallback interface to update the status of workflow steps in the database
+    """Implements the WorkflowCallback interface to update the status of workflow steps in the database
     """
 
     def __init__(self, job_id: int):
@@ -180,7 +176,7 @@ async def submit_job(
     if not manifest:
         raise HTTPException(status_code=404, detail="Workflow not found")
 
-    safe_user_id = cast(int, user.id)
+    safe_user_id = cast("int", user.id)
     job = await add_workflow_job(
         inputs=inputs,
         user_inbox=user_inbox,
@@ -193,7 +189,7 @@ async def submit_job(
         raise Exception("Could not register workflow job")
 
     # Prepare Types for Background Task
-    safe_job_id = cast(int, job.id)
+    safe_job_id = cast("int", job.id)
 
     # Initialize the user-scoped SSE queue
     create_job_queue(safe_user_id, safe_job_id)
@@ -203,9 +199,9 @@ async def submit_job(
     console_callback = ConsoleRenderer(safe_user_id, safe_job_id)
     db_callback = DatabaseProgressRenderer(safe_job_id)
     callbacks = [
-        cast(WorkflowCallback, sse_callback),
-        cast(WorkflowCallback, console_callback),
-        cast(WorkflowCallback, db_callback),
+        cast("WorkflowCallback", sse_callback),
+        cast("WorkflowCallback", console_callback),
+        cast("WorkflowCallback", db_callback),
     ]
 
     # Dispatch Background Task with RESOLVED inputs
@@ -230,8 +226,7 @@ async def list_jobs(
     limit: int = 20,
     schedule_id: int | None = None,
 ):
-    """
-    Get all jobs for the current user, ordered by newest first.
+    """Get all jobs for the current user, ordered by newest first.
     """
     statement = (
         select(WorkflowJob)
@@ -256,7 +251,7 @@ async def get_job_detail(
     session: Annotated[Session, Depends(get_session)],
 ):
     job = session.exec(
-        select(WorkflowJob).where(WorkflowJob.id == job_id, WorkflowJob.user_id == user.id)
+        select(WorkflowJob).where(WorkflowJob.id == job_id, WorkflowJob.user_id == user.id),
     ).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -265,7 +260,7 @@ async def get_job_detail(
 
 @router.get("/{job_id}/stream")
 async def stream_job(job_id: int, user: Annotated[User, Depends(get_current_active_user)]):
-    user_id = cast(int, user.id)
+    user_id = cast("int", user.id)
 
     async def event_generator():
         queue = get_job_queue(user_id, job_id)
@@ -302,7 +297,7 @@ async def list_job_outputs(
 ):
     """Lists files generated ONLY in the job's output sub-directory."""
     job = session.exec(
-        select(WorkflowJob).where(WorkflowJob.id == job_id, WorkflowJob.user_id == user.id)
+        select(WorkflowJob).where(WorkflowJob.id == job_id, WorkflowJob.user_id == user.id),
     ).first()
 
     if not job or not job.workspace_path:
@@ -320,7 +315,7 @@ async def list_job_outputs(
         if full_path.is_file():
             rel_path = full_path.relative_to(output_dir)
             results.append(
-                {"name": full_path.name, "path": str(rel_path), "size": full_path.stat().st_size}
+                {"name": full_path.name, "path": str(rel_path), "size": full_path.stat().st_size},
             )
     return results
 
@@ -333,7 +328,7 @@ async def download_job_output(
     session: Annotated[Session, Depends(get_session)],
 ):
     job = session.exec(
-        select(WorkflowJob).where(WorkflowJob.id == job_id, WorkflowJob.user_id == user.id)
+        select(WorkflowJob).where(WorkflowJob.id == job_id, WorkflowJob.user_id == user.id),
     ).first()
 
     if not job or not job.workspace_path:

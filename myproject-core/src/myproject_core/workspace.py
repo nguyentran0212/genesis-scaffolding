@@ -13,8 +13,7 @@ class WorkspaceManager:
         self.settings.path.workspace_directory.mkdir(parents=True, exist_ok=True)
 
     def _generate_unique_path(self, name: str) -> Path:
-        """
-        Combines slug, timestamp, and collision checks.
+        """Combines slug, timestamp, and collision checks.
         """
         slug = slugify(name)
 
@@ -30,8 +29,7 @@ class WorkspaceManager:
         return self.settings.path.workspace_directory / dir_name
 
     def create_job(self, name: str) -> JobContext:
-        """
-        The main entry point: creates the physical directory structure
+        """The main entry point: creates the physical directory structure
         and returns the JobContext.
         """
         job_path = self._generate_unique_path(name)

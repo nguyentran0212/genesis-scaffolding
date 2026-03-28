@@ -5,15 +5,14 @@ import yaml
 
 
 def update_user_yaml_config(user_workdir: Path, key: str, nickname: str, value: Any):
-    """
-    Updates a specific entry within 'providers' or 'models' in the user's configs.yaml
+    """Updates a specific entry within 'providers' or 'models' in the user's configs.yaml
     """
     config_path = user_workdir / "config.yaml"
 
     # 1. Load existing data
     data = {}
     if config_path.exists():
-        with open(config_path, "r") as f:
+        with open(config_path) as f:
             data = yaml.safe_load(f) or {}
 
     # 2. Ensure nested dict exists
@@ -37,7 +36,7 @@ def update_user_top_level_config(user_workdir: Path, updates: dict):
     config_path = user_workdir / "config.yaml"
     data = {}
     if config_path.exists():
-        with open(config_path, "r") as f:
+        with open(config_path) as f:
             data = yaml.safe_load(f) or {}
 
     data.update(updates)

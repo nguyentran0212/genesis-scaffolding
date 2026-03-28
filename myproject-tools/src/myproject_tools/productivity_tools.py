@@ -1,5 +1,5 @@
 import zoneinfo
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import UTC, date, datetime, time, timedelta
 from typing import Any, Literal
 
 from myproject_core.productivity import service as prod_service
@@ -12,8 +12,7 @@ from .schema import ToolResult, TrackedEntity
 
 
 def _parse_to_utc(date_str: str, is_end_of_day: bool, local_tz: str) -> datetime:
-    """
-    Helper to convert agent date/time strings into UTC datetimes for database querying.
+    """Helper to convert agent date/time strings into UTC datetimes for database querying.
     If only YYYY-MM-DD is provided, expands it to 00:00:00 or 23:59:59 in the local timezone.
     """
     tz = zoneinfo.ZoneInfo(local_tz)
@@ -29,14 +28,14 @@ def _parse_to_utc(date_str: str, is_end_of_day: bool, local_tz: str) -> datetime
             dt_time = time(0, 0, 0)
 
         local_dt = datetime.combine(dt_date, dt_time, tzinfo=tz)
-        return local_dt.astimezone(timezone.utc)
+        return local_dt.astimezone(UTC)
 
     # If it's a full ISO timestamp
     dt = datetime.fromisoformat(date_str)
     if dt.tzinfo is None:
         # Assume it was provided in the local timezone if naive
         dt = dt.replace(tzinfo=tz)
-    return dt.astimezone(timezone.utc)
+    return dt.astimezone(UTC)
 
 
 class SearchTasksTool(BaseTool):
@@ -124,7 +123,7 @@ class SearchTasksTool(BaseTool):
 
         if kwargs.get("project_id"):
             statement = statement.join(ProjectTaskLink).where(
-                col(ProjectTaskLink.project_id) == kwargs.get("project_id")
+                col(ProjectTaskLink.project_id) == kwargs.get("project_id"),
             )
 
         # 2. DYNAMIC FILTERS (Combined via query_logic)
@@ -135,7 +134,7 @@ class SearchTasksTool(BaseTool):
         if search_query:
             search_pattern = f"%{search_query}%"
             dynamic_conditions.append(
-                or_(col(Task.title).like(search_pattern), col(Task.description).like(search_pattern))
+                or_(col(Task.title).like(search_pattern), col(Task.description).like(search_pattern)),
             )
 
         # Assigned Date
@@ -221,9 +220,9 @@ class SearchTasksTool(BaseTool):
             )
 
         except ValueError as e:
-            return ToolResult(status="error", tool_response=f"Date parsing error: {str(e)}")
+            return ToolResult(status="error", tool_response=f"Date parsing error: {e!s}")
         except Exception as e:
-            return ToolResult(status="error", tool_response=f"Search failed: {str(e)}")
+            return ToolResult(status="error", tool_response=f"Search failed: {e!s}")
 
 
 class ReadTaskTool(BaseTool):
@@ -238,7 +237,7 @@ class ReadTaskTool(BaseTool):
             "task_id": {
                 "type": "integer",
                 "description": "The ID of the task to read.",
-            }
+            },
         },
         "required": ["task_id"],
     }
@@ -264,7 +263,7 @@ class ReadTaskTool(BaseTool):
                 entities_to_track=[entity],
             )
         except Exception as e:
-            return ToolResult(status="error", tool_response=f"Failed to read task: {str(e)}")
+            return ToolResult(status="error", tool_response=f"Failed to read task: {e!s}")
 
 
 # --- PROJECT TOOLS ---
@@ -338,7 +337,7 @@ class SearchProjectsTool(BaseTool):
         if search_query:
             search_pattern = f"%{search_query}%"
             dynamic_conditions.append(
-                or_(col(Project.name).like(search_pattern), col(Project.description).like(search_pattern))
+                or_(col(Project.name).like(search_pattern), col(Project.description).like(search_pattern)),
             )
 
         deadline_start = kwargs.get("deadline_start")
@@ -370,7 +369,7 @@ class SearchProjectsTool(BaseTool):
         # 3. Default Sorting (Active/soonest first)
         statement = (
             statement.order_by(
-                col(Project.status).desc(), col(Project.deadline).asc(), col(Project.name).asc()
+                col(Project.status).desc(), col(Project.deadline).asc(), col(Project.name).asc(),
             )
             .limit(limit)
             .offset(offset)
@@ -395,7 +394,7 @@ class SearchProjectsTool(BaseTool):
                 entities_to_track=entities,
             )
         except Exception as e:
-            return ToolResult(status="error", tool_response=f"Search failed: {str(e)}")
+            return ToolResult(status="error", tool_response=f"Search failed: {e!s}")
 
 
 class ReadProjectTool(BaseTool):
@@ -424,7 +423,7 @@ class ReadProjectTool(BaseTool):
                 entities_to_track=[entity],
             )
         except Exception as e:
-            return ToolResult(status="error", tool_response=f"Failed to read project: {str(e)}")
+            return ToolResult(status="error", tool_response=f"Failed to read project: {e!s}")
 
 
 # --- JOURNAL TOOLS ---
@@ -497,7 +496,7 @@ class SearchJournalsTool(BaseTool):
                 or_(
                     col(JournalEntry.title).like(search_pattern),
                     col(JournalEntry.content).like(search_pattern),
-                )
+                ),
             )
 
         ref_date_start = kwargs.get("reference_date_start")
@@ -507,11 +506,11 @@ class SearchJournalsTool(BaseTool):
         date_conditions = []
         if ref_date_start:
             date_conditions.append(
-                col(JournalEntry.reference_date) >= date.fromisoformat(ref_date_start[:10])
+                col(JournalEntry.reference_date) >= date.fromisoformat(ref_date_start[:10]),
             )
         if ref_date_end:
             date_conditions.append(
-                col(JournalEntry.reference_date) <= date.fromisoformat(ref_date_end[:10])
+                col(JournalEntry.reference_date) <= date.fromisoformat(ref_date_end[:10]),
             )
 
         if date_conditions:
@@ -551,7 +550,7 @@ class SearchJournalsTool(BaseTool):
                 entities_to_track=entities,
             )
         except Exception as e:
-            return ToolResult(status="error", tool_response=f"Search failed: {str(e)}")
+            return ToolResult(status="error", tool_response=f"Search failed: {e!s}")
 
 
 class ReadJournalTool(BaseTool):
@@ -582,7 +581,7 @@ class ReadJournalTool(BaseTool):
                 entities_to_track=[entity],
             )
         except Exception as e:
-            return ToolResult(status="error", tool_response=f"Failed to read journal: {str(e)}")
+            return ToolResult(status="error", tool_response=f"Failed to read journal: {e!s}")
 
 
 # --- CREATION TOOLS ---
@@ -640,14 +639,14 @@ class CreateTaskTool(BaseTool):
         try:
             if kwargs.get("hard_deadline"):
                 data["hard_deadline"] = _parse_to_utc(
-                    kwargs["hard_deadline"], is_end_of_day=True, local_tz=timezone
+                    kwargs["hard_deadline"], is_end_of_day=True, local_tz=timezone,
                 )
             if kwargs.get("scheduled_start"):
                 data["scheduled_start"] = _parse_to_utc(
-                    kwargs["scheduled_start"], is_end_of_day=False, local_tz=timezone
+                    kwargs["scheduled_start"], is_end_of_day=False, local_tz=timezone,
                 )
         except ValueError as e:
-            return ToolResult(status="error", tool_response=f"Date formatting error: {str(e)}")
+            return ToolResult(status="error", tool_response=f"Date formatting error: {e!s}")
 
         project_ids = kwargs.get("project_ids", [])
 
@@ -668,7 +667,7 @@ class CreateTaskTool(BaseTool):
                 entities_to_track=[entity],
             )
         except Exception as e:
-            return ToolResult(status="error", tool_response=f"Failed to create task: {str(e)}")
+            return ToolResult(status="error", tool_response=f"Failed to create task: {e!s}")
 
 
 class CreateProjectTool(BaseTool):
@@ -708,7 +707,7 @@ class CreateProjectTool(BaseTool):
             if kwargs.get("deadline"):
                 data["deadline"] = date.fromisoformat(kwargs["deadline"][:10])
         except ValueError as e:
-            return ToolResult(status="error", tool_response=f"Date parsing error: {str(e)}")
+            return ToolResult(status="error", tool_response=f"Date parsing error: {e!s}")
 
         project_id: int | None = None
         try:
@@ -726,7 +725,7 @@ class CreateProjectTool(BaseTool):
                 entities_to_track=[entity],
             )
         except Exception as e:
-            return ToolResult(status="error", tool_response=f"Failed to create project: {str(e)}")
+            return ToolResult(status="error", tool_response=f"Failed to create project: {e!s}")
 
 
 class CreateJournalTool(BaseTool):
@@ -769,7 +768,7 @@ class CreateJournalTool(BaseTool):
 
         if entry_type_str == "project" and not kwargs.get("project_id"):
             return ToolResult(
-                status="error", tool_response="project_id is required when entry_type is 'project'."
+                status="error", tool_response="project_id is required when entry_type is 'project'.",
             )
 
         journal_id: int | None = None
@@ -806,7 +805,7 @@ class CreateJournalTool(BaseTool):
                 # 3. Find or Create Logic
                 if entry_type_str in ["daily", "weekly", "monthly", "yearly"]:
                     existing = prod_service.list_journals(
-                        session, entry_type=entry_type_enum, reference_date=ref_date
+                        session, entry_type=entry_type_enum, reference_date=ref_date,
                     )
                     if existing:
                         return ToolResult(
@@ -829,9 +828,9 @@ class CreateJournalTool(BaseTool):
             )
 
         except ValueError as e:
-            return ToolResult(status="error", tool_response=f"Date parsing error: {str(e)}")
+            return ToolResult(status="error", tool_response=f"Date parsing error: {e!s}")
         except Exception as e:
-            return ToolResult(status="error", tool_response=f"Failed to create journal: {str(e)}")
+            return ToolResult(status="error", tool_response=f"Failed to create journal: {e!s}")
 
 
 # --- UPDATE TOOLS ---
@@ -914,7 +913,7 @@ class UpdateTasksTool(BaseTool):
                     None if val == "" else _parse_to_utc(val, is_end_of_day=False, local_tz=timezone)
                 )
         except ValueError as e:
-            return ToolResult(status="error", tool_response=f"Date parsing error: {str(e)}")
+            return ToolResult(status="error", tool_response=f"Date parsing error: {e!s}")
 
         add_project_ids = kwargs.get("add_project_ids")
         remove_project_ids = kwargs.get("remove_project_ids")
@@ -935,7 +934,7 @@ class UpdateTasksTool(BaseTool):
 
             if updated_count == 0:
                 return ToolResult(
-                    status="error", tool_response="No tasks were updated. Check if the task_ids exist."
+                    status="error", tool_response="No tasks were updated. Check if the task_ids exist.",
                 )
 
             # Dynamic resolution: If they update just 1 task, show full detail. If bulk, show summary.
@@ -951,7 +950,7 @@ class UpdateTasksTool(BaseTool):
             )
 
         except Exception as e:
-            return ToolResult(status="error", tool_response=f"Failed to update tasks: {str(e)}")
+            return ToolResult(status="error", tool_response=f"Failed to update tasks: {e!s}")
 
 
 class UpdateProjectTool(BaseTool):
@@ -996,7 +995,7 @@ class UpdateProjectTool(BaseTool):
                 val = kwargs["deadline"]
                 field_updates["deadline"] = None if val == "" else date.fromisoformat(val[:10])
         except ValueError as e:
-            return ToolResult(status="error", tool_response=f"Date parsing error: {str(e)}")
+            return ToolResult(status="error", tool_response=f"Date parsing error: {e!s}")
 
         if not field_updates:
             return ToolResult(status="error", tool_response="No update fields provided.")
@@ -1019,7 +1018,7 @@ class UpdateProjectTool(BaseTool):
             )
 
         except Exception as e:
-            return ToolResult(status="error", tool_response=f"Failed to update project: {str(e)}")
+            return ToolResult(status="error", tool_response=f"Failed to update project: {e!s}")
 
 
 class EditJournalTool(BaseTool):
@@ -1067,7 +1066,7 @@ class EditJournalTool(BaseTool):
 
         if journal_id is None or old_str is None or new_str is None:
             return ToolResult(
-                status="error", tool_response="Missing required fields (journal_id, old_str, new_str)."
+                status="error", tool_response="Missing required fields (journal_id, old_str, new_str).",
             )
 
         try:
@@ -1130,4 +1129,4 @@ class EditJournalTool(BaseTool):
             )
 
         except Exception as e:
-            return ToolResult(status="error", tool_response=f"Failed to edit journal: {str(e)}")
+            return ToolResult(status="error", tool_response=f"Failed to edit journal: {e!s}")

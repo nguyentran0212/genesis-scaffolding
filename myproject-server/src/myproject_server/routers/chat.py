@@ -40,7 +40,7 @@ async def list_sessions(
     return db.exec(
         select(ChatSession)
         .where(ChatSession.user_id == user.id, col(ChatSession.agent_id).in_(active_agent_ids))
-        .order_by(col(ChatSession.updated_at).desc())
+        .order_by(col(ChatSession.updated_at).desc()),
     ).all()
 
 
@@ -69,7 +69,7 @@ async def create_session(
 
     if not new_session.id:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to create session")
+        raise HTTPException(status_code=500, detail="Failed to create session")
 
     # 3. Initialize Agent to get starting messages (System prompts, greetings, etc.)
     agent = agent_reg.create_agent(config.agent_id, working_directory=working_dir)
@@ -89,7 +89,7 @@ async def create_session(
         db.refresh(new_session)
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to create session: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to create session: {e!s}")
 
     return new_session
 
@@ -97,14 +97,14 @@ async def create_session(
 # 3. GET SESSION HISTORY
 @router.get("/{session_id}", response_model=ChatHistoryRead)
 async def get_chat_history(
-    session_id: int, db: Session = Depends(get_session), user: User = Depends(get_current_active_user)
+    session_id: int, db: Session = Depends(get_session), user: User = Depends(get_current_active_user),
 ):
     session = db.get(ChatSession, session_id)
     if not session or session.user_id != user.id:
         raise HTTPException(status_code=404)
 
     messages = db.exec(
-        select(ChatMessage).where(ChatMessage.session_id == session_id).order_by(col(ChatMessage.id).asc())
+        select(ChatMessage).where(ChatMessage.session_id == session_id).order_by(col(ChatMessage.id).asc()),
     ).all()
 
     return {"session": session, "messages": messages}
@@ -132,7 +132,7 @@ async def send_message(
 
     # 3. Reconstruct AgentMemory
     past_messages = db.exec(
-        select(ChatMessage).where(ChatMessage.session_id == session_id).order_by(col(ChatMessage.id).asc())
+        select(ChatMessage).where(ChatMessage.session_id == session_id).order_by(col(ChatMessage.id).asc()),
     ).all()
 
     memory_list = [m.payload for m in past_messages]

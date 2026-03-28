@@ -13,7 +13,7 @@ from .agent_memory import AgentMemory
 from .configs import get_config
 from .llm import get_llm_response
 from .productivity.db import get_user_session
-from .schemas import AgentConfig, LLMModelConfig, LLMProvider, StreamCallback, ToolCallback
+from .schemas import AgentConfig, StreamCallback, ToolCallback
 from .utils import streamcallback_simple_print
 
 SYSTEM_PROMPT_PREFIX = """
@@ -119,9 +119,7 @@ class Agent:
         else:
             system_prompt = SYSTEM_PROMPT_PREFIX_NO_TOOL + agent_config.system_prompt
         self.memory = (
-            memory
-            if memory
-            else AgentMemory(messages=[self._create_llm_message(role="system", content=system_prompt)])
+            memory or AgentMemory(messages=[self._create_llm_message(role="system", content=system_prompt)])
         )
 
         self.stream = agent_config.interactive
@@ -131,7 +129,7 @@ class Agent:
         self.working_directory = working_directory
         if working_directory and not working_directory.exists():
             raise Exception(
-                f"Agent {agent_config.name} was given a non-existent working directory: {working_directory}"
+                f"Agent {agent_config.name} was given a non-existent working directory: {working_directory}",
             )
 
         self.tools: list[Any] = []  # This will hold the tool instances
@@ -143,8 +141,7 @@ class Agent:
         )
 
     def _resolve_tools(self):
-        """
-        Attempts to import the tool registry and look up tools
+        """Attempts to import the tool registry and look up tools
         defined in allowed_tools.
         """
         try:
@@ -208,7 +205,7 @@ class Agent:
                 # Side Effect: Add tool results to clipboard
                 if result.status == "success" and result.results_to_add_to_clipboard:
                     self.memory.add_tool_results_to_clipboard(
-                        tool_name=name, tool_call_id=tool_id, results=result.results_to_add_to_clipboard
+                        tool_name=name, tool_call_id=tool_id, results=result.results_to_add_to_clipboard,
                     )
 
                 # Side Effect: Pin productivity entities to clipboard
@@ -228,7 +225,7 @@ class Agent:
                 result_str = result.tool_response
         except Exception as e:
             # Uncaught error. This really should not happen as it messes up the agent
-            result_str = f"Tool Execution Error: {str(e)}"
+            result_str = f"Tool Execution Error: {e!s}"
 
         # Return the 'tool' role message required by LLM history
         return {"role": "tool", "tool_call_id": tool_id, "name": name, "content": result_str}
@@ -252,13 +249,12 @@ class Agent:
         current_working_directory = working_directory or self.working_directory
         if not current_working_directory:
             raise Exception(
-                f"Failed to call agent {self.agent_config.name}: the agent was not created with a working directory, and none was given when calling step()"
+                f"Failed to call agent {self.agent_config.name}: the agent was not created with a working directory, and none was given when calling step()",
             )
         return current_working_directory
 
     def _inject_clipboard(self, history: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        """
-        Utility function for injecting clipboard into LLM context
+        """Utility function for injecting clipboard into LLM context
         without mutating the original history list or its dictionaries.
         """
         last_user_index: int | None = None
@@ -302,13 +298,11 @@ class Agent:
         max_turns: int = 20,  # Increased for long-horizon tasks
         max_repetitions: int = 3,  # Stop if same tool called N times
     ):
-        """
-        Agent calls LLM to progress to the next step
+        """Agent calls LLM to progress to the next step
         The clipboard is injected to message list to send to LLM to provid the context
         Then, clipboard is removed so that it does not inflate the message history
         The agent would loop until max number of turn of until no more tool calls are detected.
         """
-
         # Fail fast if there is no working directory
         current_working_directory = self._get_current_working_directory(working_directory)
 
@@ -351,7 +345,7 @@ class Agent:
                     {
                         "role": "system",
                         "content": "WARNING: You are nearing the maximum step limit. Please finalize your work and provide a conclusion in the next 1-2 turns.",
-                    }
+                    },
                 )
 
             full_payload = self._inject_clipboard(history=history)
@@ -360,10 +354,10 @@ class Agent:
             # Allow caller to override the streaming and callbacks for displaying chunks, but default to the callbacks aassigned to the agent at creation time
             stream = stream if stream is not None else self.stream
             content_chunk_callbacks = (
-                content_chunk_callbacks if content_chunk_callbacks else self.content_chunk_callbacks
+                content_chunk_callbacks or self.content_chunk_callbacks
             )
             reasoning_chunk_callbacks = (
-                reasoning_chunk_callbacks if reasoning_chunk_callbacks else self.reasoning_chunk_callbacks
+                reasoning_chunk_callbacks or self.reasoning_chunk_callbacks
             )
 
             if debug:
@@ -408,7 +402,7 @@ class Agent:
             # This heuristic is still not very smart. To be improved in the future
             # Create a hashable signature of current tool calls
             current_calls_signature = sorted(
-                [(tc.function_name, tc.arguments) for tc in llm_response.tool_calls]
+                [(tc.function_name, tc.arguments) for tc in llm_response.tool_calls],
             )
 
             # Check if this exact set of tool calls has been made repeatedly
@@ -432,7 +426,7 @@ class Agent:
                     await asyncio.gather(*tool_start_cb)
 
                 tool_tasks.append(
-                    self._execute_tool_and_format(tc.id, tc.function_name, args, current_working_directory)
+                    self._execute_tool_and_format(tc.id, tc.function_name, args, current_working_directory),
                 )
 
             # Wait for all tool side-effects to finish
@@ -452,7 +446,6 @@ class Agent:
 
     async def add_file(self, file_path: Path, working_directory: Path | None = None):
         """Method for external workflows to feed files to the agent."""
-
         # 1. Path Validation
         current_working_directory = self._get_current_working_directory(working_directory)
         logical_path = Path(os.path.normpath(current_working_directory / file_path))
@@ -475,7 +468,7 @@ class Agent:
         # 1. Handle Known Non-Text Formats first
         if extension == ".pdf":
             return await asyncio.to_thread(
-                convert_pdf_to_markdown, pdf_path=logical_path, prune_references=True
+                convert_pdf_to_markdown, pdf_path=logical_path, prune_references=True,
             )
 
         # List of extensions to explicitly ignore (binaries/assets)
@@ -525,7 +518,7 @@ class Agent:
 
             # If no null byte, attempt to read as text
             try:
-                with open(logical_path, "r", encoding="utf-8", errors="replace") as f:
+                with open(logical_path, encoding="utf-8", errors="replace") as f:
                     return f.read()
             except Exception:
                 return None
@@ -538,18 +531,16 @@ class Agent:
         self.memory.add_file_to_clipboard(safe_file_path, content)
 
     async def remove_files(self, path: Path, working_directory: Path | None = None) -> list[Path]:
-        """
-        Method for external workflows to remove files from the agent's clipboard
+        """Method for external workflows to remove files from the agent's clipboard
         Return a list of Path of files removed
         """
-
         # Path Validation
         current_working_directory = self._get_current_working_directory(working_directory)
         resolved_path = path.resolve()
 
         if not resolved_path.is_relative_to(current_working_directory.resolve()):
             raise ValueError(
-                f"Security Alert: Path to remove {path} is outside of {current_working_directory}"
+                f"Security Alert: Path to remove {path} is outside of {current_working_directory}",
             )
 
         if not resolved_path.exists():
@@ -583,7 +574,7 @@ async def main():
     )
 
     print(
-        f"Turn 1:\n{await agent.step('hello, how are you?', working_directory=Path(__file__).parent)}\n-----"
+        f"Turn 1:\n{await agent.step('hello, how are you?', working_directory=Path(__file__).parent)}\n-----",
     )
 
     await agent.add_file(Path(__file__).resolve())

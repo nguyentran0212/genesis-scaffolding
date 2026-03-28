@@ -1,6 +1,6 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 from myproject_core.schemas import WorkflowCallback, WorkflowInputType, WorkflowManifest
 from myproject_core.workflow_engine import WorkflowEngine
@@ -18,8 +18,7 @@ async def add_workflow_job(
     workflow_id: str,
     manifest: WorkflowManifest,  # <--- Pass the manifest here
 ) -> WorkflowJob | None:
-    """
-    Register a workflow job in the database.
+    """Register a workflow job in the database.
     Resolves relative paths to absolute sandbox paths based on the manifest definitions.
     """
     resolved_inputs = inputs.copy()
@@ -64,13 +63,12 @@ async def run_workflow_job(
     inputs: dict[str, Any] | None = None,
     workflow_callbacks: list[WorkflowCallback] | None = None,
 ) -> WorkflowJob | None:
-    """
-    Run a registered workflow job
+    """Run a registered workflow job
     """
     with Session(db_engine) as session:
         job = session.get(WorkflowJob, job_id)
         if not job:
-            return
+            return None
 
         try:
             job.status = JobStatus.RUNNING
@@ -104,7 +102,7 @@ async def run_workflow_job(
             job.status = JobStatus.FAILED
             job.error_message = str(e)
         finally:
-            job.updated_at = datetime.now(timezone.utc)
+            job.updated_at = datetime.now(UTC)
             session.add(job)
             session.commit()
             session.refresh(job)
