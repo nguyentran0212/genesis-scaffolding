@@ -1,8 +1,10 @@
 from datetime import UTC, datetime
 from typing import Any, Literal
 
-from sqlalchemy import or_
-from sqlmodel import Session, col, select
+from sqlalchemy import or_, select
+from sqlalchemy.sql import cast
+from sqlalchemy.types import String
+from sqlmodel import Session, col
 
 from .models import EventLog, MemorySource, TopicalMemory
 
@@ -38,11 +40,12 @@ def list_event_logs(
     statement = select(EventLog)
 
     if tag:
-        statement = statement.where(EventLog.tags.contains([tag]))
+        tag_pattern = f'%"{tag}"%'
+        statement = statement.where(cast(EventLog.tags, String).like(tag_pattern))  # type: ignore[arg-type]
     if importance is not None:
-        statement = statement.where(EventLog.importance == importance)
+        statement = statement.where(EventLog.importance == importance)  # type: ignore[arg-type]
     if source is not None:
-        statement = statement.where(EventLog.source == source)
+        statement = statement.where(EventLog.source == source)  # type: ignore
 
     order_field = getattr(EventLog, sort_by)
     if order == "desc":
@@ -51,7 +54,7 @@ def list_event_logs(
         statement = statement.order_by(col(order_field).asc())
     statement = statement.limit(limit).offset(offset)
 
-    return session.exec(statement).all()
+    return session.exec(statement).all()  # type: ignore[return-value]
 
 
 def delete_event_log(session: Session, event_id: int) -> bool:
@@ -96,16 +99,17 @@ def list_topical_memories(
     statement = select(TopicalMemory)
 
     if not superseded:
-        statement = statement.where(TopicalMemory.superseded_by_id == None)
+        statement = statement.where(TopicalMemory.superseded_by_id is None)  # type: ignore
     else:
-        statement = statement.where(TopicalMemory.superseded_by_id != None)
+        statement = statement.where(TopicalMemory.superseded_by_id is not None)  # type: ignore
 
     if tag:
-        statement = statement.where(TopicalMemory.tags.contains([tag]))
+        tag_pattern = f'%"{tag}"%'
+        statement = statement.where(cast(TopicalMemory.tags, String).like(tag_pattern))  # type: ignore[arg-type]
     if importance is not None:
-        statement = statement.where(TopicalMemory.importance == importance)
+        statement = statement.where(TopicalMemory.importance == importance)  # type: ignore
     if source is not None:
-        statement = statement.where(TopicalMemory.source == source)
+        statement = statement.where(TopicalMemory.source == source)  # type: ignore
 
     order_field = getattr(TopicalMemory, sort_by)
     if order == "desc":
@@ -114,7 +118,7 @@ def list_topical_memories(
         statement = statement.order_by(col(order_field).asc())
     statement = statement.limit(limit).offset(offset)
 
-    return session.exec(statement).all()
+    return session.exec(statement).all()  # type: ignore[return-value]
 
 
 def update_topical_memory(
@@ -225,26 +229,20 @@ def search_memories(
     pattern = f"%{query}%"
 
     if memory_type in ("all", "event"):
-        event_stmt = select(EventLog).where(
-            or_(
-                EventLog.subject.ilike(pattern),
-                EventLog.content.ilike(pattern),
-            )
-        ).limit(limit)
-        results["events"] = session.exec(event_stmt).all()
+        event_stmt = (
+            select(EventLog)
+            .where(or_(EventLog.subject.ilike(pattern), EventLog.content.ilike(pattern)))  # type: ignore[arg-type]
+            .limit(limit)
+        )
+        results["events"] = session.exec(event_stmt).all()  # type: ignore[return-value]
 
     if memory_type in ("all", "topic"):
         topic_stmt = (
             select(TopicalMemory)
-            .where(
-                or_(
-                    TopicalMemory.subject.ilike(pattern),
-                    TopicalMemory.content.ilike(pattern),
-                )
-            )
-            .where(TopicalMemory.superseded_by_id == None)
+            .where(or_(TopicalMemory.subject.ilike(pattern), TopicalMemory.content.ilike(pattern)))  # type: ignore[arg-type]
+            .where(TopicalMemory.superseded_by_id is None)  # type: ignore
             .limit(limit)
         )
-        results["topics"] = session.exec(topic_stmt).all()
+        results["topics"] = session.exec(topic_stmt).all()  # type: ignore[return-value]
 
     return results

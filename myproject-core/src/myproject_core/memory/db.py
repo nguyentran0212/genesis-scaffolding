@@ -20,6 +20,7 @@ def get_memory_engine(config: Config | None = None, memory_db_url: str | None = 
     if memory_db_url is None and config is None:
         raise ValueError("Must provide either a Config object or a memory_db_url string.")
     target_url = memory_db_url or (config.memory_db.connection_string if config else None)
+    assert target_url is not None, "memory_db_url must be set"
 
     if target_url not in _memory_engines:
         engine = create_engine(

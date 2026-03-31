@@ -1,7 +1,7 @@
 """Memory tools for creating, searching, and managing persistent agent memories."""
 
 from datetime import UTC, datetime
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from myproject_core.memory import service as memory_service
 from myproject_core.memory.db import get_memory_session
@@ -48,6 +48,21 @@ def _format_memory_for_response(memory: EventLog | TopicalMemory, memory_type: L
     response += f"Created: {memory.created_at}\n"
     response += f"Updated: {memory.updated_at}\n"
     return response
+
+
+def _make_memory_entity(
+    memory_type_literal: Literal["memory_event", "memory_topic"],
+    memory_id: int,
+    resolution: Literal["summary", "detail"] = "summary",
+    ttl: int = 10,
+) -> TrackedEntity:
+    """Helper to create a TrackedEntity with proper typing."""
+    return TrackedEntity(
+        item_type=memory_type_literal,
+        item_id=memory_id,
+        resolution=resolution,
+        ttl=ttl,
+    )
 
 
 class RememberThisTool(BaseTool):
@@ -104,11 +119,11 @@ class RememberThisTool(BaseTool):
             return ToolResult(status="error", tool_response="content and memory_type are required.")
 
         subject = kwargs.get("subject")
-        tags = kwargs.get("tags", [])
-        importance = kwargs.get("importance", 3)
-        related_memory_ids = kwargs.get("related_memory_ids", [])
+        tags: list[str] = kwargs.get("tags", [])
+        importance: int = kwargs.get("importance", 3)
+        related_memory_ids: list[int] = kwargs.get("related_memory_ids", [])
 
-        event_time = None
+        event_time: datetime | None = None
         if memory_type == "event":
             event_time_str = kwargs.get("event_time")
             if not event_time_str:
@@ -127,7 +142,7 @@ class RememberThisTool(BaseTool):
 
         try:
             for session in get_memory_session(memory_db_url=memory_db_url):
-                data = {
+                data: dict[str, Any] = {
                     "content": content,
                     "subject": subject,
                     "tags": tags,
@@ -138,28 +153,32 @@ class RememberThisTool(BaseTool):
                 if memory_type == "event":
                     data["event_time"] = event_time
                     entry = memory_service.create_event_log(session, data)
-                    memory_type_label = "event"
+                    memory_type_label: Literal["event", "topic"] = "event"
+                    entity_type: Literal["memory_event", "memory_topic"] = "memory_event"
                 else:
                     entry = memory_service.create_topical_memory(session, data)
                     memory_type_label = "topic"
+                    entity_type = "memory_topic"
 
                 response = _format_memory_for_response(entry, memory_type_label)
-                response += f"\nMemory stored successfully."
+                response += "\nMemory stored successfully."
+
+                entry_id = entry.id
+                if entry_id is None:
+                    return ToolResult(status="error", tool_response="Failed to retrieve created memory ID.")
 
                 return ToolResult(
                     status="success",
                     tool_response=response,
                     entities_to_track=[
-                        TrackedEntity(
-                            item_type=f"memory_{memory_type_label}",
-                            item_id=entry.id,
-                            resolution="summary",
-                            ttl=10,
-                        )
+                        _make_memory_entity(entity_type, entry_id, "summary", 10),
                     ],
                 )
         except Exception as e:
             return ToolResult(status="error", tool_response=f"Failed to store memory: {e}")
+
+        # This should never happen since the generator always yields at least once
+        return ToolResult(status="error", tool_response="Memory session unavailable.")
 
 
 class SearchMemoriesTool(BaseTool):
@@ -189,16 +208,17 @@ class SearchMemoriesTool(BaseTool):
         if not memory_db_url:
             return ToolResult(status="error", tool_response="Memory database connection not available.")
 
-        query = kwargs.get("query")
-        memory_type = kwargs.get("memory_type", "all")
-        limit = kwargs.get("limit", 20)
+        query: str | None = kwargs.get("query")
+        memory_type: str = kwargs.get("memory_type", "all")
+        limit: int = kwargs.get("limit", 20)
 
         if not query:
             return ToolResult(status="error", tool_response="query is required.")
 
         try:
             for session in get_memory_session(memory_db_url=memory_db_url):
-                results = memory_service.search_memories(session, query, memory_type, limit)
+                actual_memory_type = cast(Literal["event", "topic", "all"], memory_type)
+                results = memory_service.search_memories(session, query, actual_memory_type, limit)
 
                 event_results = results["events"]
                 topic_results = results["topics"]
@@ -220,17 +240,19 @@ class SearchMemoriesTool(BaseTool):
                         response += _format_memory_for_response(m, "topic")
                         response += "\n"
 
-                entities = [
-                    TrackedEntity(item_type="memory_event", item_id=m.id, resolution="summary", ttl=5)
-                    for m in event_results
-                ] + [
-                    TrackedEntity(item_type="memory_topic", item_id=m.id, resolution="summary", ttl=5)
-                    for m in topic_results
-                ]
+                entities: list[TrackedEntity] = []
+                for m in event_results:
+                    if m.id is not None:
+                        entities.append(_make_memory_entity("memory_event", m.id, "summary", 5))
+                for m in topic_results:
+                    if m.id is not None:
+                        entities.append(_make_memory_entity("memory_topic", m.id, "summary", 5))
 
                 return ToolResult(status="success", tool_response=response, entities_to_track=entities)
         except Exception as e:
             return ToolResult(status="error", tool_response=f"Search failed: {e}")
+
+        return ToolResult(status="error", tool_response="Memory session unavailable.")
 
 
 class ListMemoriesTool(BaseTool):
@@ -277,55 +299,64 @@ class ListMemoriesTool(BaseTool):
         if not memory_db_url:
             return ToolResult(status="error", tool_response="Memory database connection not available.")
 
-        memory_type = kwargs.get("memory_type", "all")
-        tag = kwargs.get("tag")
-        importance = kwargs.get("importance")
-        source_str = kwargs.get("source")
+        memory_type: str = kwargs.get("memory_type", "all")
+        tag: str | None = kwargs.get("tag")
+        importance: int | None = kwargs.get("importance")
+        source_str: str | None = kwargs.get("source")
         source = MemorySource(source_str) if source_str else None
-        include_superseded = kwargs.get("include_superseded", False)
-        sort_by = kwargs.get("sort_by", "event_time" if memory_type == "event" else "updated_at")
-        order = kwargs.get("order", "desc")
-        limit = kwargs.get("limit", 50)
-        offset = kwargs.get("offset", 0)
+        include_superseded: bool = kwargs.get("include_superseded", False)
+        sort_by: str = kwargs.get("sort_by", "event_time" if memory_type == "event" else "updated_at")
+        order: str = kwargs.get("order", "desc")
+        limit: int = kwargs.get("limit", 50)
+        offset: int = kwargs.get("offset", 0)
 
         try:
             for session in get_memory_session(memory_db_url=memory_db_url):
                 events: list[EventLog] = []
                 topics: list[TopicalMemory] = []
 
+                # Cast sort_by based on memory_type default
                 if memory_type in ("all", "event"):
-                    events = memory_service.list_event_logs(
+                    actual_sort_by = cast(Literal["event_time", "created_at", "importance"], sort_by)
+                    actual_order = cast(Literal["asc", "desc"], order)
+                    events = list(memory_service.list_event_logs(
                         session, tag=tag, importance=importance, source=source,
-                        sort_by=sort_by, order=order, limit=limit, offset=offset,
-                    )
+                        sort_by=actual_sort_by, order=actual_order, limit=limit, offset=offset,
+                    ))
 
                 if memory_type in ("all", "topic"):
-                    topics = memory_service.list_topical_memories(
+                    actual_sort_by = cast(Literal["created_at", "updated_at", "importance"], sort_by)
+                    actual_order = cast(Literal["asc", "desc"], order)
+                    topics = list(memory_service.list_topical_memories(
                         session, superseded=include_superseded, tag=tag, importance=importance,
-                        source=source, sort_by=sort_by, order=order, limit=limit, offset=offset,
-                    )
+                        source=source, sort_by=actual_sort_by, order=actual_order, limit=limit, offset=offset,
+                    ))
 
                 if not events and not topics:
                     return ToolResult(status="success", tool_response="No memories found matching the criteria.")
 
                 response = ""
-                entities = []
+                entities: list[TrackedEntity] = []
 
                 if events:
                     response += f"--- EVENTS ({len(events)}) ---\n"
                     for m in events:
                         response += _format_memory_for_response(m, "event") + "\n"
-                        entities.append(TrackedEntity(item_type="memory_event", item_id=m.id, resolution="summary", ttl=5))
+                        if m.id is not None:
+                            entities.append(_make_memory_entity("memory_event", m.id, "summary", 5))
 
                 if topics:
                     response += f"--- TOPICS ({len(topics)}) ---\n"
                     for m in topics:
                         response += _format_memory_for_response(m, "topic") + "\n"
-                        entities.append(TrackedEntity(item_type="memory_topic", item_id=m.id, resolution="summary", ttl=5))
+                        if m.id is not None:
+                            entities.append(_make_memory_entity("memory_topic", m.id, "summary", 5))
 
                 return ToolResult(status="success", tool_response=response, entities_to_track=entities)
         except Exception as e:
             return ToolResult(status="error", tool_response=f"Failed to list memories: {e}")
+
+        return ToolResult(status="error", tool_response="Memory session unavailable.")
 
 
 class GetMemoryTool(BaseTool):
@@ -354,8 +385,8 @@ class GetMemoryTool(BaseTool):
         if not memory_db_url:
             return ToolResult(status="error", tool_response="Memory database connection not available.")
 
-        memory_id = kwargs.get("memory_id")
-        memory_type = kwargs.get("memory_type")
+        memory_id: int | None = kwargs.get("memory_id")
+        memory_type: str | None = kwargs.get("memory_type")
 
         if not memory_id or not memory_type:
             return ToolResult(status="error", tool_response="memory_id and memory_type are required.")
@@ -382,20 +413,23 @@ class GetMemoryTool(BaseTool):
                         response += f"\nRevision chain ({len(chain)} entries): "
                         response += " -> ".join(f"ID {m.id}" for m in chain)
 
+                entry_id = entry.id
+                if entry_id is None:
+                    return ToolResult(status="error", tool_response="Memory has no ID.")
+
+                entity_type: Literal["memory_event", "memory_topic"] = "memory_event" if memory_type == "event" else "memory_topic"
+
                 return ToolResult(
                     status="success",
                     tool_response=response,
                     entities_to_track=[
-                        TrackedEntity(
-                            item_type=f"memory_{memory_type}",
-                            item_id=entry.id,
-                            resolution="detail",
-                            ttl=10,
-                        )
+                        _make_memory_entity(entity_type, entry_id, "detail", 10),
                     ],
                 )
         except Exception as e:
             return ToolResult(status="error", tool_response=f"Failed to retrieve memory: {e}")
+
+        return ToolResult(status="error", tool_response="Memory session unavailable.")
 
 
 class UpdateMemoryTool(BaseTool):
@@ -429,15 +463,15 @@ class UpdateMemoryTool(BaseTool):
         if not memory_db_url:
             return ToolResult(status="error", tool_response="Memory database connection not available.")
 
-        memory_id = kwargs.get("memory_id")
-        content = kwargs.get("content")
+        memory_id: int | None = kwargs.get("memory_id")
+        content: str | None = kwargs.get("content")
 
         if not memory_id or not content:
             return ToolResult(status="error", tool_response="memory_id and content are required.")
 
-        subject = kwargs.get("subject")
-        tags = kwargs.get("tags")
-        importance = kwargs.get("importance")
+        subject: str | None = kwargs.get("subject")
+        tags: list[str] | None = kwargs.get("tags")
+        importance: int | None = kwargs.get("importance")
 
         try:
             for session in get_memory_session(memory_db_url=memory_db_url):
@@ -463,15 +497,21 @@ class UpdateMemoryTool(BaseTool):
                 response += _format_memory_for_response(new_entry, "topic")
                 response += f"\nOld revision (ID {memory_id}) marked as superseded."
 
+                new_entry_id = new_entry.id
+                if new_entry_id is None:
+                    return ToolResult(status="error", tool_response="Failed to retrieve new revision ID.")
+
                 return ToolResult(
                     status="success",
                     tool_response=response,
                     entities_to_track=[
-                        TrackedEntity(item_type="memory_topic", item_id=new_entry.id, resolution="detail", ttl=10),
+                        _make_memory_entity("memory_topic", new_entry_id, "detail", 10),
                     ],
                 )
         except Exception as e:
             return ToolResult(status="error", tool_response=f"Failed to update memory: {e}")
+
+        return ToolResult(status="error", tool_response="Memory session unavailable.")
 
 
 class DeleteMemoryTool(BaseTool):
@@ -501,8 +541,8 @@ class DeleteMemoryTool(BaseTool):
         if not memory_db_url:
             return ToolResult(status="error", tool_response="Memory database connection not available.")
 
-        memory_id = kwargs.get("memory_id")
-        memory_type = kwargs.get("memory_type")
+        memory_id: int | None = kwargs.get("memory_id")
+        memory_type: str | None = kwargs.get("memory_type")
 
         if not memory_id or not memory_type:
             return ToolResult(status="error", tool_response="memory_id and memory_type are required.")
@@ -526,3 +566,5 @@ class DeleteMemoryTool(BaseTool):
                 )
         except Exception as e:
             return ToolResult(status="error", tool_response=f"Failed to delete memory: {e}")
+
+        return ToolResult(status="error", tool_response="Memory session unavailable.")

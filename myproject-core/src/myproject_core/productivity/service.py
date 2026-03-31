@@ -73,7 +73,7 @@ def delete_project(session: Session, project_id: int) -> bool:
 
 
 def get_task(session: Session, task_id: int) -> Task | None:
-    statement = select(Task).where(Task.id == task_id).options(selectinload(Task.projects))
+    statement = select(Task).where(Task.id == task_id).options(selectinload(Task.projects))  # type: ignore
     return session.exec(statement).first()
 
 
@@ -83,11 +83,16 @@ def list_tasks(
     project_id: int | None = None,
     include_completed: bool = False,
     sort_by: Literal[
-        "assigned_date", "hard_deadline", "scheduled_start", "title", "status", "created_at",
+        "assigned_date",
+        "hard_deadline",
+        "scheduled_start",
+        "title",
+        "status",
+        "created_at",
     ] = "assigned_date",
     order: Literal["asc", "desc"] = "asc",
 ) -> list[Task]:
-    statement = select(Task).options(selectinload(Task.projects))
+    statement = select(Task).options(selectinload(Task.projects))  # type: ignore
 
     if project_id:
         statement = statement.join(ProjectTaskLink).where(ProjectTaskLink.project_id == project_id)
@@ -118,7 +123,7 @@ def create_task(session: Session, data: dict[str, Any], project_ids: list[int] |
 
 
 def update_task(session: Session, task_id: int, data: dict[str, Any]) -> Task | None:
-    statement = select(Task).where(Task.id == task_id).options(selectinload(Task.projects))
+    statement = select(Task).where(Task.id == task_id).options(selectinload(Task.projects))  # type: ignore
     db_task = session.exec(statement).first()
 
     if not db_task:
@@ -162,7 +167,7 @@ def bulk_update_tasks(
         return 0
 
     statement = (
-        select(Task).where(col(Task.id).in_(task_ids)).options(selectinload(Task.projects))
+        select(Task).where(col(Task.id).in_(task_ids)).options(selectinload(Task.projects))  # type: ignore
     )
     tasks = session.exec(statement).all()
 
@@ -282,7 +287,8 @@ def delete_journal(session: Session, journal_id: int) -> bool:
 def link_task_to_project(session: Session, task_id: int, project_id: int) -> bool:
     existing = session.exec(
         select(ProjectTaskLink).where(
-            ProjectTaskLink.task_id == task_id, ProjectTaskLink.project_id == project_id,
+            ProjectTaskLink.task_id == task_id,
+            ProjectTaskLink.project_id == project_id,
         ),
     ).first()
 
@@ -296,7 +302,8 @@ def link_task_to_project(session: Session, task_id: int, project_id: int) -> boo
 
 def unlink_task_from_project(session: Session, task_id: int, project_id: int) -> bool:
     statement = select(ProjectTaskLink).where(
-        ProjectTaskLink.task_id == task_id, ProjectTaskLink.project_id == project_id,
+        ProjectTaskLink.task_id == task_id,
+        ProjectTaskLink.project_id == project_id,
     )
     link = session.exec(statement).first()
     if link:
