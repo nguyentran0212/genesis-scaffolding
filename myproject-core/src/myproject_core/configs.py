@@ -102,6 +102,8 @@ class Config(BaseSettings):
     db: DatabaseConfig = Field(default_factory=DatabaseConfig)
     # user-specific database
     user_db: DatabaseConfig = Field(default_factory=lambda: DatabaseConfig(db_name="user_private.db"))
+    # user-specific memory database
+    memory_db: DatabaseConfig = Field(default_factory=lambda: DatabaseConfig(db_name="memory/user_memory.db"))
 
     @model_validator(mode="after")
     def validate_llm_references(self) -> "Config":
@@ -179,10 +181,16 @@ def get_config(user_workdir: Path | None = None, override_yaml: Path | None = No
     if not conf.user_db.dsn:
         conf.user_db.db_directory = conf.path.internal_state_dir
 
+    # Memory DB: Same as user_db — inside internal_state_dir/memory/
+    if not conf.memory_db.dsn:
+        conf.memory_db.db_directory = conf.path.internal_state_dir / "memory"
+        conf.memory_db.db_name = "user_memory.db"
+
     # Ensure runtime directories exist
     conf.path.ensure_dirs()
     conf.db.db_directory.mkdir(parents=True, exist_ok=True)
     conf.user_db.db_directory.mkdir(parents=True, exist_ok=True)
+    conf.memory_db.db_directory.mkdir(parents=True, exist_ok=True)
 
     return conf
 

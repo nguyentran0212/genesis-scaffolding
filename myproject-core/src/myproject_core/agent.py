@@ -12,6 +12,7 @@ from myproject_tools.schema import ToolResult
 from .agent_memory import AgentMemory
 from .configs import get_config
 from .llm import get_llm_response
+from .memory.db import get_memory_session
 from .productivity.db import get_user_session
 from .schemas import AgentConfig, StreamCallback, ToolCallback
 from .utils import streamcallback_simple_print
@@ -103,6 +104,7 @@ class Agent:
         content_chunk_callbacks: list[StreamCallback] | None = None,
         reasoning_chunk_callbacks: list[StreamCallback] | None = None,
         user_db_url: str | None = None,
+        memory_db_url: str | None = None,
     ) -> None:
         self.agent_config = agent_config
         if not agent_config.provider_config:
@@ -139,6 +141,7 @@ class Agent:
         self.user_db_url = (
             user_db_url  # Passing connection string to user's private database for agent to use in tools
         )
+        self.memory_db_url = memory_db_url  # Connection string to user's private memory database
 
     def _resolve_tools(self):
         """Attempts to import the tool registry and look up tools
@@ -193,6 +196,7 @@ class Agent:
                 result: ToolResult = await tool.run(
                     working_directory=working_directory,
                     user_db_url=self.user_db_url,
+                    memory_db_url=self.memory_db_url,
                     timezone=self.timezone,
                     **args,
                 )
@@ -333,6 +337,11 @@ class Agent:
                 # and ensure it closes automatically afterwards
                 for session in get_user_session(db_url=self.user_db_url):
                     self.memory.sync_entities(session)
+
+            # Sync the memory pinned entities
+            if self.memory_db_url and self.memory.agent_clipboard.pinned_entities:
+                for session in get_memory_session(memory_db_url=self.memory_db_url):
+                    self.memory.sync_memory_entities(session)
 
             # Build the ephemeral payload for the LLM
             # Current memory.messages is [..., UserMsg]

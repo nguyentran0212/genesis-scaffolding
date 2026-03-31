@@ -7,6 +7,7 @@ from sqlmodel import Session
 
 from myproject_core.productivity.models import Task
 
+from .memory import service as memory_service
 from .productivity import service as prod_service
 from .schemas import AgentClipboard
 
@@ -96,12 +97,12 @@ class AgentMemory:
 
     def pin_entity(
         self,
-        item_type: Literal["task", "project", "journal"],
+        item_type: Literal["task", "project", "journal", "memory_event", "memory_topic"],
         item_id: int,
         resolution: Literal["summary", "detail"],
         ttl: int = 10,
     ):
-        """Delegates pinning a productivity item to the clipboard schema."""
+        """Delegates pinning an entity to the clipboard schema."""
         self.agent_clipboard.pin_entity(item_type, item_id, resolution, ttl)
 
     def sync_entities(self, session: Session):
@@ -138,6 +139,35 @@ class AgentMemory:
                     db_item = cast("Task", db_item)
                     data["project_ids"] = db_item.project_ids
 
+                entity.data = data
+
+    def sync_memory_entities(self, session: Session):
+        """Iterates over pinned memory entities in the clipboard, fetches their
+        latest state from the memory database, and converts them to dictionaries for the LLM.
+        If a memory was deleted from the database, it removes it from the clipboard.
+        """
+        keys_to_sync = [
+            key for key in self.agent_clipboard.pinned_entities
+            if key.startswith("memory_event_") or key.startswith("memory_topic_")
+        ]
+
+        for key in keys_to_sync:
+            entity = self.agent_clipboard.pinned_entities[key]
+            db_item = None
+
+            # Fetch from memory DB
+            if entity.item_type == "memory_event":
+                db_item = memory_service.get_event_log(session, entity.item_id)
+            elif entity.item_type == "memory_topic":
+                db_item = memory_service.get_topical_memory(session, entity.item_id)
+
+            # Update or Remove
+            if db_item is None:
+                # The memory was deleted from the DB
+                del self.agent_clipboard.pinned_entities[key]
+            else:
+                # Serialize the SQLModel to a dict
+                data = db_item.model_dump(mode="json")
                 entity.data = data
 
     def estimate_total_tokens(self) -> int:

@@ -31,6 +31,12 @@ allowed_tools:
   - update_tasks
   - update_project
   - edit_journal
+  - remember_this
+  - search_memories
+  - list_memories
+  - get_memory
+  - update_memory
+  - delete_memory
 ---
 
 You are Max, a helpful AI assistant.

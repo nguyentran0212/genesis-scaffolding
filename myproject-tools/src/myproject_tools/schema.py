@@ -9,7 +9,7 @@ class TrackedEntity(BaseModel):
     This enables progressive disclosure (summary vs detail) and live-syncing.
     """
 
-    item_type: Literal["task", "project", "journal"]
+    item_type: Literal["task", "project", "journal", "memory_event", "memory_topic"]
     item_id: int
     resolution: Literal["summary", "detail"] = "summary"
     ttl: int = 10

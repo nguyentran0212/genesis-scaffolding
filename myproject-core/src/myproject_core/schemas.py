@@ -124,7 +124,7 @@ class AgentClipboardTodoItem(BaseModel):
 class AgentClipboardPinnedEntity(BaseModel):
     """Represents a database entity pinned to the clipboard."""
 
-    item_type: Literal["task", "project", "journal"]
+    item_type: Literal["task", "project", "journal", "memory_event", "memory_topic"]
     item_id: int
     resolution: Literal["summary", "detail"]
     ttl: int
@@ -172,12 +172,12 @@ class AgentClipboard(BaseModel):
 
     def pin_entity(
         self,
-        item_type: Literal["task", "project", "journal"],
+        item_type: Literal["task", "project", "journal", "memory_event", "memory_topic"],
         item_id: int,
         resolution: Literal["summary", "detail"],
         ttl: int = 10,
     ):
-        """Adds or updates a pinned productivity entity."""
+        """Adds or updates a pinned entity (productivity or memory)."""
         key = f"{item_type}_{item_id}"
         if key in self.pinned_entities:
             # If it exists, update resolution and reset TTL

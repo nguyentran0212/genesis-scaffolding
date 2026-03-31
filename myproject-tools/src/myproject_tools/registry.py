@@ -25,6 +25,14 @@ from .productivity_tools import (
     UpdateProjectTool,
     UpdateTasksTool,
 )
+from .memory_tools import (
+    DeleteMemoryTool,
+    GetMemoryTool,
+    ListMemoriesTool,
+    RememberThisTool,
+    SearchMemoriesTool,
+    UpdateMemoryTool,
+)
 from .rss_utils import RssFetchTool
 from .test_tools import MockTestTool
 from .web_fetch import WebPageFetchTool
@@ -84,6 +92,13 @@ tool_registry.register("create_journal", CreateJournalTool)
 tool_registry.register("update_tasks", UpdateTasksTool)
 tool_registry.register("update_project", UpdateProjectTool)
 tool_registry.register("edit_journal", EditJournalTool)
+# Memory tools
+tool_registry.register("remember_this", RememberThisTool)
+tool_registry.register("search_memories", SearchMemoriesTool)
+tool_registry.register("list_memories", ListMemoriesTool)
+tool_registry.register("get_memory", GetMemoryTool)
+tool_registry.register("update_memory", UpdateMemoryTool)
+tool_registry.register("delete_memory", DeleteMemoryTool)
 
 
 def main():
