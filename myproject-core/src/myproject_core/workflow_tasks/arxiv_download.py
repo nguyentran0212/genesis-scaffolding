@@ -52,7 +52,6 @@ class ArxivDownloadTask(BaseTask[ArxivDownloadTaskParams, ArxivDownloadTaskOutpu
 
             # 2. Retry Logic: Handle 429s gracefully
             max_retries = 3
-            success = False
 
             for attempt in range(max_retries):
                 try:
@@ -72,7 +71,6 @@ class ArxivDownloadTask(BaseTask[ArxivDownloadTaskParams, ArxivDownloadTaskOutpu
                     md_paths.append(Path(paper_details["md_path"]))
                     all_details.append(paper_details)
 
-                    success = True
                     break  # Success! Exit the retry loop.
 
                 except Exception as e:

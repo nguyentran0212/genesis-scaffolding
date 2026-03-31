@@ -1,13 +1,12 @@
 from datetime import UTC, datetime
 from typing import Any, Literal
 
-from sqlalchemy import or_, select, text
+from sqlalchemy import text
 from sqlalchemy.sql import cast
 from sqlalchemy.types import String
 from sqlmodel import Session, col
 
 from .models import EventLog, MemorySource, TopicalMemory
-
 
 # --- EVENT LOG ---
 

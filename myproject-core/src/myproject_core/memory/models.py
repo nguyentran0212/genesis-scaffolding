@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 from enum import Enum
 
 from sqlalchemy import Column, DateTime, MetaData
-from sqlmodel import Field, JSON, SQLModel
+from sqlmodel import JSON, Field, SQLModel
 
 # Dedicated metadata — distinct from productivity_metadata and any system-wide metadata
 memory_metadata = MetaData()
