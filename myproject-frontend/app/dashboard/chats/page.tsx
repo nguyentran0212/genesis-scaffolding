@@ -3,7 +3,7 @@ import { MessageSquare, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { listChatSessionsAction } from '@/app/actions/chat';
-import { ChatHistoryTable } from '@/components/dashboard/chat-history-table';
+import { ChatHistoryTable } from '@/components/dashboard/chat-history/chat-history-table';
 import { PageBody, PageContainer } from '@/components/dashboard/page-container';
 
 export default async function ChatHistoryPage() {
