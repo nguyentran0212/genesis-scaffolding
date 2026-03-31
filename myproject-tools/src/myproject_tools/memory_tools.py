@@ -354,7 +354,8 @@ class ListMemoriesTool(BaseTool):
 
                 return ToolResult(status="success", tool_response=response, entities_to_track=entities)
         except Exception as e:
-            return ToolResult(status="error", tool_response=f"Failed to list memories: {e}")
+            import traceback
+            return ToolResult(status="error", tool_response=f"Failed to list memories: {type(e).__name__}: {e}\n{traceback.format_exc()}")
 
         return ToolResult(status="error", tool_response="Memory session unavailable.")
 
@@ -566,5 +567,33 @@ class DeleteMemoryTool(BaseTool):
                 )
         except Exception as e:
             return ToolResult(status="error", tool_response=f"Failed to delete memory: {e}")
+
+        return ToolResult(status="error", tool_response="Memory session unavailable.")
+
+
+class RebuildFtsIndexTool(BaseTool):
+    """Rebuild the FTS5 full-text search index from all existing memories.
+
+    Use this if search results seem incomplete or the FTS index has gone out of sync.
+    This re-indexes all EventLog and TopicalMemory records into the FTS5 virtual table.
+    """
+
+    name = "rebuild_fts_index"
+    description = "Rebuild the full-text search index. Use this if searches are not finding existing memories."
+    parameters = {"type": "object", "properties": {}, "required": []}
+
+    async def run(self, memory_db_url: str | None = None, **kwargs: Any) -> ToolResult:
+        if not memory_db_url:
+            return ToolResult(status="error", tool_response="Memory database connection not available.")
+
+        try:
+            for session in get_memory_session(memory_db_url=memory_db_url):
+                counts = memory_service.rebuild_fts_index(session)
+                return ToolResult(
+                    status="success",
+                    tool_response=f"FTS index rebuilt: {counts['events']} events, {counts['topics']} topics indexed.",
+                )
+        except Exception as e:
+            return ToolResult(status="error", tool_response=f"Failed to rebuild FTS index: {e}")
 
         return ToolResult(status="error", tool_response="Memory session unavailable.")

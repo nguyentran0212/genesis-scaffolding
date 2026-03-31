@@ -29,6 +29,7 @@ from .memory_tools import (
     DeleteMemoryTool,
     GetMemoryTool,
     ListMemoriesTool,
+    RebuildFtsIndexTool,
     RememberThisTool,
     SearchMemoriesTool,
     UpdateMemoryTool,
@@ -99,6 +100,7 @@ tool_registry.register("list_memories", ListMemoriesTool)
 tool_registry.register("get_memory", GetMemoryTool)
 tool_registry.register("update_memory", UpdateMemoryTool)
 tool_registry.register("delete_memory", DeleteMemoryTool)
+tool_registry.register("rebuild_fts_index", RebuildFtsIndexTool)
 
 
 def main():

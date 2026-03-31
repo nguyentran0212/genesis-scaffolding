@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from typing import Any, Literal
 
-from sqlalchemy import or_, select
+from sqlalchemy import or_, select, text
 from sqlalchemy.sql import cast
 from sqlalchemy.types import String
 from sqlmodel import Session, col
@@ -37,24 +37,22 @@ def list_event_logs(
     offset: int = 0,
 ) -> list[EventLog]:
     """List event logs with optional filtering."""
-    statement = select(EventLog)
+    q = session.query(EventLog)
 
     if tag:
         tag_pattern = f'%"{tag}"%'
-        statement = statement.where(cast(EventLog.tags, String).like(tag_pattern))  # type: ignore[arg-type]
+        q = q.filter(cast(EventLog.tags, String).like(tag_pattern))  # type: ignore[arg-type]
     if importance is not None:
-        statement = statement.where(EventLog.importance == importance)  # type: ignore[arg-type]
+        q = q.filter(EventLog.importance == importance)  # type: ignore[arg-type]
     if source is not None:
-        statement = statement.where(EventLog.source == source)  # type: ignore
+        q = q.filter(EventLog.source == source)  # type: ignore
 
     order_field = getattr(EventLog, sort_by)
     if order == "desc":
-        statement = statement.order_by(col(order_field).desc())
+        q = q.order_by(col(order_field).desc())
     else:
-        statement = statement.order_by(col(order_field).asc())
-    statement = statement.limit(limit).offset(offset)
-
-    return session.exec(statement).all()  # type: ignore[return-value]
+        q = q.order_by(col(order_field).asc())
+    return q.limit(limit).offset(offset).all()  # type: ignore[return-value]
 
 
 def delete_event_log(session: Session, event_id: int) -> bool:
@@ -96,29 +94,27 @@ def list_topical_memories(
     offset: int = 0,
 ) -> list[TopicalMemory]:
     """List topical memories. By default excludes superseded (old) entries."""
-    statement = select(TopicalMemory)
+    q = session.query(TopicalMemory)
 
     if not superseded:
-        statement = statement.where(TopicalMemory.superseded_by_id is None)  # type: ignore
+        q = q.filter(TopicalMemory.superseded_by_id is None)  # type: ignore
     else:
-        statement = statement.where(TopicalMemory.superseded_by_id is not None)  # type: ignore
+        q = q.filter(TopicalMemory.superseded_by_id is not None)  # type: ignore
 
     if tag:
         tag_pattern = f'%"{tag}"%'
-        statement = statement.where(cast(TopicalMemory.tags, String).like(tag_pattern))  # type: ignore[arg-type]
+        q = q.filter(cast(TopicalMemory.tags, String).like(tag_pattern))  # type: ignore[arg-type]
     if importance is not None:
-        statement = statement.where(TopicalMemory.importance == importance)  # type: ignore
+        q = q.filter(TopicalMemory.importance == importance)  # type: ignore[arg-type]
     if source is not None:
-        statement = statement.where(TopicalMemory.source == source)  # type: ignore
+        q = q.filter(TopicalMemory.source == source)  # type: ignore
 
     order_field = getattr(TopicalMemory, sort_by)
     if order == "desc":
-        statement = statement.order_by(col(order_field).desc())
+        q = q.order_by(col(order_field).desc())
     else:
-        statement = statement.order_by(col(order_field).asc())
-    statement = statement.limit(limit).offset(offset)
-
-    return session.exec(statement).all()  # type: ignore[return-value]
+        q = q.order_by(col(order_field).asc())
+    return q.limit(limit).offset(offset).all()  # type: ignore[return-value]
 
 
 def update_topical_memory(
@@ -220,29 +216,88 @@ def search_memories(
     memory_type: Literal["event", "topic", "all"] = "all",
     limit: int = 20,
 ) -> dict[str, list[EventLog | TopicalMemory]]:
-    """Keyword search across subject and content.
+    """Full-text search using FTS5 with porter stemming.
 
     Returns dict with 'events' and 'topics' keys.
     Only returns current (non-superseded) topical memories.
     """
-    results: dict[str, list[EventLog | TopicalMemory]] = {"events": [], "topics": []}
-    pattern = f"%{query}%"
+    if not query.strip():
+        return {"events": [], "topics": []}
 
-    if memory_type in ("all", "event"):
-        event_stmt = (
-            select(EventLog)
-            .where(or_(EventLog.subject.ilike(pattern), EventLog.content.ilike(pattern)))  # type: ignore[arg-type]
-            .limit(limit)
+    # FTS5 query: all terms must match (AND), porter tokenizer handles stemming
+    # superseded_by_id IS NULL filter ensures we only get current topics
+    if memory_type == "event":
+        type_filter = "table_type = 'event'"
+        superseded_filter = "1=1"
+    elif memory_type == "topic":
+        type_filter = "table_type = 'topic'"
+        superseded_filter = "superseded_by_id IS NULL"
+    else:
+        type_filter = "1=1"
+        superseded_filter = "1=1"
+
+    fts_sql = text(f"""
+        SELECT id, table_type, bm25(memory_fts) as score
+        FROM memory_fts
+        WHERE memory_fts MATCH :query AND {type_filter} AND {superseded_filter}
+        ORDER BY score
+        LIMIT :limit
+    """)
+    fts_results: list[Any] = list(session.execute(fts_sql, {"query": query, "limit": limit}).all())  # type: ignore[arg-type,return-value]
+
+    if not fts_results:
+        return {"events": [], "topics": []}
+
+    event_ids = [r.id for r in fts_results if r.table_type == "event"]
+    topic_ids = [r.id for r in fts_results if r.table_type == "topic"]
+
+    events: list[EventLog] = []
+    topics: list[TopicalMemory] = []
+
+    if event_ids:
+        events = list(session.query(EventLog).filter(EventLog.id.in_(event_ids)).all())  # type: ignore[arg-type]
+    if topic_ids:
+        topics = list(session.query(TopicalMemory).filter(TopicalMemory.id.in_(topic_ids)).all())  # type: ignore[arg-type]
+
+    return {"events": events, "topics": topics}  # type: ignore[return-value]
+
+
+def rebuild_fts_index(session: Session) -> dict[str, int]:
+    """Rebuild the FTS5 index from all existing EventLog and TopicalMemory records.
+
+    Use this to repopulate the FTS index if it has gone out of sync,
+    or to initially index existing data after adding FTS5 to an existing database.
+    Returns counts of indexed events and topics.
+    """
+    # Clear existing FTS entries
+    session.execute(text("DELETE FROM memory_fts"))
+    session.commit()
+
+    # Re-index all EventLog records
+    events = session.query(EventLog).all()  # type: ignore[return-value]
+    event_count = 0
+    for e in events:
+        session.execute(
+            text(
+                "INSERT INTO memory_fts(id, table_type, subject, content, superseded_by_id) "
+                "VALUES (:id, 'event', :subject, :content, NULL)"
+            ),
+            {"id": e.id, "subject": e.subject, "content": e.content},
         )
-        results["events"] = session.exec(event_stmt).all()  # type: ignore[return-value]
+        event_count += 1
 
-    if memory_type in ("all", "topic"):
-        topic_stmt = (
-            select(TopicalMemory)
-            .where(or_(TopicalMemory.subject.ilike(pattern), TopicalMemory.content.ilike(pattern)))  # type: ignore[arg-type]
-            .where(TopicalMemory.superseded_by_id is None)  # type: ignore
-            .limit(limit)
+    # Re-index all TopicalMemory records
+    topics = session.query(TopicalMemory).all()  # type: ignore[return-value]
+    topic_count = 0
+    for t in topics:
+        session.execute(
+            text(
+                "INSERT INTO memory_fts(id, table_type, subject, content, superseded_by_id) "
+                "VALUES (:id, 'topic', :subject, :content, :superseded_by_id)"
+            ),
+            {"id": t.id, "subject": t.subject, "content": t.content, "superseded_by_id": t.superseded_by_id},
         )
-        results["topics"] = session.exec(topic_stmt).all()  # type: ignore[return-value]
+        topic_count += 1
 
-    return results
+    session.commit()
+    return {"events": event_count, "topics": topic_count}
