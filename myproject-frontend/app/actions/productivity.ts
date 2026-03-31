@@ -10,7 +10,10 @@ export async function getTasksAction(params?: any): Promise<Task[]> {
   const query = new URLSearchParams(params).toString();
   const res = await apiFetch(`/productivity/tasks?${query}`);
   if (!res.ok) throw new Error("Failed to fetch tasks");
-  return res.json();
+  const data = await res.json();
+  // Handle both paginated and non-paginated responses
+  if (Array.isArray(data)) return data;
+  return data.items;
 }
 
 export async function createTaskAction(data: any) {

@@ -11,26 +11,29 @@ import { SortingState } from "@tanstack/react-table";
 interface TaskTableProps {
   tasks: Task[];
   projects: Project[];
-  variant?: "table" | "list" | "dashboard"; // Use 'list' for the project detail view
-  floatingOffset?: boolean
+  variant?: "table" | "list" | "dashboard";
+  floatingOffset?: boolean;
 }
 
-export function TaskTable({ tasks, projects, variant = "table", floatingOffset = false }: TaskTableProps) {
+export function TaskTable({
+  tasks,
+  projects,
+  variant = "table",
+  floatingOffset = false,
+}: TaskTableProps) {
+  // Enable pagination for "table" variant, disable for "dashboard" and "list"
+  const enablePagination = variant === "table";
+
   const columns = React.useMemo(() => getTaskColumns(projects, variant), [projects, variant]);
 
   const initialVisibility = React.useMemo(() => ({
-    project: variant !== "list" && variant !== "dashboard", // Hide project on dashboard
+    project: variant !== "list" && variant !== "dashboard",
     created_at: false,
     scheduled_start: false,
-    assigned_date: variant !== "dashboard", // Hide scheduled date on dashboard
-    hard_deadline: variant !== "dashboard",  // Hide deadline on dashboard
+    assigned_date: variant !== "dashboard",
+    hard_deadline: variant !== "dashboard",
   }), [variant]);
 
-  // Default sorting:
-  // - Show todo items higher
-  // - Sort by deadline (earlier at higher position)
-  // - Sort by assigned date (earlier at higher position)
-  // - Sorted by created at (oldest tasks first)
   const defaultSorting: SortingState = React.useMemo(() => [
     {
       id: "status",
@@ -42,11 +45,11 @@ export function TaskTable({ tasks, projects, variant = "table", floatingOffset =
     },
     {
       id: "assigned_date",
-      desc: variant === "dashboard", // Soonest tasks first
+      desc: variant === "dashboard",
     },
     {
       id: "scheduled_start",
-      desc: variant === "dashboard", // Soonest tasks first
+      desc: variant === "dashboard",
     },
     {
       id: "created_at",
@@ -62,10 +65,9 @@ export function TaskTable({ tasks, projects, variant = "table", floatingOffset =
       enableMultiSort={true}
       initialColumnVisibility={initialVisibility}
       getRowId={(row: Task) => row.id.toString()}
-      // 2. The Render Prop: We get the 'table' from DataTable and pass it to our specific Toolbar
+      enablePagination={enablePagination}
+      defaultPageSize={20}
       renderToolbar={(table) => <TaskTableToolbar table={table} />}
-
-      // 3. Handle the Bulk Actions bar the same way
       renderFloatingBar={(table) => {
         const selectedRows = table.getFilteredSelectedRowModel().rows;
         const selectedIds = selectedRows.map((row) => (row.original as Task).id);
@@ -75,7 +77,6 @@ export function TaskTable({ tasks, projects, variant = "table", floatingOffset =
             selectedIds={selectedIds}
             onClear={() => table.resetRowSelection()}
             projects={projects}
-            // This is important to avoid the bulk action bar being covered up by the task quick add component
             className={floatingOffset ? "bottom-24" : "bottom-6"}
           />
         );

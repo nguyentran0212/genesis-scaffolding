@@ -3,6 +3,7 @@ from typing import Literal
 
 from fastapi import APIRouter, HTTPException, status
 from myproject_core.productivity.models import JournalEntry, JournalType, Project, ProjectTaskLink, Task
+from pydantic import BaseModel
 from sqlalchemy.orm import selectinload
 from sqlmodel import asc, col, desc, select
 
@@ -19,6 +20,13 @@ from ..schemas.productivity import (
     TaskRead,
     TaskUpdate,
 )
+
+
+class TaskPaginatedResponse(BaseModel):
+    items: list[TaskRead]
+    total: int
+    offset: int
+    limit: int
 
 router = APIRouter(prefix="/productivity", tags=["productivity"])
 
@@ -116,7 +124,7 @@ def create_task(data: TaskCreate, session: ProdSessionDep):
     return db_task
 
 
-@router.get("/tasks", response_model=list[TaskRead])
+@router.get("/tasks", response_model=TaskPaginatedResponse)
 def list_tasks(
     session: ProdSessionDep,
     assigned_on: date | None = None,
@@ -126,6 +134,8 @@ def list_tasks(
         "assigned_date", "hard_deadline", "scheduled_start", "title", "status", "created_at",
     ] = "assigned_date",
     order: Literal["asc", "desc"] = "asc",
+    offset: int | None = None,
+    limit: int | None = None,
 ):
     statement = select(Task).options(selectinload(Task.projects))
 
@@ -138,8 +148,31 @@ def list_tasks(
     if not include_completed:
         statement = statement.where(Task.status != "completed")
 
+    # Get total count
+    count_statement = select(Task)
+    if project_id:
+        count_statement = count_statement.join(ProjectTaskLink).where(ProjectTaskLink.project_id == project_id)
+    if assigned_on:
+        count_statement = count_statement.where(Task.assigned_date == assigned_on)
+    if not include_completed:
+        count_statement = count_statement.where(Task.status != "completed")
+    total = len(session.exec(count_statement).all())
+
     statement = apply_sorting(statement, Task, sort_by, order)
-    return session.exec(statement).all()
+
+    # Apply pagination only if offset and limit are explicitly provided
+    if offset is not None and limit is not None:
+        statement = statement.offset(offset).limit(limit)
+        actual_offset = offset
+        actual_limit = limit
+    else:
+        # No pagination - return all
+        actual_offset = 0
+        actual_limit = total
+
+    items = session.exec(statement).all()
+
+    return TaskPaginatedResponse(items=items, total=total, offset=actual_offset, limit=actual_limit)
 
 
 @router.patch("/tasks/bulk", status_code=status.HTTP_200_OK)

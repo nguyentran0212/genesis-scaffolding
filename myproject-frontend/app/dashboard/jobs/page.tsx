@@ -1,5 +1,5 @@
 import { getJobsAction } from "@/app/actions/job";
-import { JobsTable } from "@/components/dashboard/jobs-table";
+import { JobsTable } from "@/components/dashboard/jobs/jobs-table";
 import { Button } from "@/components/ui/button";
 import { RefreshCcw } from "lucide-react";
 import { revalidatePath } from "next/cache";

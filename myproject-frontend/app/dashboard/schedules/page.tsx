@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Plus, AlarmClock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ScheduleTable } from '@/components/dashboard/schedule-table';
+import { ScheduleTable } from '@/components/dashboard/schedules/schedule-table';
 import { getSchedulesAction } from '@/app/actions/schedule';
 import { PageBody, PageContainer } from '@/components/dashboard/page-container';
 
