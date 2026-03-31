@@ -22,7 +22,6 @@ export default async function ProjectDetailPage({
     getTasksAction({ project_id: id, include_completed: true }),
     getProjectsAction()
   ]);
-
   const completedTasks = tasks.filter(t => t.status?.toLowerCase().trim() === 'completed').length;
   const progress = tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 0;
 

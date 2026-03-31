@@ -8,9 +8,11 @@ import {
   useReactTable,
   getSortedRowModel,
   getFilteredRowModel,
+  getPaginationRowModel,
   SortingState,
   VisibilityState,
   ColumnFiltersState,
+  PaginationState,
   Table as TableType,
 } from "@tanstack/react-table";
 
@@ -22,6 +24,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -33,6 +43,14 @@ interface DataTableProps<TData, TValue> {
   initialColumnVisibility?: VisibilityState;
   initialSorting?: SortingState;
   enableMultiSort?: boolean;
+
+  // Pagination props
+  enablePagination?: boolean;
+  manualPagination?: boolean;
+  pageCount?: number;
+  defaultPageSize?: number;
+  paginationState?: PaginationState;
+  onPaginationChange?: (pageIndex: number, pageSize: number) => void;
 
   // The caller would supply the function to initialise these react components
   // Slot for search/filters
@@ -48,6 +66,12 @@ export function DataTable<TData, TValue>({
   initialSorting = [],
   enableMultiSort = true,
   initialColumnVisibility = {},
+  enablePagination = false,
+  manualPagination = false,
+  pageCount = -1,
+  defaultPageSize = 20,
+  paginationState,
+  onPaginationChange,
   renderToolbar,
   renderFloatingBar,
 }: DataTableProps<TData, TValue>) {
@@ -55,6 +79,30 @@ export function DataTable<TData, TValue>({
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>(initialColumnVisibility);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [rowSelection, setRowSelection] = React.useState({});
+  const [internalPagination, setInternalPagination] = React.useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: defaultPageSize,
+  });
+
+  // Use controlled pagination state if provided, otherwise use internal state
+  const pagination = paginationState ?? internalPagination;
+  const isControlled = paginationState !== undefined;
+
+  // Handle TanStack Table's reducer pattern and convert to simple (pageIndex, pageSize) callback
+  const handlePaginationChange = (
+    updaterOrValue: PaginationState | ((old: PaginationState) => PaginationState)
+  ) => {
+    const newPagination = typeof updaterOrValue === 'function'
+      ? updaterOrValue(pagination)
+      : updaterOrValue;
+
+    if (isControlled && onPaginationChange) {
+      // Convert to simple (pageIndex, pageSize) callback for external handler
+      onPaginationChange(newPagination.pageIndex, newPagination.pageSize);
+    } else {
+      setInternalPagination(newPagination);
+    }
+  };
 
   const table = useReactTable({
     data,
@@ -65,6 +113,7 @@ export function DataTable<TData, TValue>({
       columnVisibility,
       rowSelection,
       columnFilters,
+      pagination,
     },
     enableRowSelection: true,
     enableMultiSort,
@@ -72,9 +121,13 @@ export function DataTable<TData, TValue>({
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
+    onPaginationChange: handlePaginationChange,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: enablePagination ? getPaginationRowModel() : undefined,
+    manualPagination: manualPagination,
+    pageCount: pageCount,
   });
 
   return (
@@ -120,6 +173,52 @@ export function DataTable<TData, TValue>({
           </TableBody>
         </Table>
       </div>
+
+      {enablePagination && (
+        <div className="flex items-center justify-between px-2">
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-muted-foreground">
+              Page {pagination.pageIndex + 1} of {table.getPageCount()}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Select
+              value={pagination.pageSize.toString()}
+              onValueChange={(value) => {
+                table.setPageSize(Number(value));
+              }}
+            >
+              <SelectTrigger className="h-8 w-[70px]">
+                <SelectValue placeholder={pagination.pageSize} />
+              </SelectTrigger>
+              <SelectContent side="top">
+                {[10, 20, 50, 100].map((pageSize) => (
+                  <SelectItem key={pageSize} value={pageSize.toString()}>
+                    {pageSize}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
+
       {renderFloatingBar?.(table)}
     </div>
   );

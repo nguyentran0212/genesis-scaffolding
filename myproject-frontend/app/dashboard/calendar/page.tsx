@@ -26,7 +26,7 @@ export default function CalendarPage() {
         const data = await getTasksAction({
           scheduled_after: start,
           scheduled_before: end,
-          include_completed: true
+          include_completed: true,
         });
         setTasks(data);
       } catch (error) {

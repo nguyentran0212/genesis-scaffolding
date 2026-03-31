@@ -1,17 +1,13 @@
 import { getTasksAction, getProjectsAction } from "@/app/actions/productivity";
 import { PageContainer, PageBody } from "@/components/dashboard/page-container";
 import { QuickAddTask } from "@/components/dashboard/tasks/quick-add-task";
-import { TaskTable } from "@/components/dashboard/tasks/task-table"; // We'll build this next
+import { TaskTable } from "@/components/dashboard/tasks/task-table";
 
-interface PageProps {
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
-}
-
-export default async function TasksPage({ searchParams }: PageProps) {
-  // Pass server-side sorting/filtering to the action
-  const resolvedParams = await searchParams;
-  const tasks = await getTasksAction({ ...resolvedParams, include_completed: false });
-  const projects = await getProjectsAction();
+export default async function TasksPage() {
+  const [tasks, projects] = await Promise.all([
+    getTasksAction({ include_completed: false }),
+    getProjectsAction(),
+  ]);
 
   return (
     <PageContainer variant="dashboard" hasFloatingActionMenu={false}>
