@@ -127,7 +127,9 @@ export function DataTable<TData, TValue>({
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: enablePagination ? getPaginationRowModel() : undefined,
     manualPagination: manualPagination,
-    pageCount: pageCount,
+    // For client-side pagination, let TanStack calculate pageCount automatically.
+    // Only pass pageCount for server-side pagination.
+    ...(manualPagination && { pageCount }),
   });
 
   return (
