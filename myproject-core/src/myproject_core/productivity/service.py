@@ -34,7 +34,7 @@ def list_projects(
 ) -> list[Project]:
     statement = select(Project)
     statement = _apply_sorting(statement, Project, sort_by, order)
-    return session.exec(statement).all()
+    return list(session.exec(statement).all())
 
 
 def create_project(session: Session, data: dict[str, Any]) -> Project:
@@ -104,7 +104,7 @@ def list_tasks(
         statement = statement.where(Task.status != "completed")
 
     statement = _apply_sorting(statement, Task, sort_by, order)
-    return session.exec(statement).all()
+    return list(session.exec(statement).all())
 
 
 def create_task(session: Session, data: dict[str, Any], project_ids: list[int] | None = None) -> Task:
@@ -245,7 +245,7 @@ def list_journals(
         statement = statement.where(JournalEntry.reference_date == reference_date)
 
     statement = _apply_sorting(statement, JournalEntry, sort_by, order)
-    return session.exec(statement).all()
+    return list(session.exec(statement).all())
 
 
 def create_journal(session: Session, data: dict[str, Any]) -> JournalEntry:

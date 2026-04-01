@@ -213,7 +213,7 @@ async def _parse_anthropic_stream(
             event_type = getattr(event, "type", None)
 
             if event_type == "content_block_start":
-                idx = event.index
+                idx = event.index  # type: ignore
                 content_block = getattr(event, "content_block", None)
                 if content_block and getattr(content_block, "type", None) == "tool_use":
                     tool_calls_dict[idx] = {
@@ -228,7 +228,7 @@ async def _parse_anthropic_stream(
                     continue
 
                 delta_type = getattr(delta, "type", None)
-                idx = event.index
+                idx = event.index  # type: ignore
 
                 if delta_type == "text_delta":
                     text_value = getattr(delta, "text", "") or ""

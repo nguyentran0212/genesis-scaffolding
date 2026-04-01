@@ -137,7 +137,7 @@ def list_tasks(
     offset: int | None = None,
     limit: int | None = None,
 ):
-    statement = select(Task).options(selectinload(Task.projects))
+    statement = select(Task).options(selectinload(Task.projects))  # type: ignore
 
     if project_id:
         statement = statement.join(ProjectTaskLink).where(ProjectTaskLink.project_id == project_id)
@@ -172,7 +172,7 @@ def list_tasks(
 
     items = session.exec(statement).all()
 
-    return TaskPaginatedResponse(items=items, total=total, offset=actual_offset, limit=actual_limit)
+    return TaskPaginatedResponse(items=[TaskRead.model_validate(t) for t in items], total=total, offset=actual_offset, limit=actual_limit)
 
 
 @router.patch("/tasks/bulk", status_code=status.HTTP_200_OK)
@@ -186,7 +186,7 @@ def bulk_update_tasks(data: TaskBulkUpdate, session: ProdSessionDep):
     # Fetch the tasks that need relationship updates or complex logic
     # We use selectinload to ensure we can modify projects immediately
     statement = (
-        select(Task).where(col(Task.id).in_(data.ids)).options(selectinload(Task.projects))
+        select(Task).where(col(Task.id).in_(data.ids)).options(selectinload(Task.projects))  # type: ignore
     )
     tasks = session.exec(statement).all()
 
@@ -257,7 +257,7 @@ def bulk_delete_tasks(task_ids: list[int], session: ProdSessionDep):
 @router.get("/tasks/{task_id}", response_model=TaskRead)
 def get_task(task_id: int, session: ProdSessionDep):
     # Use selectinload to ensure project_ids are populated
-    statement = select(Task).where(Task.id == task_id).options(selectinload(Task.projects))
+    statement = select(Task).where(Task.id == task_id).options(selectinload(Task.projects))  # type: ignore
     db_task = session.exec(statement).first()
     if not db_task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -267,7 +267,7 @@ def get_task(task_id: int, session: ProdSessionDep):
 @router.patch("/tasks/{task_id}", response_model=TaskRead)
 def update_task(task_id: int, data: TaskUpdate, session: ProdSessionDep):
     # Fetch with projects loaded so TaskRead can return them
-    statement = select(Task).where(Task.id == task_id).options(selectinload(Task.projects))
+    statement = select(Task).where(Task.id == task_id).options(selectinload(Task.projects))  # type: ignore
     db_task = session.exec(statement).first()
 
     if not db_task:

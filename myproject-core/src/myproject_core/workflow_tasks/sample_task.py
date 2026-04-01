@@ -16,7 +16,7 @@ class SampleTask(BaseTask[SampleTaskParams, SampleTaskOutput]):
     params_model = SampleTaskParams
     output_model = SampleTaskOutput
 
-    async def run(self, context: JobContext, agent_registry: AgentRegistry, params: dict) -> output_model:
+    async def run(self, context: JobContext, agent_registry: AgentRegistry, params: dict) -> output_model:  # type: ignore
         self.params_model.model_validate(params)
         output = self.output_model(content=[""], file_paths=None)
         return output

@@ -27,7 +27,7 @@ class ArxivDownloadTask(BaseTask[ArxivDownloadTaskParams, ArxivDownloadTaskOutpu
     params_model = ArxivDownloadTaskParams
     output_model = ArxivDownloadTaskOutput
 
-    async def run(self, context: JobContext, agent_registry: AgentRegistry, params: dict) -> output_model:
+    async def run(self, context: JobContext, agent_registry: AgentRegistry, params: dict) -> output_model:  # type: ignore
         args = self.params_model.model_validate(params)
 
         print(args)

@@ -345,7 +345,7 @@ def get_topical_memory_by_subject(session: Session, subject: str) -> TopicalMemo
     """Lookup a TopicalMemory by its subject field. Returns the current (non-superseded) entry."""
     return (
         session.query(TopicalMemory)
-        .filter(TopicalMemory.subject == subject)
-        .filter(TopicalMemory.superseded_by_id.is_(None))
+        .filter(TopicalMemory.subject == subject)  # type: ignore
+        .filter(TopicalMemory.superseded_by_id.is_(None))  # type: ignore
         .first()
     )

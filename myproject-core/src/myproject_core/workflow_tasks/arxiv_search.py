@@ -25,7 +25,7 @@ class ArxivSearchTask(BaseTask[ArxivSearchTaskParams, ArxivSearchTaskOutput]):
     params_model = ArxivSearchTaskParams
     output_model = ArxivSearchTaskOutput
 
-    async def run(self, context: JobContext, agent_registry: AgentRegistry, params: dict) -> output_model:
+    async def run(self, context: JobContext, agent_registry: AgentRegistry, params: dict) -> output_model:  # type: ignore
         args = self.params_model.model_validate(params)
 
         # Clean up the query to ensure it does not break the parser on arxiv side
