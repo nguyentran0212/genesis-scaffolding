@@ -339,3 +339,13 @@ def get_memory_tag_counts(session: Session) -> dict[str, int]:
         tag_counts[tag] = tag_counts.get(tag, 0) + 1
 
     return tag_counts
+
+
+def get_topical_memory_by_subject(session: Session, subject: str) -> TopicalMemory | None:
+    """Lookup a TopicalMemory by its subject field. Returns the current (non-superseded) entry."""
+    return (
+        session.query(TopicalMemory)
+        .filter(TopicalMemory.subject == subject)
+        .filter(TopicalMemory.superseded_by_id.is_(None))
+        .first()
+    )

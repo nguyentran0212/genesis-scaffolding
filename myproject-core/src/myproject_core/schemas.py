@@ -140,6 +140,7 @@ class AgentClipboard(BaseModel):
     todo_list: list[AgentClipboardTodoItem] = []
     pinned_entities: dict[str, AgentClipboardPinnedEntity] = {}
     memory_tag_hints: dict[str, int] = {}  # tag -> count of current memories
+    user_profile_content: str | None = None  # Rendered user profile, never TTL-expires
 
     def add_file_to_clipboard(self, file_path: Path, content: str):
         """Adds or updates a file in the clipboard."""
@@ -158,7 +159,9 @@ class AgentClipboard(BaseModel):
     def add_tool_result_to_clipboard(self, tool_name: str, tool_call_id: str, tool_call_results: list[str]):
         """Add results of tool call to the clipboard"""
         new_tool_result = AgentClipboardToolResult(
-            tool_name=tool_name, tool_call_id=tool_call_id, tool_call_results=tool_call_results,
+            tool_name=tool_name,
+            tool_call_id=tool_call_id,
+            tool_call_results=tool_call_results,
         )
         self.tool_results[tool_call_id] = new_tool_result
 
@@ -186,7 +189,10 @@ class AgentClipboard(BaseModel):
             self.pinned_entities[key].ttl = ttl
         else:
             self.pinned_entities[key] = AgentClipboardPinnedEntity(
-                item_type=item_type, item_id=item_id, resolution=resolution, ttl=ttl,
+                item_type=item_type,
+                item_id=item_id,
+                resolution=resolution,
+                ttl=ttl,
             )
 
     def reduce_ttl(self):
@@ -216,8 +222,7 @@ class AgentClipboard(BaseModel):
         }
 
     def commit(self):
-        """Remove previous version of existing files from clipboard
-        """
+        """Remove previous version of existing files from clipboard"""
         for clipboard_file in self.accessed_files.values():
             clipboard_file.is_new = False
             clipboard_file.is_edited = False
@@ -356,14 +361,21 @@ class AgentClipboard(BaseModel):
                 tag_section += f"- {tag} ({count})\n"
             sections.append(tag_section)
 
+        # Render user profile
+        if self.user_profile_content is not None:
+            profile_section = "### USER PROFILE\n\n```\n" + self.user_profile_content + "\n```\n"
+            sections.append(profile_section)
+        else:
+            profile_section = '### USER PROFILE\n\nYou don\'t have a user profile yet. When the time feels right — e.g., the user says hello, asks what you can do, or seems open to chatting — start an onboarding process to learn more about user to create a profile so that you can interact with user better.\n\nWhen you\'re ready to record what you learn, use:\nremember_this(memory_type="topic", subject="user-profile", tags=["user-profile"], content="...")\n'
+            sections.append(profile_section)
+
         if not sections:
             return "Clipboard is currently empty."
 
         return "\n\n".join(sections)
 
     def get_accessed_files_paths(self) -> list[Path]:
-        """Return a list of paths of all accessed files
-        """
+        """Return a list of paths of all accessed files"""
         str_paths: list[str] = list(self.accessed_files.keys())
         return [Path(str_path) for str_path in str_paths]
 
@@ -389,8 +401,7 @@ WorkflowCallback = Callable[[WorkflowEvent], Awaitable[None]]
 
 ### Schema for workflow manifest yamls
 class WorkflowInputType(str, Enum):
-    """Data types of workflow inputs for the workflow manifests
-    """
+    """Data types of workflow inputs for the workflow manifests"""
 
     STRING = "string"
     INT = "int"
@@ -434,7 +445,8 @@ class StepDefinition(BaseModel):
         description="Configuration passed to the task. Can contain {{ placeholders }}.",
     )
     condition: str | None = Field(
-        None, description="A Jinja2 expression. If False, the step is skipped.",
+        None,
+        description="A Jinja2 expression. If False, the step is skipped.",
     )
 
 
@@ -443,7 +455,8 @@ class OutputDefinition(BaseModel):
 
     description: str = Field(..., description="Help text for the user")
     value: str = Field(
-        ..., description="Contain {{ placeholders }} that specifies data source for this output.",
+        ...,
+        description="Contain {{ placeholders }} that specifies data source for this output.",
     )
 
 
@@ -466,8 +479,7 @@ class WorkflowManifest(BaseModel):
     outputs: dict[str, OutputDefinition]
 
     def validate_runtime_inputs(self, raw_data: dict) -> dict:
-        """Validate the raw input data to a workflow against its type definition stored in input dict
-        """
+        """Validate the raw input data to a workflow against its type definition stored in input dict"""
         validated = {}
         for name, defn in self.inputs.items():
             raw_val = raw_data.get(name, defn.default)
@@ -507,8 +519,7 @@ class WorkflowManifest(BaseModel):
 
     @classmethod
     def from_yaml(cls, path: Path) -> "WorkflowManifest":
-        """Utility function to create a WorkflowManifest object directly from reading a YAML file
-        """
+        """Utility function to create a WorkflowManifest object directly from reading a YAML file"""
         with open(path) as f:
             data = yaml.safe_load(f)
         return cls(**data)

@@ -175,6 +175,19 @@ class AgentMemory:
         counts = memory_service.get_memory_tag_counts(session)
         self.agent_clipboard.memory_tag_hints = counts
 
+    def sync_user_profile(self, session: Session):
+        """Fetch the user profile topical memory and cache its content in the clipboard.
+
+        If no profile exists, sets user_profile_content to None — the clipboard
+        will render the onboarding nudge instead.
+        """
+        from .memory import service as memory_service
+
+        profile = memory_service.get_topical_memory_by_subject(session, "user-profile")
+        self.agent_clipboard.user_profile_content = (
+            profile.content if profile else None
+        )
+
     def estimate_total_tokens(self) -> int:
         """Estimates the total token count of history + current clipboard.
         Uses a 4-char-per-token heuristic.

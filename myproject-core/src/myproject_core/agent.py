@@ -14,85 +14,9 @@ from .configs import get_config
 from .llm import get_llm_response
 from .memory.db import get_memory_session
 from .productivity.db import get_user_session
+from .prompts import BuildPromptConfig, build_system_prompt
 from .schemas import AgentConfig, StreamCallback, ToolCallback
 from .utils import streamcallback_simple_print
-
-SYSTEM_PROMPT_PREFIX = """
-# GENERAL INSTRUCTION
-
-In this session, "you" denote you, the assistant.
-"Me" denote me, the user.
-
-You need to follow the role and specific instructions described later in this message to accomplish your goal of supporting me (the user).
-
-## Working Directory
-
-You are operating inside a working directory, also known as a `sandbox`. If you are given file tools, you can list, read, write, and edit files in this sandbox.
-
-You need to use relative path to refer to files and directory inside the sandbox. You are located at the root of the sandbox.
-
-## Clipboard
-
-You are provided with a **clipboard** that provides a snapshot of the **latest state** of relevant data in this session:
-- content of and paths to files from working directory that you read, written, or edited previously
-- results of your tool calls 
-- your to-do list
-
-The files shown in the clipboard are already SYNCHORNIZED with the content in the working directory. 
-- If they are in the clipboard, they exist in the working directory. 
-- If they are modified in the working directory, they will be automatically updated in the clipboard.
-- The content of a file you see in the clipboard is always the latest version of the file, after all of your tool calls have been performed on the files (e.g., editing, writing)
-
-After every tool call, you will receive the tool response message and the **latest version of the clipboard**. 
-
-Use the content of the tool response and clipboard to understand the progress and figure out the next step.
-
-## How to write files
-
-Use write file tool when you need to create a new file in the working directory
-
-1. Figure out the content you need to write.
-2. Figure out a name and path for the file you need to write.
-3. Call the file write tool with the correct parameters
-4. Inspect the tool response and clipboard
-5. If the tool response shows that the write operation failed, figure out the reason and retry
-6. If the tool response shows that the write operation successed, verify the content of the file in the clipboard and conclude the file write task
-
-## How to edit files
-
-Use edit file tool when you need to replace or add content to an existing file.
-
-1. Figure out the new content you want to add or replace.
-2. Figure out the file you need to edit.
-3. If the file content is not in the clipboard, use read file tool to add the file content to the clipboard.
-4. Figure out the block of text in the existing file that you want to replace. If you need to add text to an existing empty session, use the session header as the text block to replace. If you need to add text to the end of a paragraph, use the last sentence of the paragraph as the text block.
-5. Call the file edit tool.
-6. If the tool response shows that the edit operation failed, figure out the reason and retry
-7. If the tool response shows that the edit operation was successful, conclude the editing task.
-
------
-
-# ROLE DESCRIPTION AND INSTRUCTIONS
-
-"""
-
-SYSTEM_PROMPT_PREFIX_NO_TOOL = """
-# GENERAL INSTRUCTION
-
-You need to follow the role and specific instructions described later in this message to accomplish your goal of supporting me (the user).
-
-
-## Clipboard
-
-You are provided with a **clipboard** that provides a snapshot of the **latest state** of relevant data in this session:
-- content of files from working directory that you read, written, or edited previously
-
------
-
-# ROLE DESCRIPTION AND INSTRUCTIONS
-
-"""
-
 
 class Agent:
     def __init__(
@@ -116,10 +40,15 @@ class Agent:
         self.llm_model_config = agent_config.llm_config
         self.provider_config = agent_config.provider_config
 
-        if agent_config.allowed_tools:
-            system_prompt = SYSTEM_PROMPT_PREFIX + agent_config.system_prompt
-        else:
-            system_prompt = SYSTEM_PROMPT_PREFIX_NO_TOOL + agent_config.system_prompt
+        prompt_config = BuildPromptConfig(
+            system_prompt=agent_config.system_prompt,
+            allowed_tools=agent_config.allowed_tools,
+            interactive=agent_config.interactive,
+            has_memory_db=memory_db_url is not None,
+            has_user_db=user_db_url is not None,
+            has_working_directory=working_directory is not None,
+        )
+        system_prompt = build_system_prompt(prompt_config)
         self.memory = (
             memory or AgentMemory(messages=[self._create_llm_message(role="system", content=system_prompt)])
         )
@@ -347,6 +276,7 @@ class Agent:
             if self.memory_db_url:
                 for session in get_memory_session(memory_db_url=self.memory_db_url):
                     self.memory.sync_memory_tag_hints(session)
+                    self.memory.sync_user_profile(session)
 
             # Build the ephemeral payload for the LLM
             # Current memory.messages is [..., UserMsg]

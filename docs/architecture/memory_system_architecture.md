@@ -183,11 +183,16 @@ Located in `myproject_core/memory/service.py`, the service layer provides CRUD o
 
 - `create_topical_memory(session, data)` — creates new TopicalMemory
 - `get_topical_memory(session, memory_id)` — retrieve by ID
+- `get_topical_memory_by_subject(session, subject)` — lookup by subject field; returns current (non-superseded) entry
 - `list_topical_memories(session, superseded, tag, importance, source, sort_by, order, limit, offset)` — list with filters
 - `update_topical_memory(session, memory_id, data)` — in-place update (for minor changes)
 - `supersede_topical_memory(session, memory_id, new_content, ...)` — creates new revision, marks old as superseded
 - `get_revision_chain(session, memory_id)` — walk superseded chain backwards
 - `delete_topical_memory(session, memory_id)` — delete by ID
+
+### Tag Counts
+
+- `get_memory_tag_counts(session)` — returns `{tag: count}` for all tags across current (non-superseded) memories, pooled from both EventLog and TopicalMemory
 
 ### Unified Search
 
@@ -201,7 +206,7 @@ Located in `myproject_core/memory/service.py`, the service layer provides CRUD o
 
 ## Agent Tools
 
-Located in `myproject_tools/memory_tools.py`, six tools expose memory operations to the agent:
+Located in `myproject_tools/memory_tools.py`, seven tools expose memory operations to the agent:
 
 | Tool | Description |
 |------|-------------|
@@ -255,17 +260,52 @@ Memory entities are tracked as `TrackedEntity` with `item_type` values:
 
 In `myproject_core/schemas.py`, `AgentClipboardPinnedEntity.item_type` and `pin_entity()` include these memory types.
 
-In `myproject_core/agent_memory.py`, the `sync_memory_entities()` method handles memory entity live-sync.
+In `myproject_core/agent_memory.py`:
+- `sync_memory_entities()` — fetches and live-syncs pinned memory entities from the DB
+- `sync_memory_tag_hints()` — fetches current tag counts and stores in `agent_clipboard.memory_tag_hints`
+- `sync_user_profile()` — fetches the user profile topical memory (subject=`"user-profile"`) and stores its content in `agent_clipboard.user_profile_content`
+
+Both `sync_memory_tag_hints()` and `sync_user_profile()` are called every turn from the agent loop (alongside `sync_memory_entities`) when `memory_db_url` is set.
+
+**AgentClipboard fields relevant to memory:**
+- `memory_tag_hints: dict[str, int] = {}` — tag → count of current memories, refreshed every turn
+- `user_profile_content: str | None = None` — rendered user profile content, never TTL-expires
 
 ---
 
 ## Clipboard TTL / Decay
 
-The existing TTL/decay mechanism in `AgentClipboard.reduce_ttl()` handles memory entities automatically:
+The existing TTL/decay mechanism in `AgentClipboard.reduce_ttl()` handles pinned memory entities:
 
-- Memory entities use the same `ttl` and `resolution` fields as productivity entities
+- Pinned memory entities use the same `ttl` and `resolution` fields as productivity entities
 - As TTL decreases: `detail` → `summary` → expired
-- No changes needed to the clipboard subsystem
+
+**`memory_tag_hints` and `user_profile_content`** are not subject to TTL or decay — they are refreshed every turn directly from the database.
+
+The user profile (`user_profile_content`) is rendered as a permanent snapshot and does not expire.
+
+---
+
+## Prompts Module Integration
+
+System prompts are assembled from modular fragments in `myproject_core/prompts/`:
+
+- `fragments.py` — all prompt fragment strings
+- `builder.py` — `BuildPromptConfig` model and `build_system_prompt()` factory
+
+**Memory-related fragment:**
+
+| Constant | Trigger |
+|----------|---------|
+| `FRAGMENT_MEMORY` | Memory tools present (`remember_this` in `allowed_tools`) |
+
+`FRAGMENT_MEMORY` covers:
+- The agent's own memory concept (EventLog = observed moments, TopicalMemory = accumulated world knowledge)
+- When to remember / when to recall
+- Tags as a structured index — hyphen format (`user-preference`), soft taxonomy (`user-*`, `observation-*`, `fact-*`)
+- How to record the user profile — `subject="user-profile"`, `tags=["user-profile"]`
+
+The clipboard's `### USER PROFILE` section (showing content or onboarding nudge) and `### MEMORY TAGS` section are rendered by `AgentClipboard.render_to_markdown()` and referenced in `FRAGMENT_MEMORY`.
 
 ---
 
@@ -285,12 +325,15 @@ The existing TTL/decay mechanism in `AgentClipboard.reduce_ttl()` handles memory
 | `myproject-core/src/myproject_core/configs.py` | `memory_db: DatabaseConfig` config field |
 | `myproject-core/src/myproject_core/memory/models.py` | EventLog and TopicalMemory SQLModel classes |
 | `myproject-core/src/myproject_core/memory/db.py` | Engine/session management, FTS5 setup |
-| `myproject-core/src/myproject_core/memory/service.py` | CRUD operations, FTS5 search, backfill |
+| `myproject-core/src/myproject_core/memory/service.py` | CRUD operations, FTS5 search, tag counts, backfill |
 | `myproject-core/src/myproject_core/memory/__init__.py` | Module exports |
-| `myproject-tools/src/myproject_tools/memory_tools.py` | 6 agent tools |
+| `myproject-core/src/myproject_core/prompts/__init__.py` | Prompt factory exports |
+| `myproject-core/src/myproject_core/prompts/builder.py` | `BuildPromptConfig`, `build_system_prompt()` |
+| `myproject-core/src/myproject_core/prompts/fragments.py` | All prompt fragment strings including `FRAGMENT_MEMORY` |
+| `myproject-tools/src/myproject_tools/memory_tools.py` | 7 agent tools |
 | `myproject-tools/src/myproject_tools/registry.py` | Tool registration |
 | `myproject-tools/src/myproject_tools/schema.py` | `TrackedEntity` item_type additions |
-| `myproject-core/src/myproject_core/schemas.py` | `AgentClipboardPinnedEntity` updates |
-| `myproject-core/src/myproject_core/agent.py` | `memory_db_url` initialization |
-| `myproject-core/src/myproject_core/agent_memory.py` | Memory entity sync |
+| `myproject-core/src/myproject_core/schemas.py` | `AgentClipboard` with `memory_tag_hints` and `user_profile_content`; `render_to_markdown` sections |
+| `myproject-core/src/myproject_core/agent.py` | `memory_db_url` initialization; calls `sync_memory_tag_hints` and `sync_user_profile` every turn |
+| `myproject-core/src/myproject_core/agent_memory.py` | `sync_memory_entities`, `sync_memory_tag_hints`, `sync_user_profile` |
 | `myproject-core/src/myproject_core/agent_registry.py` | Passes `memory_db_url` to Agent |
