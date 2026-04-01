@@ -53,10 +53,8 @@ class ActiveRun:
     async def handle_tool_result(self, name: str, args: dict):
         # 1. Update the 'running' status in the parent assistant message
         # We look for the assistant message that just called this tool
-        parent_idx = -1
         for i in range(len(self.messages) - 1, -1, -1):
             if self.messages[i]["role"] == "assistant":
-                parent_idx = i
                 for tc in self.messages[i]["tool_calls"]:
                     if tc["name"] == name:
                         tc["status"] = "completed"

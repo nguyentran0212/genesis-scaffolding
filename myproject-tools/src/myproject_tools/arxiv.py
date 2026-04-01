@@ -254,7 +254,7 @@ def search_papers(
                     paper_id = result.entry_id.split("/")[
                         -1
                     ]  # Handle both arxiv IDs like "1234.56789" and "cs/1234567"
-                    pdf_path = download_paper_pdf(paper_id=paper_id, download_dir=download_dir)
+                    download_paper_pdf(paper_id=paper_id, download_dir=download_dir)
                 except Exception:
                     # Silently handle download errors to prevent interference with agent
                     pass
@@ -266,7 +266,7 @@ def search_papers(
                     paper_id = result.entry_id.split("/")[
                         -1
                     ]  # Handle both arxiv IDs like "1234.56789" and "cs/1234567"
-                    source_path = download_paper_source(paper_id=paper_id, download_dir=download_dir)
+                    download_paper_source(paper_id=paper_id, download_dir=download_dir)
                 except Exception:
                     # Silently handle download errors to prevent interference with agent
                     pass

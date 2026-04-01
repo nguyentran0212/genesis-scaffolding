@@ -472,7 +472,7 @@ class UpdateMemoryTool(BaseTool):
 
         subject: str | None = kwargs.get("subject")
         tags: list[str] | None = kwargs.get("tags")
-        importance: int | None = kwargs.get("importance")
+        kwargs.get("importance")
 
         try:
             for session in get_memory_session(memory_db_url=memory_db_url):

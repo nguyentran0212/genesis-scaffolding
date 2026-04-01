@@ -18,6 +18,7 @@ from .prompts import BuildPromptConfig, build_system_prompt
 from .schemas import AgentConfig, StreamCallback, ToolCallback
 from .utils import streamcallback_simple_print
 
+
 class Agent:
     def __init__(
         self,

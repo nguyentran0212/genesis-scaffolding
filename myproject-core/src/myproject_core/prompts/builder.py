@@ -1,6 +1,5 @@
 """System prompt factory — assembles prompt from modular fragments based on agent configuration."""
 
-from typing import Literal
 
 from pydantic import BaseModel
 
