@@ -160,16 +160,13 @@ class RememberThisTool(BaseTool):
                     memory_type_label = "topic"
                     entity_type = "memory_topic"
 
-                response = _format_memory_for_response(entry, memory_type_label)
-                response += "\nMemory stored successfully."
-
                 entry_id = entry.id
                 if entry_id is None:
                     return ToolResult(status="error", tool_response="Failed to retrieve created memory ID.")
 
                 return ToolResult(
                     status="success",
-                    tool_response=response,
+                    tool_response=f"Memory stored successfully. ID: {entry_id}",
                     entities_to_track=[
                         _make_memory_entity(entity_type, entry_id, "summary", 10),
                     ],
@@ -226,20 +223,6 @@ class SearchMemoriesTool(BaseTool):
                 if not event_results and not topic_results:
                     return ToolResult(status="success", tool_response=f"No memories found matching '{query}'.")
 
-                response = f"Found {len(event_results)} events and {len(topic_results)} topics matching '{query}':\n\n"
-
-                if event_results:
-                    response += "--- EVENTS ---\n"
-                    for m in event_results:
-                        response += _format_memory_for_response(m, "event")
-                        response += "\n"
-
-                if topic_results:
-                    response += "--- TOPICS ---\n"
-                    for m in topic_results:
-                        response += _format_memory_for_response(m, "topic")
-                        response += "\n"
-
                 entities: list[TrackedEntity] = []
                 for m in event_results:
                     if m.id is not None:
@@ -248,7 +231,11 @@ class SearchMemoriesTool(BaseTool):
                     if m.id is not None:
                         entities.append(_make_memory_entity("memory_topic", m.id, "summary", 5))
 
-                return ToolResult(status="success", tool_response=response, entities_to_track=entities)
+                return ToolResult(
+                    status="success",
+                    tool_response=f"Found {len(event_results)} events and {len(topic_results)} topics matching '{query}'. Results pinned to clipboard.",
+                    entities_to_track=entities,
+                )
         except Exception as e:
             return ToolResult(status="error", tool_response=f"Search failed: {e}")
 
@@ -335,24 +322,28 @@ class ListMemoriesTool(BaseTool):
                 if not events and not topics:
                     return ToolResult(status="success", tool_response="No memories found matching the criteria.")
 
-                response = ""
                 entities: list[TrackedEntity] = []
 
                 if events:
-                    response += f"--- EVENTS ({len(events)}) ---\n"
                     for m in events:
-                        response += _format_memory_for_response(m, "event") + "\n"
                         if m.id is not None:
                             entities.append(_make_memory_entity("memory_event", m.id, "summary", 5))
 
                 if topics:
-                    response += f"--- TOPICS ({len(topics)}) ---\n"
                     for m in topics:
-                        response += _format_memory_for_response(m, "topic") + "\n"
                         if m.id is not None:
                             entities.append(_make_memory_entity("memory_topic", m.id, "summary", 5))
 
-                return ToolResult(status="success", tool_response=response, entities_to_track=entities)
+                count_msg = []
+                if events:
+                    count_msg.append(f"{len(events)} events")
+                if topics:
+                    count_msg.append(f"{len(topics)} topics")
+                return ToolResult(
+                    status="success",
+                    tool_response=f"Listed {', '.join(count_msg)}. Results pinned to clipboard.",
+                    entities_to_track=entities,
+                )
         except Exception as e:
             import traceback
             return ToolResult(status="error", tool_response=f"Failed to list memories: {type(e).__name__}: {e}\n{traceback.format_exc()}")
@@ -405,14 +396,12 @@ class GetMemoryTool(BaseTool):
                 if not entry:
                     return ToolResult(status="error", tool_response=f"Memory {memory_type} with ID {memory_id} not found.")
 
-                response = _format_memory_for_response(entry, memory_type)
-
-                # For topics, also show revision chain info
+                # For topics, get revision chain info for the notification
+                chain_info = ""
                 if isinstance(entry, TopicalMemory):
                     chain = memory_service.get_revision_chain(session, memory_id)
                     if len(chain) > 1:
-                        response += f"\nRevision chain ({len(chain)} entries): "
-                        response += " -> ".join(f"ID {m.id}" for m in chain)
+                        chain_info = f" (revision chain: {len(chain)} entries)"
 
                 entry_id = entry.id
                 if entry_id is None:
@@ -422,7 +411,7 @@ class GetMemoryTool(BaseTool):
 
                 return ToolResult(
                     status="success",
-                    tool_response=response,
+                    tool_response=f"Retrieved {memory_type} memory ID {entry_id}{chain_info}. Pinned to clipboard.",
                     entities_to_track=[
                         _make_memory_entity(entity_type, entry_id, "detail", 10),
                     ],
@@ -494,17 +483,13 @@ class UpdateMemoryTool(BaseTool):
                 if not new_entry:
                     return ToolResult(status="error", tool_response="Failed to create new revision.")
 
-                response = "Memory updated (new revision created):\n"
-                response += _format_memory_for_response(new_entry, "topic")
-                response += f"\nOld revision (ID {memory_id}) marked as superseded."
-
                 new_entry_id = new_entry.id
                 if new_entry_id is None:
                     return ToolResult(status="error", tool_response="Failed to retrieve new revision ID.")
 
                 return ToolResult(
                     status="success",
-                    tool_response=response,
+                    tool_response=f"Memory updated. New revision ID: {new_entry_id}, old revision (ID {memory_id}) superseded. Pinned to clipboard.",
                     entities_to_track=[
                         _make_memory_entity("memory_topic", new_entry_id, "detail", 10),
                     ],

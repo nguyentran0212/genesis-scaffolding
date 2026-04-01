@@ -232,6 +232,8 @@ class AgentClipboard(BaseModel):
         """Converts clipboard contents into a structured Markdown string."""
         sections = []
 
+        print(f"DEBUG: FROM INSIDE RENDER_TO_MARKDOWN OF CLIPBOARD: {self}")
+
         # Render Todo List
         if self.todo_list:
             todo_section = "### AGENT INTERNAL TODO LIST\n"
@@ -285,6 +287,66 @@ class AgentClipboard(BaseModel):
                     if j.resolution == "detail" and not shorten:
                         prod_section += f"  - **Content:**\n```markdown\n{d.get('content', '')}\n```\n"
                 prod_section += "\n"
+
+            memory_events = [e for e in self.pinned_entities.values() if e.item_type == "memory_event"]
+            memory_topics = [e for e in self.pinned_entities.values() if e.item_type == "memory_topic"]
+
+            if memory_events or memory_topics:
+                prod_section += "#### TRACKED MEMORIES\n"
+                if memory_events:
+                    prod_section += "##### MEMORY EVENTS\n"
+                    for m in memory_events:
+                        d = m.data
+                        # Basic info available without sync
+                        subject = d.get("subject") or "Untitled Event" if d else f"Event ID {m.item_id}"
+                        importance = d.get("importance", 3) if d else "?"
+                        event_time = d.get("event_time", "") if d else ""
+                        if event_time:
+                            if hasattr(event_time, "isoformat"):
+                                event_time = event_time.isoformat()
+                            prod_section += f"- **[ID: {m.item_id}]** {subject} | Importance: `{importance}/5` | Event Time: {event_time}\n"
+                        else:
+                            prod_section += (
+                                f"- **[ID: {m.item_id}]** {subject} | Importance: `{importance}/5`\n"
+                            )
+                        # Detail requires data
+                        if m.resolution == "detail" and not shorten and d:
+                            prod_section += f"  - **Content:** {d.get('content', 'None')}\n"
+                            tags = d.get("tags", [])
+                            prod_section += f"  - **Tags:** {', '.join(tags) if tags else 'None'}\n"
+                            prod_section += f"  - **Source:** {d.get('source', 'Unknown')}\n"
+                    prod_section += "\n"
+                if memory_topics:
+                    prod_section += "##### MEMORY TOPICS\n"
+                    for m in memory_topics:
+                        d = m.data
+                        # Basic info available without sync
+                        subject = d.get("subject") or "Untitled Topic" if d else f"Topic ID {m.item_id}"
+                        importance = d.get("importance", 3) if d else "?"
+                        updated_at = d.get("updated_at", "") if d else ""
+                        if updated_at:
+                            if hasattr(updated_at, "isoformat"):
+                                updated_at = updated_at.isoformat()
+                            prod_section += f"- **[ID: {m.item_id}]** {subject} | Importance: `{importance}/5` | Updated: {updated_at}\n"
+                        else:
+                            prod_section += (
+                                f"- **[ID: {m.item_id}]** {subject} | Importance: `{importance}/5`\n"
+                            )
+                        # Detail requires data
+                        if m.resolution == "detail" and not shorten and d:
+                            prod_section += f"  - **Content:** {d.get('content', 'None')}\n"
+                            tags = d.get("tags", [])
+                            prod_section += f"  - **Tags:** {', '.join(tags) if tags else 'None'}\n"
+                            prod_section += f"  - **Source:** {d.get('source', 'Unknown')}\n"
+                            superseded_by = d.get("superseded_by_id")
+                            if superseded_by:
+                                prod_section += f"  - **Superseded by:** ID {superseded_by}\n"
+                            supersedes = d.get("supersedes_ids", [])
+                            if supersedes:
+                                prod_section += (
+                                    f"  - **Supersedes:** IDs {', '.join(str(x) for x in supersedes)}\n"
+                                )
+                    prod_section += "\n"
 
             sections.append(prod_section)
 

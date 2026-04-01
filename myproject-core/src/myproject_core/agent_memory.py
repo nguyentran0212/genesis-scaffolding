@@ -14,7 +14,9 @@ from .schemas import AgentClipboard
 
 class AgentMemory:
     def __init__(
-        self, messages: list[Any] | None = None, agent_clipboard: AgentClipboard | None = None,
+        self,
+        messages: list[Any] | None = None,
+        agent_clipboard: AgentClipboard | None = None,
     ) -> None:
         self.messages = messages or []
         self.agent_clipboard = agent_clipboard or AgentClipboard()
@@ -70,7 +72,9 @@ class AgentMemory:
     def add_tool_results_to_clipboard(self, tool_name: str, tool_call_id: str, results: list[str]):
         """Adds tool results to clipboard"""
         self.agent_clipboard.add_tool_result_to_clipboard(
-            tool_name=tool_name, tool_call_id=tool_call_id, tool_call_results=results,
+            tool_name=tool_name,
+            tool_call_id=tool_call_id,
+            tool_call_results=results,
         )
 
     def remove_file_from_clipboard(self, file_path: Path) -> bool:
@@ -105,10 +109,15 @@ class AgentMemory:
         """Delegates pinning an entity to the clipboard schema."""
         self.agent_clipboard.pin_entity(item_type, item_id, resolution, ttl)
 
-    def sync_entities(self, session: Session):
+    def sync_entities(self, session: Session, db_type: Literal["productivity", "memory"] | None = None):
         """Iterates over all pinned entities in the clipboard, fetches their
-        latest state from the database, and converts them to dictionaries for the LLM.
+        latest state from the appropriate database, and converts them to dictionaries for the LLM.
         If an entity was deleted from the database, it removes it from the clipboard.
+
+        Args:
+            session: The database session to use
+            db_type: Which database to sync. If None, syncs all entity types.
+                     Use "productivity" for user_db sessions, "memory" for memory_db sessions.
         """
         # We iterate over a list of keys so we can safely delete from the dict if needed
         keys_to_sync = list(self.agent_clipboard.pinned_entities.keys())
@@ -117,15 +126,32 @@ class AgentMemory:
             entity = self.agent_clipboard.pinned_entities[key]
             db_item = None
 
-            # 1. Fetch from DB
+            # Determine which DB this entity belongs to and check if we should process it
             if entity.item_type == "task":
+                if db_type and db_type != "productivity":
+                    continue
                 db_item = prod_service.get_task(session, entity.item_id)
             elif entity.item_type == "project":
+                if db_type and db_type != "productivity":
+                    continue
                 db_item = prod_service.get_project(session, entity.item_id)
             elif entity.item_type == "journal":
+                if db_type and db_type != "productivity":
+                    continue
                 db_item = prod_service.get_journal(session, entity.item_id)
+            elif entity.item_type == "memory_event":
+                if db_type and db_type != "memory":
+                    continue
+                db_item = memory_service.get_event_log(session, entity.item_id)
+            elif entity.item_type == "memory_topic":
+                if db_type and db_type != "memory":
+                    continue
+                db_item = memory_service.get_topical_memory(session, entity.item_id)
+            else:
+                # Unknown entity type, skip
+                continue
 
-            # 2. Update or Remove
+            # Update or Remove
             if db_item is None:
                 # The item was deleted from the DB (e.g., by the user in the UI)
                 del self.agent_clipboard.pinned_entities[key]
@@ -139,35 +165,6 @@ class AgentMemory:
                     db_item = cast("Task", db_item)
                     data["project_ids"] = db_item.project_ids
 
-                entity.data = data
-
-    def sync_memory_entities(self, session: Session):
-        """Iterates over pinned memory entities in the clipboard, fetches their
-        latest state from the memory database, and converts them to dictionaries for the LLM.
-        If a memory was deleted from the database, it removes it from the clipboard.
-        """
-        keys_to_sync = [
-            key for key in self.agent_clipboard.pinned_entities
-            if key.startswith("memory_event_") or key.startswith("memory_topic_")
-        ]
-
-        for key in keys_to_sync:
-            entity = self.agent_clipboard.pinned_entities[key]
-            db_item = None
-
-            # Fetch from memory DB
-            if entity.item_type == "memory_event":
-                db_item = memory_service.get_event_log(session, entity.item_id)
-            elif entity.item_type == "memory_topic":
-                db_item = memory_service.get_topical_memory(session, entity.item_id)
-
-            # Update or Remove
-            if db_item is None:
-                # The memory was deleted from the DB
-                del self.agent_clipboard.pinned_entities[key]
-            else:
-                # Serialize the SQLModel to a dict
-                data = db_item.model_dump(mode="json")
                 entity.data = data
 
     def sync_memory_tag_hints(self, session: Session):
@@ -184,9 +181,7 @@ class AgentMemory:
         from .memory import service as memory_service
 
         profile = memory_service.get_topical_memory_by_subject(session, "user-profile")
-        self.agent_clipboard.user_profile_content = (
-            profile.content if profile else None
-        )
+        self.agent_clipboard.user_profile_content = profile.content if profile else None
 
     def estimate_total_tokens(self) -> int:
         """Estimates the total token count of history + current clipboard.

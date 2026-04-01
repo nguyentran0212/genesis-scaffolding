@@ -50,8 +50,8 @@ class Agent:
             has_working_directory=working_directory is not None,
         )
         system_prompt = build_system_prompt(prompt_config)
-        self.memory = (
-            memory or AgentMemory(messages=[self._create_llm_message(role="system", content=system_prompt)])
+        self.memory = memory or AgentMemory(
+            messages=[self._create_llm_message(role="system", content=system_prompt)]
         )
 
         self.stream = agent_config.interactive
@@ -139,7 +139,9 @@ class Agent:
                 # Side Effect: Add tool results to clipboard
                 if result.status == "success" and result.results_to_add_to_clipboard:
                     self.memory.add_tool_results_to_clipboard(
-                        tool_name=name, tool_call_id=tool_id, results=result.results_to_add_to_clipboard,
+                        tool_name=name,
+                        tool_call_id=tool_id,
+                        results=result.results_to_add_to_clipboard,
                     )
 
                 # Side Effect: Pin productivity entities to clipboard
@@ -266,13 +268,12 @@ class Agent:
                 # get_user_session is a generator, so we iterate to get the session
                 # and ensure it closes automatically afterwards
                 for session in get_user_session(db_url=self.user_db_url):
-                    self.memory.sync_entities(session)
+                    self.memory.sync_entities(session, db_type="productivity")
 
             # Sync the memory pinned entities
             if self.memory_db_url and self.memory.agent_clipboard.pinned_entities:
                 for session in get_memory_session(memory_db_url=self.memory_db_url):
-                    self.memory.sync_memory_entities(session)
-
+                    self.memory.sync_entities(session, db_type="memory")
             # Sync memory tag hints
             if self.memory_db_url:
                 for session in get_memory_session(memory_db_url=self.memory_db_url):
@@ -298,12 +299,8 @@ class Agent:
             # Call LLM for response
             # Allow caller to override the streaming and callbacks for displaying chunks, but default to the callbacks aassigned to the agent at creation time
             stream = stream if stream is not None else self.stream
-            content_chunk_callbacks = (
-                content_chunk_callbacks or self.content_chunk_callbacks
-            )
-            reasoning_chunk_callbacks = (
-                reasoning_chunk_callbacks or self.reasoning_chunk_callbacks
-            )
+            content_chunk_callbacks = content_chunk_callbacks or self.content_chunk_callbacks
+            reasoning_chunk_callbacks = reasoning_chunk_callbacks or self.reasoning_chunk_callbacks
 
             if debug:
                 self._log_debug_messages(full_payload, turn)
@@ -413,7 +410,9 @@ class Agent:
         # 1. Handle Known Non-Text Formats first
         if extension == ".pdf":
             return await asyncio.to_thread(
-                convert_pdf_to_markdown, pdf_path=logical_path, prune_references=True,
+                convert_pdf_to_markdown,
+                pdf_path=logical_path,
+                prune_references=True,
             )
 
         # List of extensions to explicitly ignore (binaries/assets)
