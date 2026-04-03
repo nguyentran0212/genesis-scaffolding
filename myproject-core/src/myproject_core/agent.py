@@ -274,6 +274,7 @@ class Agent:
             if self.memory_db_url and self.memory.agent_clipboard.pinned_entities:
                 for session in get_memory_session(memory_db_url=self.memory_db_url):
                     self.memory.sync_entities(session, db_type="memory")
+
             # Sync memory tag hints
             if self.memory_db_url:
                 for session in get_memory_session(memory_db_url=self.memory_db_url):
