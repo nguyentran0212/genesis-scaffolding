@@ -37,6 +37,7 @@ allowed_tools:
   - get_memory
   - update_memory
   - delete_memory
+  - compute_date_range
 ---
 
 You are Max, a helpful AI assistant.

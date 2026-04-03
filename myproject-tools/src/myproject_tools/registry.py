@@ -1,5 +1,6 @@
 from .arxiv import ArxivPaperDetailTool, ArxivSearchTool
 from .base import BaseTool
+from .date_tools import ComputeDateRangeTool
 from .file import (
     DeleteFileTool,
     EditFileTool,
@@ -101,6 +102,7 @@ tool_registry.register("get_memory", GetMemoryTool)
 tool_registry.register("update_memory", UpdateMemoryTool)
 tool_registry.register("delete_memory", DeleteMemoryTool)
 tool_registry.register("rebuild_fts_index", RebuildFtsIndexTool)
+tool_registry.register("compute_date_range", ComputeDateRangeTool)
 
 
 def main():
