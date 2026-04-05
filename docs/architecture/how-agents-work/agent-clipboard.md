@@ -1,6 +1,8 @@
-# Agent Clipboard Architecture
+# Agent Clipboard
 
-One of the experimental optimizations in this project is a feature called the **"clipboard."** The goal is to optimize the number of tokens an LLM agent uses. Lower token consumption means the agent can maintain coherence over longer sessions without hitting context limits.
+## Overview
+
+The clipboard is a token-optimization layer between the agent and its chat history. Rather than storing every file read and tool result directly in the context window, the clipboard holds them with a TTL and decay policy — keeping the context clean and cheap while still making data available to the agent on demand.
 
 ## The Problem: How Agents Handle Context
 

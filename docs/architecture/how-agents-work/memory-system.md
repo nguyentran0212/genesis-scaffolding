@@ -1,4 +1,4 @@
-# Memory System Architecture
+# Memory System
 
 ## Overview
 

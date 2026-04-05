@@ -1,4 +1,4 @@
-# Automation & Scheduling Architecture
+# Scheduled Workflows
 
 Genesis Scaffolding includes a built-in automation engine for recurring tasks, designed to run independently of the API request lifecycle.
 
@@ -43,60 +43,7 @@ The schedules and jobs routers expose the following endpoints:
 | GET | `/jobs/{job_id}/output` | List files in job's output directory |
 | GET | `/jobs/{job_id}/output/{path}` | Download a specific output file |
 
-## 5. How to Create a New Scheduled Workflow
-
-### Step 1: Create a Workflow Manifest
-
-Place a YAML manifest in your workflow search path (e.g., `working_directory/workflows/`):
-
-```yaml
-# greeting_workflow.yaml
-name: "Daily Greeting"
-description: "Send a daily greeting email"
-
-steps:
-  - id: fetch_tasks
-    type: agent_projection
-    agent: max
-    prompt: "List all tasks due today from the task system"
-
-  - id: compose_email
-    type: agent_map
-    agent: max
-    input: "{{ steps.fetch_tasks.output }}"
-    prompt: "Write a friendly email summarizing these tasks"
-```
-
-### Step 2: Register the Schedule
-
-```bash
-curl -X POST http://localhost:8000/schedules/ \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "workflow_id": "greeting_workflow",
-    "cron_expression": "0 9 * * *",
-    "timezone": "America/New_York",
-    "inputs": {},
-    "enabled": true
-  }'
-```
-
-### Step 3: Monitor Execution
-
-```bash
-# Stream live step events
-curl -N http://localhost:8000/jobs/<job_id>/stream \
-  -H "Authorization: Bearer <token>"
-
-# List all runs for a schedule
-curl "http://localhost:8000/jobs/?schedule_id=<schedule_id>" \
-  -H "Authorization: Bearer <token>"
-```
-
----
-
-## 6. Timezone Strategy
+## 5. Timezone Strategy
 To ensure "9:00 AM" means the same thing regardless of server location:
 * All timestamps are stored as **Naive UTC** in the database.
 * Frontend parsing (via `date-utils.ts`) appends the `Z` suffix to force browser-side UTC interpretation before converting to local display time.

@@ -2,7 +2,31 @@
 
 Genesis Scaffolding is a **general-purpose, capability-stacked application scaffolding** for building production-ready LLM-powered applications. Rather than being a single-purpose tool, it provides a modular foundation where developers pick and choose which capabilities to use.
 
-For the project's purpose statement, see [docs/project_goals.md](../project_goals.md).
+For the project's purpose statement, see [project_goals.md](../project_goals.md).
+
+## High-Level Architecture
+
+The codebase is organized as a **Python monorepo** using uv workspaces, paired with an optional **NextJS frontend**. The architecture flows from bottom to top:
+
+```
+User → Frontend (NextJS) ←→ Backend (FastAPI) ←→ Python Monorepo
+                                                    ├── myproject-core      (shared logic)
+                                                    ├── myproject-tools     (30+ tools)
+                                                    ├── myproject-cli       (CLI entry)
+                                                    ├── myproject-tui       (TUI stub)
+                                                    └── myproject-server    (FastAPI app)
+```
+
+The monorepo exposes **four capability clusters** that can be adopted independently:
+
+- **Agent Harness** — A loop-based agent with tool calls, clipboard-based token optimization, persistent memory, and multi-backend LLM support.
+- **Workflow Engine** — Blackboard-pattern pipeline orchestration defined in YAML manifests, with cron-based scheduling.
+- **Productivity System** — Tasks, Projects, Journals, and Calendar appointments accessible to agents via tools.
+- **Memory System** — EventLog (append-only facts) and TopicalMemory (revisable knowledge with FTS5 search).
+
+All capabilities share the same **tool foundation**: a `BaseTool` ABC, a `ToolRegistry`, and a sandboxed `working_directory` contract that every tool respects.
+
+The **platform layer** (FastAPI + NextJS) wires everything together: REST endpoints, SSE streaming for real-time agent output, JWT auth, three-database architecture, and APScheduler for cron jobs.
 
 ---
 
@@ -106,8 +130,8 @@ Detailed architecture documentation covers how each subsystem works and the key 
 
 | Document | Description |
 |---|---|
-| [agent-integration](how-agents-work/agent-integration.md) | End-to-end flow: FastAPI → Agent → SSE → Frontend |
-| [agent-loop](how-agents-work/agent-loop-architecture.md) | Internal agent execution loop: step, turns, clipboard injection, loop detection |
+| [chat-sse-streaming](how-agents-work/chat-sse-streaming.md) | End-to-end flow: FastAPI → Agent → SSE → Frontend |
+| [agent-loop](how-agents-work/agent-loop.md) | Internal agent execution loop: step, turns, clipboard injection, loop detection |
 | [agent-clipboard](how-agents-work/agent-clipboard.md) | Token optimization via clipboard + TTL decay |
 | [memory-system](how-agents-work/memory-system.md) | EventLog, TopicalMemory, FTS5 full-text search |
 | [prompt-system](how-agents-work/prompt-system.md) | Fragment-based system prompt assembly |
@@ -120,7 +144,7 @@ Detailed architecture documentation covers how each subsystem works and the key 
 | Document | Description |
 |---|---|
 | [workflow-architecture](workflow-and-automation/workflow-architecture.md) | Blackboard pattern, YAML manifests, map-reduce tasks |
-| [scheduled-jobs](workflow-and-automation/scheduled-jobs.md) | APScheduler integration for cron jobs |
+| [scheduled-workflows](workflow-and-automation/scheduled-workflows.md) | APScheduler integration for cron jobs |
 
 ### Tools and Extensibility
 
@@ -149,10 +173,13 @@ Step-by-step guides for extending and modifying the codebase:
 
 | Document | Description |
 |---|---|
-| [extending the backend](guides/extending-the-backend/server-and-database.md) | Adding entities, models, schemas, FastAPI routers |
-| [building the frontend](guides/building-the-frontend/components.md) | Server actions, API proxy, component conventions |
-| [frontend pages](guides/building-the-frontend/pages.md) | PageContainer, PageBody, scroll archetypes |
-| [frontend tables](guides/building-the-frontend/tables.md) | TanStack Table patterns, sorting, filtering |
+| [extending the backend](guides/extending-the-backend/adding-entities.md) | Adding entities, models, schemas, FastAPI routers |
+| [building the frontend](guides/building-the-frontend/frontend-components.md) | Server actions, API proxy, component conventions |
+| [frontend pages](guides/building-the-frontend/frontend-pages.md) | PageContainer, PageBody, scroll archetypes |
+| [frontend tables](guides/building-the-frontend/frontend-tables.md) | TanStack Table patterns, sorting, filtering |
+| [workflow guide](guides/automation/workflow-guide.md) | Writing YAML manifests, invoking workflows programmatically, developing new task types |
+| [scheduled workflows](guides/automation/scheduled-workflows.md) | Creating cron-triggered workflows, monitoring via SSE stream |
+| [implementing tools](guides/extending-the-backend/implementing-tools.md) | Implementing a new tool, path validation, ToolResult channels |
 
 ---
 

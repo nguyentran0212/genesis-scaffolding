@@ -1,4 +1,4 @@
-# Prompt System Architecture
+# Prompt System
 
 ## Overview
 

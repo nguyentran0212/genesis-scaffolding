@@ -1,4 +1,4 @@
-# Productivity System Architecture
+# Productivity System
 
 ## Overview
 

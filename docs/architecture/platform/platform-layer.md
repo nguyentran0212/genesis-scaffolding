@@ -1,4 +1,4 @@
-# Platform Layer Architecture
+# Platform Layer
 
 ## Overview
 

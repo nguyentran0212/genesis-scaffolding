@@ -1,4 +1,4 @@
-# Chat Agent Integration Architecture
+# Chat SSE Streaming
 
 ## Overview
 
