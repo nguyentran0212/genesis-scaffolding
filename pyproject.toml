@@ -42,7 +42,32 @@ line-length = 108
 target-version = "py311"
 
 [tool.ruff.lint]
-select = ["E", "F", "I"] # Error, Pyflakes, Isort
+select = [
+    "E",   # pycodestyle errors
+    "F",   # Pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade (e.g., f-strings over % formatting, list over typing.List)
+    "B",   # bugbear (e.g., no bare except, no mutable default args)
+    "C4",  # comprehensions (e.g., simplify inefficient list/dict comprehensions)
+]
 ignore = [
-    "E501", # Traditionally, many developers let the IDE handle wrapping and ignore E501
+    "E501", # Line too long — handled by formatter or ignored
+]
+
+[tool.pytest.ini_options]
+testpaths = [
+    "myproject-core/tests",
+    "myproject-server/tests",
+    "myproject-tools/tests",
+    "myproject-cli/tests",
+    "myproject-tui/tests",
+    "src/tests",
+]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+# Allow tests to be collected even if no real tests exist yet (placeholder files).
+# Once real tests are added, remove filterwarnings or adjust as needed.
+filterwarnings = [
+    "ignore::pytest.PytestCollectionWarning",
 ]
