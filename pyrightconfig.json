@@ -1,4 +1,16 @@
 {
   "venvPath": ".",
   "venv": ".venv",
+  "include": [
+    "src",
+    "myproject-core/src",
+    "myproject-server/src",
+    "myproject-tools/src",
+    "myproject-cli/src",
+    "myproject-tui/src"
+  ],
+  "exclude": [
+    "**/__pycache__",
+    "**/.venv"
+  ]
 }

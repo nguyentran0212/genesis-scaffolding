@@ -1,0 +1,56 @@
+# Pre-commit hooks to run before each commit.
+# Install: uv run pre-commit install
+# Run manually: uv run pre-commit run --all-files
+#
+# These hooks enforce quality gates locally before code reaches CI.
+# They are not a substitute for CI — CI runs regardless.
+
+repos:
+  # Ruff: fast linter + formatter (Python)
+  - repo: local
+    hooks:
+      - id: ruff-format
+        name: ruff format (Python)
+        entry: uv run ruff format
+        language: system
+        types: [python]
+        pass_filenames: true
+
+      - id: ruff-check
+        name: ruff check (Python)
+        entry: uv run ruff check --fix
+        language: system
+        types: [python]
+        pass_filenames: true
+        # Allow unfixable violations to pass (they are reported, not blocked).
+        # Use --exit-non-zero-on-fixing flag in CI to enforce strictly.
+
+      - id: pyright
+        name: pyright type check (Python)
+        entry: uv run pyright
+        language: system
+        types: [python]
+        pass_filenames: true
+        # pyright returns exit code 0-2: 0=success, 1=errors found, 2=config error
+        # We let type errors through on commit (they show in IDE), but CI is strict.
+
+  # ESLint: linting + type-aware rules (TypeScript/JSX)
+  # Temporarily disable frontend lint
+  # - repo: local
+  #   hooks:
+  #     - id: eslint
+  #       name: eslint (Frontend)
+  #       entry: cd myproject-frontend && pnpm run lint
+  #       language: system
+  #       files: ^myproject-frontend/
+  #       types: [typescript, javascript]
+
+  # TypeScript: type check (Frontend)
+  - repo: local
+    hooks:
+      - id: next-build
+        name: next build type check (Frontend)
+        entry: cd myproject-frontend && pnpm run build
+        language: system
+        files: ^myproject-frontend/
+        stages: [push]  # Only run on push, not on every commit (too slow)

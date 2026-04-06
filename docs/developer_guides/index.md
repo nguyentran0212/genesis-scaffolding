@@ -42,6 +42,7 @@ These guides cover the processes and conventions for extending and maintaining t
 
 - [Testing](maintaining/testing.md) — Testing conventions and patterns
 - [Documentation](maintaining/documentation.md) — How to write and maintain documentation
+- [Development Workflow](development-workflow.md) — Running the project, quality gates, pre-commit hooks, and CI
 
 ## Tooling
 
@@ -52,9 +53,15 @@ Always use `uv run python` (not bare `python`) when running Python scripts or co
 ```bash
 # Correct
 uv run python scripts/some_script.py
+uv run pytest ...
+uv run pyright ...
+uv run ruff ...
 
 # Avoid
 python scripts/some_script.py
+pytest ...
+pyright ...
+ruff ...
 ```
 
 ### Frontend Side
@@ -71,6 +78,19 @@ npm install
 npm run dev
 ```
 
+### The Makefile
+
+The `Makefile` at the repository root is the **authoritative entry point** for running checks and development tasks. It is also the tool used by CI. Prefer `make` over calling `uv` or `pnpm` directly, especially in pre-commit and CI contexts — it ensures consistency.
+
+```bash
+make check-all      # lint + type-check + test (everything)
+make check-all-backend  # backend only
+make dev            # run both backend and frontend in dev mode
+make build          # validate production build
+```
+
+You can also call `uv` and `pnpm` directly for more granular control (e.g., `uv run pytest`, `pnpm tsc --noEmit`).
+
 ### Tool Summary
 
 | Area | Tool | Note |
@@ -79,4 +99,5 @@ npm run dev
 | Python packages | `uv` | uv handles venv and lock file |
 | Frontend packages | `pnpm` | Not `npm` |
 | Frontend dev | `pnpm dev` / `pnpm build` | Next.js via pnpm |
-| Linting/Type | pyright, ruff, eslint | Configured per package |
+| Linting/Type | ruff, pyright, eslint | Configured per package |
+| Quality gates | `make check-all-backend` | Used by CI — prefer over raw uv/pnpm calls |
