@@ -23,3 +23,11 @@ When starting work on this project, read these documents in order:
 
 1. **[docs/architecture/scaffolding-overview.md](docs/architecture/scaffolding-overview.md)** — High-level architecture and subsystem overview
 2. **[docs/developer_guides/index.md](docs/developer_guides/index.md)** — Tooling, patterns, and conventions for developing in this codebase
+
+## Adapting the Scaffolding
+
+When tasked with using the scaffolding to build or adapt an application for a new use case, **read the adaptation guide before touching any code**:
+
+**[docs/developer_guides/adaptation/decision-process.md](docs/developer_guides/adaptation/decision-process.md)**
+
+This ensures you follow the correct decision process, select the right extensions, and apply the appropriate playbook — rather than improvising an architecture that may not hold up.

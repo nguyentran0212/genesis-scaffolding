@@ -15,6 +15,17 @@ These guides cover the processes and conventions for extending and maintaining t
 
 - [Writing Agents](extending-the-agent/writing-agents.md) — How to create a new agent by writing a Markdown file with YAML frontmatter
 
+### Adapting the Scaffolding
+
+- [Adaptation Overview](adaptation/README.md) — Overview of adapting the scaffolding for different application types
+- [Decision Process](adaptation/decision-process.md) — How to select the right extensions and plan the adaptation
+- [Principles](adaptation/principles.md) — Core principles to follow when modifying the scaffold
+- [Playbooks](adaptation/) — Step-by-step checklists for each app type:
+  - [Core Web App](adaptation/core-web-app.md) — Web UI only, no agents/workflows/productivity
+  - [Productivity App](adaptation/playbooks/productivity-app.md) — Base + tasks, projects, journals
+  - [Workflow App](adaptation/playbooks/workflow-app.md) — Base + automated processes, scheduling
+  - [Full Agent App](adaptation/playbooks/full-agent-app.md) — Everything enabled
+
 ### Extending the Frontend
 
 - [Frontend Components](extending-the-frontend/frontend-components.md) — How to integrate new backend entities into the frontend UI
