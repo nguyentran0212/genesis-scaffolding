@@ -204,4 +204,4 @@ async def list_subfolders(
             if relative.parts:
                 children.add(relative.parts[0])
 
-    return sorted(list(children))
+    return sorted(children)

@@ -46,9 +46,9 @@ async def get_current_user(
             raise credentials_exception
         username: str = str(payload.get("sub"))
         token_data = TokenData(username=username)
-    except InvalidTokenError:
+    except InvalidTokenError as exc:
         print("InvalidTokenError encountered")
-        raise credentials_exception
+        raise credentials_exception from exc
 
     # Query the actual database
     statement = select(User).where(User.username == token_data.username)

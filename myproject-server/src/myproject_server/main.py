@@ -6,7 +6,19 @@ from myproject_core.configs import settings
 
 from .chat_manager import ChatManager
 from .database import init_db
-from .routers import agents, auth, chat, files, jobs, llm_config, memory, productivity, schedules, users, workflows
+from .routers import (
+    agents,
+    auth,
+    chat,
+    files,
+    jobs,
+    llm_config,
+    memory,
+    productivity,
+    schedules,
+    users,
+    workflows,
+)
 from .scheduler import SchedulerManager
 
 

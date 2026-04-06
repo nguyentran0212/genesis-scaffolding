@@ -349,8 +349,8 @@ async def download_job_output(
             # Fallback: if it's a symlink pointing to 'internal', check if it's still in workspace
             if not target_file.resolve().is_relative_to(workspace_root):
                 raise HTTPException(status_code=403, detail="Access denied: outside of workspace scope")
-    except ValueError:
-        raise HTTPException(status_code=403, detail="Access denied: outside of output scope")
+    except ValueError as exc:
+        raise HTTPException(status_code=403, detail="Access denied: outside of output scope") from exc
 
     if not target_file.exists() or not target_file.is_file():
         raise HTTPException(status_code=404, detail="File not found")

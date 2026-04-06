@@ -1,9 +1,7 @@
-from typing import Annotated, Literal
+from typing import Literal
 
-from fastapi import APIRouter, Body, Depends, HTTPException, status
-from sqlmodel import Session, select
-
-from myproject_core.memory.models import EventLog, MemorySource, TopicalMemory
+from fastapi import APIRouter, Body, HTTPException, status
+from myproject_core.memory.models import EventLog, TopicalMemory
 from myproject_core.memory.service import (
     create_event_log,
     create_topical_memory,
@@ -25,7 +23,6 @@ from ..schemas.memory import (
     EventLogCreate,
     EventLogRead,
     EventLogUpdate,
-    MemoryListParams,
     MemoryListResponse,
     MemorySource,
     TagCountResponse,

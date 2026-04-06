@@ -1,5 +1,5 @@
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 
 from sqlalchemy import Column, DateTime, MetaData
 from sqlmodel import JSON, Field, SQLModel
@@ -13,7 +13,7 @@ def get_utc_now():
     return datetime.now(UTC)
 
 
-class MemorySource(str, Enum):
+class MemorySource(StrEnum):
     AGENT_TOOL = "agent_tool"
     DREAM_WORKFLOW = "dream_workflow"
     USER_MANUAL = "user_manual"

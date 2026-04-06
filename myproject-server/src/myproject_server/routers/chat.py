@@ -90,7 +90,7 @@ async def create_session(
         db.refresh(new_session)
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to create session: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Failed to create session: {e!s}") from e
 
     return new_session
 
@@ -98,7 +98,9 @@ async def create_session(
 # 3. GET SESSION HISTORY
 @router.get("/{session_id}", response_model=ChatHistoryRead)
 async def get_chat_history(
-    session_id: int, db: Session = Depends(get_session), user: User = Depends(get_current_active_user),
+    session_id: int,
+    db: Annotated[Session, Depends(get_session)],
+    user: Annotated[User, Depends(get_current_active_user)],
 ):
     session = db.get(ChatSession, session_id)
     if not session or session.user_id != user.id:
@@ -120,7 +122,7 @@ async def send_message(
     working_dir: Annotated[Path, Depends(get_user_inbox_path)],
     db: Annotated[Session, Depends(get_session)],
     user: Annotated[User, Depends(get_current_active_user)],
-    agent_reg: AgentRegistry = Depends(get_agent_registry),
+    agent_reg: Annotated[AgentRegistry, Depends(get_agent_registry)],
 ):
     # 1. Fetch Session
     chat_session = db.get(ChatSession, session_id)
@@ -222,8 +224,8 @@ async def send_message(
 async def stream_chat(
     session_id: int,
     request: Request,
-    db: Session = Depends(get_session),
-    user: User = Depends(get_current_active_user),
+    db: Annotated[Session, Depends(get_session)],
+    user: Annotated[User, Depends(get_current_active_user)],
 ):
     # Standard validation
     chat_session = db.get(ChatSession, session_id)

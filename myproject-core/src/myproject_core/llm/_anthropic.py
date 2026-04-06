@@ -252,7 +252,7 @@ async def _parse_anthropic_stream(
                         tool_calls_dict[idx]["args"] = tool_calls_dict[idx].get("args", "") + partial_json
 
     final_tool_calls = []
-    for idx, tc in sorted(tool_calls_dict.items()):
+    for _idx, tc in sorted(tool_calls_dict.items()):
         args_str = tc.get("args", "")
         if isinstance(args_str, dict):
             args_str = json.dumps(args_str)

@@ -18,8 +18,8 @@ class WorkflowScheduleCreate(BaseModel):
     def validate_cron(cls, v: str) -> str:
         try:
             CronTrigger.from_crontab(v)
-        except Exception:
-            raise ValueError("Invalid cron expression format")
+        except Exception as exc:
+            raise ValueError("Invalid cron expression format") from exc
         return v
 
 

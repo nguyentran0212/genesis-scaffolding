@@ -243,7 +243,7 @@ class BaseTask(ABC, Generic[TParams, TOutput]):
             target_dir.mkdir(parents=True, exist_ok=True)
 
             # 2. Process each file
-            for i, src_path in enumerate(internal_file_paths):
+            for _i, src_path in enumerate(internal_file_paths):
                 if not src_path.exists():
                     continue
 

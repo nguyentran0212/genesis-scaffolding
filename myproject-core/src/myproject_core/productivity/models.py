@@ -1,5 +1,5 @@
 from datetime import UTC, date, datetime
-from enum import Enum
+from enum import StrEnum
 
 from sqlalchemy import Column, DateTime, MetaData
 from sqlmodel import Field, Relationship, SQLModel
@@ -9,7 +9,7 @@ from sqlmodel import Field, Relationship, SQLModel
 productivity_metadata = MetaData()
 
 
-class JournalType(str, Enum):
+class JournalType(StrEnum):
     DAILY = "daily"
     WEEKLY = "weekly"
     MONTHLY = "monthly"
@@ -18,7 +18,7 @@ class JournalType(str, Enum):
     GENERAL = "general"
 
 
-class Status(str, Enum):
+class Status(StrEnum):
     BACKLOG = "backlog"
     TODO = "todo"
     IN_PROGRESS = "in_progress"

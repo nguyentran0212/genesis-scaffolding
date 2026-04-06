@@ -110,7 +110,7 @@ def _compute_quarter_range(offset: int, today: date) -> str:
 
     # Q1=Jan-Mar, Q2=Apr-Jun, Q3=Jul-Sep, Q4=Oct-Dec
     quarter_start_month = adjusted_quarter * 3 + 1
-    quarter_end_month = quarter_start_month + 2
+    quarter_start_month + 2
 
     target_first = date(target_year, quarter_start_month, 1)
     next_quarter_first = target_first + relativedelta(months=3)

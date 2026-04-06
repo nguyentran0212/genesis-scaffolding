@@ -1,5 +1,5 @@
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from typing import TYPE_CHECKING, Any, Optional
 
 from sqlmodel import JSON, Column, Field, Relationship, SQLModel
@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from .workflow_schedule import WorkflowSchedule
 
 
-class JobStatus(str, Enum):
+class JobStatus(StrEnum):
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"

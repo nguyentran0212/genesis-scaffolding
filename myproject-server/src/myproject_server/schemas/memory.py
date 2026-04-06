@@ -1,17 +1,17 @@
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class MemorySource(str, Enum):
+class MemorySource(StrEnum):
     AGENT_TOOL = "agent_tool"
     DREAM_WORKFLOW = "dream_workflow"
     USER_MANUAL = "user_manual"
 
 
-class MemoryType(str, Enum):
+class MemoryType(StrEnum):
     EVENT = "event"
     TOPIC = "topic"
 

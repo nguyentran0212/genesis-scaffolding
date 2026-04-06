@@ -11,7 +11,7 @@ router = APIRouter(prefix="/agents", tags=["agents"])
 
 
 @router.get("/", response_model=list[AgentRead])
-async def list_agents(agent_reg: AgentRegistry = Depends(get_agent_registry)):
+async def list_agents(agent_reg: Annotated[AgentRegistry, Depends(get_agent_registry)]):
     """Returns a list of all available agents blueprints.
     """
     results = []
@@ -86,11 +86,11 @@ async def create_agent(
             model_name=blueprint.model_name,
         )
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Could not create agent: {e!s}")
+        raise HTTPException(status_code=400, detail=f"Could not create agent: {e!s}") from e
 
 
 @router.get("/{agent_id}", response_model=AgentRead)
-async def get_agent_details(agent_id: str, agent_reg: AgentRegistry = Depends(get_agent_registry)):
+async def get_agent_details(agent_id: str, agent_reg: Annotated[AgentRegistry, Depends(get_agent_registry)]):
     """Returns the full metadata for a specific agent.
     """
     blueprint = agent_reg.blueprints.get(agent_id)
@@ -121,7 +121,7 @@ async def get_agent_details(agent_id: str, agent_reg: AgentRegistry = Depends(ge
 )
 async def delete_agent(
     agent_id: str,
-    agent_reg: "AgentRegistry" = Depends(get_agent_registry),  # type: ignore[name-defined]
+    agent_reg: Annotated["AgentRegistry", Depends(get_agent_registry)],  # type: ignore[name-defined]
 ):
     """Delete an agent from the registry.
 
@@ -139,17 +139,17 @@ async def delete_agent(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=str(exc),
-            )
+            ) from exc
         if "read-only" in str(exc):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=str(exc),
-            )
+            ) from exc
         # Any other ValueError is unexpected – treat it as a server error.
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete agent.",
-        )
+        ) from exc
 
     # Returning ``None`` with the 204 status code tells FastAPI to send an empty body.
 
@@ -179,22 +179,22 @@ async def update_agent(
     """
     try:
         agent_reg.edit_agent(agent_id, payload.model_dump())
-    except FileNotFoundError:
+    except FileNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Agent '{agent_id}' not found.",
-        )
+        ) from exc
     except ValueError as exc:
         if "read-only" in str(exc) or "read_only" in str(exc):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=str(exc),
-            )
+            ) from exc
         # Anything else is unexpected – treat as a server error.
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to edit agent.",
-        )
+        ) from exc
     except OSError as exc:
         # Writing the file failed for some OS‑level reason.
         raise HTTPException(

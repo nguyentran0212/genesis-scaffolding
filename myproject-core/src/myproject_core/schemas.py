@@ -1,12 +1,12 @@
+import zoneinfo
 from collections.abc import Awaitable, Callable
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
-import zoneinfo
 
 
 def _format_utc_for_display(value: str | datetime, timezone_str: str) -> str:
@@ -464,7 +464,7 @@ class AgentClipboard(BaseModel):
 
 
 ### Schema for workflow events to use with callbacks to communicate events happening during workflow runs
-class WorkflowEventType(str, Enum):
+class WorkflowEventType(StrEnum):
     STEP_START = "step_start"
     STEP_COMPLETED = "step_completed"
     STEP_FAILED = "step_failed"
@@ -483,7 +483,7 @@ WorkflowCallback = Callable[[WorkflowEvent], Awaitable[None]]
 
 
 ### Schema for workflow manifest yamls
-class WorkflowInputType(str, Enum):
+class WorkflowInputType(StrEnum):
     """Data types of workflow inputs for the workflow manifests"""
 
     STRING = "string"
@@ -596,7 +596,7 @@ class WorkflowManifest(BaseModel):
                     print(f"Warning: {name} path exists but is not a directory.")
 
             except Exception as e:
-                raise TypeError(f"Input '{name}' failed validation for type {defn.type}: {e}")
+                raise TypeError(f"Input '{name}' failed validation for type {defn.type}: {e}") from e
 
         return validated
 

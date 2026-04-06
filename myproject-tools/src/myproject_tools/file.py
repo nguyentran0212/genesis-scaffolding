@@ -90,7 +90,7 @@ class ListFilesTool(BaseTool):
                 # Sort to ensure deterministic output (better for caching)
                 try:
                     entries = sorted(
-                        list(current_dir.iterdir()), key=lambda x: (x.is_file(), x.name.lower()),
+                        current_dir.iterdir(), key=lambda x: (x.is_file(), x.name.lower()),
                     )
                 except PermissionError:
                     tree_lines.append(f"{prefix}└── [Permission Denied]")

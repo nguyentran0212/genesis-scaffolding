@@ -59,7 +59,7 @@ class WorkflowRegistry:
             raw_outputs = {k: v.value for k, v in manifest.outputs.items()}
             resolve_placeholders(raw_outputs, fake_state)
         except jinja2.exceptions.UndefinedError as e:
-            raise ValueError(f"Logic error: {e}")
+            raise ValueError(f"Logic error: {e}") from e
 
     def get_workflow(self, name: str) -> WorkflowManifest | None:
         return self.workflows.get(name)

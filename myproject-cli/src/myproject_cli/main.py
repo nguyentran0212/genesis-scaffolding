@@ -122,7 +122,7 @@ class GenesisCLI:
                 asyncio.run(self.engine.run(manifest, final_inputs, [renderer]))
             except Exception as e:
                 print(f"Execution failed: {e}")
-                raise typer.Exit(1)
+                raise typer.Exit(1) from e
             finally:
                 if renderer.status:
                     renderer.status.stop()

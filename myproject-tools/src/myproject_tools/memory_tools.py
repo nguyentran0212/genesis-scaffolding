@@ -153,11 +153,9 @@ class RememberThisTool(BaseTool):
                 if memory_type == "event":
                     data["event_time"] = event_time
                     entry = memory_service.create_event_log(session, data)
-                    memory_type_label: Literal["event", "topic"] = "event"
                     entity_type: Literal["memory_event", "memory_topic"] = "memory_event"
                 else:
                     entry = memory_service.create_topical_memory(session, data)
-                    memory_type_label = "topic"
                     entity_type = "memory_topic"
 
                 entry_id = entry.id
