@@ -1,197 +1,111 @@
-# Genesis Scaffolding — Project Overview
+# Genesis Scaffolding — Architecture Overview
 
-Genesis Scaffolding is a **general-purpose, capability-stacked application scaffolding** for building production-ready LLM-powered applications. Rather than being a single-purpose tool, it provides a modular foundation where developers pick and choose which capabilities to use.
+Genesis Scaffolding is a general-purpose, capability-stacked application scaffolding for building production-ready LLM-powered applications. It provides a modular foundation where developers pick and choose which capabilities to use.
 
-For the project's purpose statement, see [project_goals.md](../project_goals.md).
-
-## High-Level Architecture
-
-The codebase is organized as a **Python monorepo** using uv workspaces, paired with an optional **NextJS frontend**. The architecture flows from bottom to top:
-
-```
-User → Frontend (NextJS) ←→ Backend (FastAPI) ←→ Python Monorepo
-                                                    ├── myproject-core      (shared logic)
-                                                    ├── myproject-tools     (30+ tools)
-                                                    ├── myproject-cli       (CLI entry)
-                                                    ├── myproject-tui       (TUI stub)
-                                                    └── myproject-server    (FastAPI app)
-```
-
-The monorepo exposes **four capability clusters** that can be adopted independently:
-
-- **Agent Harness** — A loop-based agent with tool calls, clipboard-based token optimization, persistent memory, and multi-backend LLM support.
-- **Workflow Engine** — Blackboard-pattern pipeline orchestration defined in YAML manifests, with cron-based scheduling.
-- **Productivity System** — Tasks, Projects, Journals, and Calendar appointments accessible to agents via tools.
-- **Memory System** — EventLog (append-only facts) and TopicalMemory (revisable knowledge with FTS5 search).
-
-All capabilities share the same **tool foundation**: a `BaseTool` ABC, a `ToolRegistry`, and a sandboxed `working_directory` contract that every tool respects.
-
-The **platform layer** (FastAPI + NextJS) wires everything together: REST endpoints, SSE streaming for real-time agent output, JWT auth, three-database architecture, and APScheduler for cron jobs.
+For the project's purpose statement, see `docs/project_goals.md`.
 
 ---
 
-## The Layered Architecture
+## High-Level Structure
 
-The scaffolding is organized in layers. Developers choose which layers to adopt based on their needs:
+The codebase splits into **frontends** and a **platform**:
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Frontend (Optional)                       │
-│         NextJS — App Router, Server Actions, Components          │
-│         for dashboard layout, data tables, and agent UI          │
-├─────────────────────────────────────────────────────────────────┤
-│                     Python Monorepo (Core)                       │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐  │
-│  │  myproject   │  │ myproject    │  │   myproject-server   │  │
-│  │  -core       │  │ -cli         │  │   - FastAPI          │  │
-│  │  -tools      │  │ -tui         │  │   - Auth             │  │
-│  └──────────────┘  └──────────────┘  └──────────────────────┘  │
-├─────────────────────────────────────────────────────────────────┤
-│                   Available Capabilities                         │
-│  • Agent Harness     • Workflow Engine     • Productivity       │
-│  • Scheduling         • Memory System       • Tool System       │
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│                        Frontends (Optional)                        │
+│   NextJS Web App · CLI · TUI (stub)                              │
+├──────────────────────────────────────────────────────────────────┤
+│                     Platform (FastAPI + Python)                   │
+│   Server handles HTTP, auth, SSE streaming, scheduling            │
+│   Python packages provide shared logic for agents, tools, etc.    │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
-### Platform Layer
+- **NextJS web frontend** — Dashboard, productivity UI, agent chat interface
+- **CLI (Typer)** — Command-line entry point for local/single-user mode
+- **TUI (Textual)** — Terminal user interface (early-stage stub)
+- **Platform** — The server and Python packages everything else builds on
 
-- **Python Monorepo (uv workspaces)** — Sub-packages can see and import from each other following uv's workspace conventions. Single shared `.venv`, single `uv.lock`.
-- **FastAPI Backend** — REST API with password-based authentication, SSE streaming, already configured to work with the frontend.
-- **NextJS Frontend** — App routing, server-side actions, proxy for browser → server-side fetching, dashboard layout components, data table system.
-- **CLI/TUI** — Typer-based CLI, Textual TUI (CLI is functional; TUI is a stub for future development).
+The platform splits into:
+- **Python packages** — Shared business logic (agent loop, tools, workflows, memory)
+- **FastAPI server** — REST API, auth, SSE broadcasting, job scheduling
 
-### Capability Layer
+---
 
-Developers can adopt any subset:
+## Sub-Repositories
 
-| Capability | Description |
-|---|---|
-| **Agent Harness** | Interactive agent with tool calls, clipboard-based token optimization, persistent memory, multi-backend LLM support (OpenAI-compatible via LiteLLM, Claude via Anthropic SDK). Agent definitions loaded from markdown files. Sandboxed working directories. |
-| **Workflow Engine** | Map-reduce architecture. Workflow *tasks* are Python classes; workflow *manifests* are YAML files. Supports agent_map, agent_reduce, agent_projection, file operations, arxiv, web search. |
-| **Scheduling** | Cron-based job scheduling attached to workflows. Multi-user mode only. |
-| **Productivity System** | Tasks, Projects, Calendar appointments, Journal entries. Fully accessible to agents via tool calls when authorized. |
-| **Tool System** | BaseTool ABC for writing Python tools. Multi-channel results (text + files + DB entities). Registry of 30+ built-in tools. |
-| **Memory System** | EventLog (append-only facts) + TopicalMemory (revisable knowledge with supersession chain). FTS5 full-text search. |
+Each sub-repo is documented in its own directory. Read the sub-repo directory for an introduction to that part of the system.
+
+### `myproject-core/`
+
+The shared Python library. No other package depends on the server, CLI, or tools. Contains the core capabilities:
+
+- **Agent subsystem** (`agent/`) — Loop execution, clipboard, prompts, memory
+- **LLM client** — Provider-agnostic interface (LiteLLM + Anthropic SDK)
+- **Configuration** — Three-layer config loading, environment variables, user isolation
+- **Productivity** — Tasks, Projects, Journals: models and service layer
+- **Workflow** — Blackboard-pattern pipeline orchestration
+- **Workspace** — Sandboxed filesystem for workflow jobs
+
+**Start here for:** building agentic features, understanding how the agent works, configuring the system.
+
+### `myproject-server/`
+
+FastAPI REST API. Depends on `myproject-core` and `myproject-tools`.
+
+- **Routers** — All REST endpoints organized by domain
+- **Auth** — JWT-based authentication
+- **Scheduler** — APScheduler integration for cron jobs
+- **SSE Streaming** — ChatManager and ActiveRun for real-time agent output
+
+**Start here for:** adding new API endpoints, understanding auth, understanding how background jobs work.
+
+### `myproject-tools/`
+
+Tool implementations that extend the agent's capabilities. Depends on `myproject-core`.
+
+- **BaseTool ABC** — The contract all tools implement
+- **Tool categories** — File operations, web, productivity, memory, utilities
+
+**Start here for:** building new tools for the agent to call.
+
+### `myproject-frontend/`
+
+NextJS web frontend. Separate repository structure from the Python packages.
+
+- **Frontend architecture** — App Router, server actions, API proxy pattern
+- **Auth** — Frontend authentication handling
+- **Chat** — Real-time chat UI with SSE
+
+**Start here for:** building frontend features, understanding how the frontend communicates with the backend.
+
+### `myproject-cli/`
+
+Typer-based CLI for single-user mode. Bypasses the FastAPI server entirely — talks directly to Python packages.
+
+### `myproject-tui/`
+
+Textual-based terminal UI. Currently a stub.
 
 ---
 
 ## Example Applications
 
-The scaffolding is deliberately flexible. Here are some applications developers could build:
+The scaffolding is deliberately flexible:
 
-### 1. Personal AI Assistant (uses ALL capabilities)
-The included demo app uses every capability: agent harness, workflows, scheduling, productivity system, multi-user server, configurable LLM providers.
-
-### 2. Pure CRUD Dashboard
-Forego all agent/workflow stuff. Use the FastAPI backend + NextJS frontend to build a dashboard for managing infrastructure, content, or any data — leveraging only the auth, API, and frontend component layers.
-
-### 3. Agent-Enabled Specialized App
-Keep the agent harness, workflows, and tool system. Add specialized agents and custom tools for a specific domain (e.g., code review, data analysis, customer support).
-
-### 4. CLI-Only App
-Forego the frontend entirely. Extend the CLI with new commands using Typer, leveraging the backend Python code as a library.
-
-### 5. Custom Frontend with Shared Backend
-Completely redesign the frontend's look and feel, keeping server actions, the dashboard layout system, and utility components. The backend API remains the same.
-
----
-
-## The Demo App: Personal AI Assistant
-
-As a demonstration of the scaffolding's capabilities, Genesis Scaffolding includes a fully functional **personal AI assistant** application. This demonstrates:
-
-- Running in **multi-user server mode** with per-user YAML config overrides merged into a server-wide config
-- **Agent personas** (loaded from markdown files) selectable by users
-- **Deterministic workflows** triggered on-demand or on a **cron schedule**
-- **Productivity management** — tasks, projects, calendar, journal — accessible to agents
-- **Multiple LLM provider support** — users configure their own providers from the frontend
-- **Long-running task support** via the workflow engine
-
-This demo app is the **starting point**, not the ceiling. Developers adopting the scaffolding are encouraged to strip out what they don't need and build on top of what they do.
+| Application | Capabilities Used |
+|---|---|
+| **Personal AI Assistant** | All — agent, workflows, scheduling, productivity, memory, multi-user server |
+| **Pure CRUD Dashboard** | FastAPI + NextJS frontend only — no agent, workflows, or tools |
+| **Agent-Enabled Specialized App** | Agent + tools + workflows; add domain-specific agents and custom tools |
+| **CLI-Only App** | Forego the frontend; extend the CLI with Typer commands |
+| **Custom Frontend** | Redesign the frontend look and feel; backend API remains unchanged |
 
 ---
 
 ## Design Principles
 
-The codebase is designed to be understandable and maintainable by both human developers and LLM-based coding agents:
-
-- **Clarity over Abstraction** — Thin architecture close to the logic. No unnecessary layers or generics obscuring implementation.
-- **Well-defined Dependencies** — No circular dependencies. Every package and module has a narrowly defined purpose.
-- **Canonical Tooling** — Modern, standard libraries: `uv`, `Pydantic`, `pydantic-settings`, `Typer`, `Textual`, `FastAPI`, `litellm`, `sqlmodel`, `NextJS`, `TanStack Table`.
+- **Clarity over Abstraction** — Thin architecture close to the logic. No unnecessary layers obscuring implementation.
+- **Well-defined Dependencies** — No circular dependencies. Each package has a narrowly defined purpose.
+- **Canonical Tooling** — Standard libraries: FastAPI, Pydantic, SQLModel, uv, LiteLLM, Anthropic SDK, NextJS, TanStack Table.
 - **Pick Your Complexity** — Start with what you need. Add capabilities as your application grows.
-
----
-
-## Architecture Documentation
-
-Detailed architecture documentation covers how each subsystem works and the key design decisions behind them:
-
-### How Agents Work
-
-| Document | Description |
-|---|---|
-| [chat-sse-streaming](how-agents-work/chat-sse-streaming.md) | End-to-end flow: FastAPI → Agent → SSE → Frontend |
-| [agent-loop](how-agents-work/agent-loop.md) | Internal agent execution loop: step, turns, clipboard injection, loop detection |
-| [agent-clipboard](how-agents-work/agent-clipboard.md) | Token optimization via clipboard + TTL decay |
-| [memory-system](how-agents-work/memory-system.md) | EventLog, TopicalMemory, FTS5 full-text search |
-| [prompt-system](how-agents-work/prompt-system.md) | Fragment-based system prompt assembly |
-| [llm-provider-abstraction](how-agents-work/llm-provider-abstraction.md) | Provider-agnostic LLM interface: LiteLLM, Anthropic SDK, streaming callbacks |
-| [agent-registry](how-agents-work/agent-registry.md) | Loading agents from markdown, YAML frontmatter schema, CRUD via registry |
-| [productivity-system](platform/productivity-system.md) | Tasks, Projects, Journals, calendar appointments — models, tools, clipboard integration |
-
-### Workflow and Automation
-
-| Document | Description |
-|---|---|
-| [workflow-architecture](workflow-and-automation/workflow-architecture.md) | Blackboard pattern, YAML manifests, map-reduce tasks |
-| [scheduled-workflows](workflow-and-automation/scheduled-workflows.md) | APScheduler integration for cron jobs |
-
-### Tools and Extensibility
-
-| Document | Description |
-|---|---|
-| [tool-architecture](tools-and-extensibility/tool-architecture.md) | BaseTool ABC, multi-channel ToolResult, tool registry |
-
-### Project Structure
-
-| Document | Description |
-|---|---|
-| [monorepo-structure](monorepo-structure.md) | uv workspace layout, 5 packages, import conventions, dependency management |
-
-### Platform Layer
-
-Detailed documentation on the server-side architecture, configuration system, and how core and server interact:
-
-| Document | Description |
-|---|---|
-| [platform-layer](platform/platform-layer.md) | FastAPI app, lifespan, dependency injection, three-database architecture, SSE streaming, scheduler, all REST routers |
-| [productivity-system](platform/productivity-system.md) | Tasks, Projects, Journals, calendar appointments — models, tools, clipboard integration |
-
-### Developer Guides
-
-Step-by-step guides for extending and modifying the codebase:
-
-| Document | Description |
-|---|---|
-| [extending the backend](guides/extending-the-backend/adding-entities.md) | Adding entities, models, schemas, FastAPI routers |
-| [building the frontend](guides/building-the-frontend/frontend-components.md) | Server actions, API proxy, component conventions |
-| [frontend pages](guides/building-the-frontend/frontend-pages.md) | PageContainer, PageBody, scroll archetypes |
-| [frontend tables](guides/building-the-frontend/frontend-tables.md) | TanStack Table patterns, sorting, filtering |
-| [workflow guide](guides/automation/workflow-guide.md) | Writing YAML manifests, invoking workflows programmatically, developing new task types |
-| [scheduled workflows](guides/automation/scheduled-workflows.md) | Creating cron-triggered workflows, monitoring via SSE stream |
-| [implementing tools](guides/extending-the-backend/implementing-tools.md) | Implementing a new tool, path validation, ToolResult channels |
-
----
-
-## Quick Reference: Package Map
-
-| Package | Purpose |
-|---|---|
-| `myproject-core` | Shared logic: agent, clipboard, memory, workflows, prompts, LLM abstraction, config |
-| `myproject-tools` | 30+ built-in tools: file ops, productivity, memory, web, PDF, arxiv |
-| `myproject-cli` | Typer CLI entry point |
-| `myproject-tui` | Textual TUI (stub) |
-| `myproject-server` | FastAPI REST API, auth, SSE streaming |
-| `myproject-frontend` | NextJS frontend (separate repo structure) |
-
-> **Note on naming:** Project names use hyphens (`myproject-core`), but Python packages use underscores. Always import with underscores: `import myproject_core`.
