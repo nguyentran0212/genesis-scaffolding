@@ -13,6 +13,7 @@ class AgentRead(BaseModel):
     system_prompt: str
     # We include the model name but NOT the provider's API key
     model_name: str | None = None
+    is_default: bool = False
 
 
 class AgentCreate(BaseModel):
@@ -32,3 +33,4 @@ class AgentEdit(BaseModel):
     allowed_tools: list[str] = []
     allowed_agents: list[str] = []
     model_name: str | None = None
+    is_default: bool = False

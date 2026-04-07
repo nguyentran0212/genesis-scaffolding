@@ -127,6 +127,8 @@ class AgentConfig(BaseModel):
     allowed_agents: list[str] = []
     # Read-only agents cannot be modified or deleted by user
     read_only: bool = False
+    # Whether this agent is the default agent for new sessions
+    is_default: bool = False
 
 
 ### Agent's clipboard content

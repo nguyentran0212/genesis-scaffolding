@@ -1,7 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
-import { ChatMessage, ChatSession } from '@/types/chat';
+import { ChatMessage, ChatSession, TokenUsage } from '@/types/chat';
 import { getChatHistoryAction, sendChatMessageAction } from '@/app/actions/chat';
 
 interface ChatContextType {
@@ -9,13 +9,7 @@ interface ChatContextType {
   messages: ChatMessage[];
   sendMessage: (input: string) => Promise<void>;
   isRunning: boolean;
-  tokenUsage: {
-    history_tokens: number
-    clipboard_tokens: number
-    total_tokens: number
-    max_tokens: number
-    percent: number
-  } | null
+  tokenUsage: TokenUsage | null
 }
 
 const ChatContext = createContext<ChatContextType | null>(null);

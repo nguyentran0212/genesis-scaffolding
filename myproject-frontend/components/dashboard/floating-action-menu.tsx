@@ -5,12 +5,13 @@ import { useRouter } from "next/navigation";
 import {
   Plus, X, ListTodo, Calendar,
   CalendarRange, StickyNote, Zap, Loader2,
-  ChevronRight
+  ChevronRight, MessageSquare
 } from "lucide-react";
 import { format, startOfWeek } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { QuickAddTask } from "@/components/dashboard/tasks/quick-add-task";
+import { QuickChatSheet } from "@/components/dashboard/quick-chat-sheet";
 import { findOrCreateJournalAction } from "@/app/actions/productivity";
 import { JournalType } from "@/types/productivity";
 
@@ -29,6 +30,7 @@ export function FloatingActionMenu({
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState<string | null>(null); // Track which journal is loading
   const [activeWidget, setActiveWidget] = useState<"none" | "task">("none");
+  const [quickChatOpen, setQuickChatOpen] = useState(false);
 
   const positionClasses: Record<Position, string> = {
     "bottom-right": "bottom-6 right-6 flex-col-reverse items-end",
@@ -130,10 +132,20 @@ export function FloatingActionMenu({
                 label="Misc Note"
                 onClick={() => handleJournalRedirect('general', new Date(), 'misc')}
               />
+
+              <div className="w-px h-8 bg-border hidden md:block" />
+
+              <TrayIcon
+                icon={<MessageSquare className="h-5 w-5" />}
+                label="Chat"
+                onClick={() => setQuickChatOpen(true)}
+              />
             </div>
           )}
         </div>
       )}
+
+      <QuickChatSheet open={quickChatOpen} onOpenChange={setQuickChatOpen} />
     </div>
   );
 }

@@ -32,6 +32,7 @@ export interface Agent {
   allowed_tools: string[];
   allowed_agents: string[];
   model_name?: string | null;
+  is_default?: boolean;
 }
 
 export interface AgentCreate {
@@ -51,4 +52,13 @@ export interface AgentUpdate {
   allowed_tools: string[];
   allowed_agents: string[];
   model_name?: string | null;
+  is_default?: boolean;
+}
+
+export interface TokenUsage {
+  history_tokens: number;
+  clipboard_tokens: number;
+  total_tokens: number;
+  max_tokens: number;
+  percent: number;
 }

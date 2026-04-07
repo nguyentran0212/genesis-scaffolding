@@ -2,7 +2,7 @@
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Bot, Wrench, Users, MoreVertical, Pencil, Trash2 } from 'lucide-react';
+import { Wrench, Users, MoreVertical, Pencil, Trash2, Star } from 'lucide-react';
 import { Agent } from '@/types/chat';
 import { StartChatButton } from './start-chat-button';
 import {
@@ -14,10 +14,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { deleteAgentAction } from '@/app/actions/chat';
+import { deleteAgentAction, updateAgentAction } from '@/app/actions/chat';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner'; // Or your preferred toast library
+import { cn } from '@/lib/utils';
 
 interface AgentCardProps {
   agent: Agent;
@@ -26,6 +27,7 @@ interface AgentCardProps {
 export function AgentCard({ agent }: AgentCardProps) {
   const router = useRouter();
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isTogglingDefault, setIsTogglingDefault] = useState(false);
   const modelDisplay = agent.model_name || 'Default Model';
 
   const handleDelete = async () => {
@@ -44,6 +46,28 @@ export function AgentCard({ agent }: AgentCardProps) {
     }
   };
 
+  const handleToggleDefault = async () => {
+    setIsTogglingDefault(true);
+    try {
+      await updateAgentAction(agent.id, {
+        description: agent.description,
+        system_prompt: agent.system_prompt ?? "",
+        interactive: agent.interactive,
+        allowed_tools: agent.allowed_tools,
+        allowed_agents: agent.allowed_agents,
+        model_name: agent.model_name,
+        is_default: !agent.is_default,
+      });
+      toast.success(agent.is_default ? 'Removed as default' : 'Set as default');
+      router.refresh();
+    } catch (error) {
+      toast.error('Failed to update default agent');
+      console.error(error);
+    } finally {
+      setIsTogglingDefault(false);
+    }
+  };
+
   return (
     <Card className={`flex flex-col hover:shadow-md transition-all duration-200 border-slate-200 ${isDeleting ? 'opacity-50 grayscale' : ''}`}>
       <CardHeader>
@@ -57,7 +81,23 @@ export function AgentCard({ agent }: AgentCardProps) {
           </Badge>
 
           <div className="flex items-center gap-1">
-            <Bot className="h-4 w-4 text-primary/50 shrink-0" />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleToggleDefault}
+              disabled={isTogglingDefault}
+              className={cn(
+                "h-8 w-8 text-muted-foreground hover:text-yellow-500 transition-colors",
+                agent.is_default && "text-yellow-500"
+              )}
+              title={agent.is_default ? 'Unset as default' : 'Set as default'}
+            >
+              {agent.is_default ? (
+                <Star className="h-4 w-4 fill-yellow-500" />
+              ) : (
+                <Star className="h-4 w-4" />
+              )}
+            </Button>
 
             {/* Show options only if NOT read_only */}
             {!agent.read_only && (

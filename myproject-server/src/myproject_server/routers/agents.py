@@ -27,6 +27,7 @@ async def list_agents(agent_reg: Annotated[AgentRegistry, Depends(get_agent_regi
                 allowed_agents=blueprint.allowed_agents,
                 system_prompt=blueprint.system_prompt,
                 model_name=blueprint.model_name,
+                is_default=blueprint.is_default,
             ),
         )
     return results
@@ -84,6 +85,7 @@ async def create_agent(
             allowed_agents=blueprint.allowed_agents,
             system_prompt=blueprint.system_prompt,
             model_name=blueprint.model_name,
+            is_default=blueprint.is_default,
         )
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Could not create agent: {e!s}") from e
@@ -107,6 +109,7 @@ async def get_agent_details(agent_id: str, agent_reg: Annotated[AgentRegistry, D
         allowed_agents=blueprint.allowed_agents,
         system_prompt=blueprint.system_prompt,
         model_name=blueprint.model_name,
+        is_default=blueprint.is_default,
     )
 
 
@@ -219,4 +222,5 @@ async def update_agent(
         allowed_agents=blueprint.allowed_agents,
         system_prompt=blueprint.system_prompt,
         model_name=blueprint.model_name,
+        is_default=blueprint.is_default,
     )
