@@ -151,7 +151,7 @@ export function BulkActionBar({ selectedIds, onClear, projects, className }: Bul
                   variant="ghost"
                   size="sm"
                   className="w-full justify-center text-xs text-muted-foreground hover:text-destructive"
-                  onClick={() => handleBulkUpdate({ assigned_date: undefined })}
+                  onClick={() => handleBulkUpdate({ assigned_date: null })}
                 >
                   Clear date
                 </Button>
@@ -184,7 +184,7 @@ export function BulkActionBar({ selectedIds, onClear, projects, className }: Bul
                   variant="ghost"
                   size="sm"
                   className="w-full justify-center text-xs text-muted-foreground hover:text-destructive"
-                  onClick={() => handleBulkUpdate({ hard_deadline: undefined })}
+                  onClick={() => handleBulkUpdate({ hard_deadline: null })}
                 >
                   Clear deadline
                 </Button>

@@ -19,7 +19,7 @@ import { Status } from "@/types/productivity";
  * Helper to format a UTC ISO string for a 'datetime-local' input.
  * HTML datetime-local expects: YYYY-MM-DDTHH:mm (no Z, no offset)
  */
-function formatForInput(utcString?: string) {
+function formatForInput(utcString?: string | null) {
   if (!utcString) return "";
   const date = new Date(utcString);
   // This trick gets the local YYYY-MM-DDTHH:mm format regardless of server TZ
@@ -40,9 +40,9 @@ export default function EditTaskPage({
     title: string;
     description?: string;
     status: Status;
-    assigned_date?: string;
-    hard_deadline?: string;
-    scheduled_start?: string;
+    assigned_date?: string | null;
+    hard_deadline?: string | null;
+    scheduled_start?: string | null;
     duration_minutes?: number;
     project_ids: number[];
   } | null>(null);

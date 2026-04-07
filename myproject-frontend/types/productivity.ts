@@ -25,13 +25,16 @@ export interface Task {
   description?: string;
 
   // Absolute Point in Time: "2024-10-25T14:30:00Z"
-  hard_deadline?: string;
+  // null = explicitly clear, undefined = not provided
+  hard_deadline?: string | null;
 
   // Floating Planning Date: "YYYY-MM-DD"
-  assigned_date?: string;
+  // null = explicitly clear, undefined = not provided
+  assigned_date?: string | null;
 
   // Absolute Appointment Time: "2024-10-25T09:00:00Z"
-  scheduled_start?: string;
+  // null = explicitly clear, undefined = not provided
+  scheduled_start?: string | null;
 
   duration_minutes?: number;
   status: Status;
