@@ -231,3 +231,35 @@ export function ChatWidget({ tokenUsage }) {
 For chat-specific components that need access to `useChat()`, render them as children of `ChatProvider`. For example, a `TokenBar` that needs `tokenUsage` from context should be placed inside `ChatWidget` (which calls `useChat()`), not in the server page.
 
 See [Frontend Pages](frontend-pages.md) for the full "Server vs. Client Components" and "PageContainer is the Root" rules.
+
+## Shared Types
+
+Types used by more than one file should live in the shared types file, not defined inline. When a type is needed across layers (server actions, components, pages), define it once in `types/chat.ts` (or the appropriate domain types file) and import it everywhere.
+
+Example: `TokenUsage` is used by `ChatContext`, `QuickChatSheet`, and `openQuickChatAction` — it belongs in `types/chat.ts`, not in any of those individual files.
+
+## Radix UI Accessibility Requirements
+
+Radix UI primitives require specific wrapper components for accessibility. When using `Sheet` or `Dialog` from the project's Radix UI components:
+
+- **`SheetContent` requires `SheetTitle`** — Without it, screen readers report a missing accessible label. Always wrap the heading inside `SheetTitle`:
+
+```tsx
+// ✅ Correct — screen reader accessible
+<SheetContent side="right">
+  <div className="py-4 px-4">
+    <SheetTitle className="text-lg font-bold">Quick Chat</SheetTitle>
+  </div>
+</SheetContent>
+
+// ❌ Wrong — triggers screen reader warning
+<SheetContent side="right">
+  <div className="py-4 px-4">
+    <h2 className="text-lg font-bold">Quick Chat</h2>   {/* no SheetTitle */}
+  </div>
+</SheetContent>
+```
+
+The same rule applies to `Dialog` — use `DialogTitle` from the Dialog primitive.
+
+For more information, see [Radix UI Dialog documentation](https://radix-ui.com/primitives/docs/components/dialog).

@@ -44,6 +44,7 @@ These guides cover the processes and conventions for extending and maintaining t
 
 - [Testing](maintaining/testing.md) — Testing conventions and patterns
 - [Documentation](maintaining/documentation.md) — How to write and maintain documentation
+- [Conventions](maintaining/conventions.md) — Coding conventions discovered during development: datetime handling gotchas, apiFetch vs fetch usage, shared type placement
 - [Development Workflow](development-workflow.md) — Running the project, quality gates, pre-commit hooks, and CI
 
 ## Tooling
