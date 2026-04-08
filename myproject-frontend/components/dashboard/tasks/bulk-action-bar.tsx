@@ -81,9 +81,9 @@ export function BulkActionBar({ selectedIds, onClear, projects, className }: Bul
       "fixed left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4",
       className ? className : "bottom-6"
     )}>
-      <div className="bg-primary text-primary-foreground px-3 py-2 rounded-full shadow-2xl flex items-center gap-2 border border-primary-foreground/20">
+      <div className="bg-primary text-primary-foreground px-3 py-2 rounded-3xl md:rounded-full shadow-2xl flex flex-col md:flex-row items-start md:items-center gap-2 md:gap-0 border border-primary-foreground/20">
 
-        {/* Selection Count */}
+        {/* Selection Count — always visible */}
         <div className="flex items-center px-2">
           {isPending ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -94,7 +94,11 @@ export function BulkActionBar({ selectedIds, onClear, projects, className }: Bul
           )}
         </div>
 
-        <div className="h-6 w-px bg-primary-foreground/20 mx-1" />
+        {/* Divider: desktop only */}
+        <div className="hidden md:block h-6 w-px bg-primary-foreground/20 mx-1" />
+
+        {/* Action buttons: Status, Schedule, Deadline, Assign */}
+        <div className="flex flex-wrap items-center gap-2">
 
         {/* Action: Status Selection */}
         <Popover>
@@ -222,9 +226,14 @@ export function BulkActionBar({ selectedIds, onClear, projects, className }: Bul
           </PopoverContent>
         </Popover>
 
-        <div className="h-6 w-px bg-primary-foreground/20 mx-1" />
+        </div>
 
-        {/* Action: Delete */}
+        {/* Divider: desktop only */}
+        <div className="hidden md:block h-6 w-px bg-primary-foreground/20 mx-1" />
+
+        {/* Delete + Close actions */}
+        <div className="flex items-center gap-2">
+
         <Button
           variant="ghost"
           size="icon"
@@ -248,6 +257,7 @@ export function BulkActionBar({ selectedIds, onClear, projects, className }: Bul
         >
           <X className="h-5 w-5" />
         </Button>
+        </div>
       </div>
     </div>
   );

@@ -99,7 +99,7 @@ export function FloatingActionMenu({
           ) : (
 
             /* ICON TRAY MODE */
-            <div className="flex flex-col md:flex-row gap-3 items-end md:items-center bg-background/90 backdrop-blur-md border p-3 rounded-3xl md:rounded-full shadow-2xl">
+            <div className="flex flex-col md:flex-row gap-3 items-center bg-background/90 backdrop-blur-md border p-3 rounded-3xl md:rounded-full shadow-2xl">
 
               {/* Task Trigger */}
               <TrayIcon

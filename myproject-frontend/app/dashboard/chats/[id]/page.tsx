@@ -17,7 +17,7 @@ export default async function ChatDetailPage({ params }: { params: Promise<{ id:
 
     return (
       <ChatProvider session={data.session} initialMessages={initialMessages} initialTokenUsage={data.context_tokens}>
-        <PageContainer variant="app">
+        <PageContainer variant="app" hasFloatingActionMenu={false}>
           <header className="shrink-0 border-b bg-white/50 dark:bg-slate-950/50 backdrop-blur-sm">
             <div className="chat-viewport-container py-4">
               <h1 className="lg:text-xl text-lg font-bold tracking-tight truncate">

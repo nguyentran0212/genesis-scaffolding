@@ -103,7 +103,8 @@ export function CalendarView({ tasks, selectedDate }: CalendarViewProps) {
             </div>
 
             {/* Grid Columns */}
-            <div className="grid grid-cols-7 relative">
+            <div className="overflow-x-auto">
+            <div className="grid grid-cols-7 relative min-w-[700px]">
               {weekDays.map((day) => {
                 const today = isToday(day);
 
@@ -184,6 +185,7 @@ export function CalendarView({ tasks, selectedDate }: CalendarViewProps) {
                   </div>
                 );
               })}
+            </div>
             </div>
           </div>
         </div>
