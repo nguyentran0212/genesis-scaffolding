@@ -43,7 +43,7 @@ export default function CalendarPage() {
       <div className="flex flex-col h-full p-6">
         <CalendarNav date={date} setDate={setDate} />
 
-        <div className="flex-1 min-h-0">
+        <div className="flex-1 min-h-0 overflow-x-auto">
           {loading ? (
             <div className="h-full w-full flex items-center justify-center bg-muted/10 rounded-xl border border-dashed">
               <p className="text-muted-foreground animate-pulse">Loading appointments...</p>

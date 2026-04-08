@@ -81,10 +81,10 @@ export function BulkActionBar({ selectedIds, onClear, projects, className }: Bul
       "fixed left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4",
       className ? className : "bottom-6"
     )}>
-      <div className="bg-primary text-primary-foreground px-3 py-2 rounded-3xl md:rounded-full shadow-2xl flex flex-col md:flex-row items-start md:items-center gap-2 md:gap-0 border border-primary-foreground/20">
+      <div className="bg-primary text-primary-foreground px-3 py-3 md:py-2 rounded-3xl md:rounded-full shadow-2xl flex flex-col md:flex-row items-stretch md:items-center gap-2 md:gap-0 border border-primary-foreground/20">
 
-        {/* Selection Count — always visible */}
-        <div className="flex items-center px-2">
+        {/* Row 1/Col 1: Selection count */}
+        <div className="flex items-center justify-center px-2 py-1 md:py-0">
           {isPending ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
@@ -97,8 +97,8 @@ export function BulkActionBar({ selectedIds, onClear, projects, className }: Bul
         {/* Divider: desktop only */}
         <div className="hidden md:block h-6 w-px bg-primary-foreground/20 mx-1" />
 
-        {/* Action buttons: Status, Schedule, Deadline, Assign */}
-        <div className="flex flex-wrap items-center gap-2">
+        {/* Row 2/Col 2: Status dropdown — full width on mobile */}
+        <div className="w-full md:w-auto">
 
         {/* Action: Status Selection */}
         <Popover>
@@ -132,99 +132,106 @@ export function BulkActionBar({ selectedIds, onClear, projects, className }: Bul
             </Command>
           </PopoverContent>
         </Popover>
+        </div>
 
-        {/* Action: Assigned Date (Schedule) */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full hover:bg-primary-foreground/10" title="Schedule">
-              <CalendarIcon className="h-5 w-5" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="center" side="top" sideOffset={16}>
-            <div className="flex flex-col">
-              <Calendar
-                mode="single"
-                onSelect={(date) => {
-                  if (date) {
-                    handleBulkUpdate({ assigned_date: format(date, "yyyy-MM-dd") });
-                  }
-                }}
-              />
-              <div className="p-2 border-t border-border">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-full justify-center text-xs text-muted-foreground hover:text-destructive"
-                  onClick={() => handleBulkUpdate({ assigned_date: null })}
-                >
-                  Clear date
-                </Button>
+        {/* Divider: desktop only */}
+        <div className="hidden md:block h-6 w-px bg-primary-foreground/20 mx-1" />
+
+        {/* Row 3/Col 3: Remaining action icons */}
+        <div className="flex flex-wrap items-center gap-2">
+
+          {/* Action: Assigned Date (Schedule) */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full hover:bg-primary-foreground/10" title="Schedule">
+                <CalendarIcon className="h-5 w-5" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="center" side="top" sideOffset={16}>
+              <div className="flex flex-col">
+                <Calendar
+                  mode="single"
+                  onSelect={(date) => {
+                    if (date) {
+                      handleBulkUpdate({ assigned_date: format(date, "yyyy-MM-dd") });
+                    }
+                  }}
+                />
+                <div className="p-2 border-t border-border">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-center text-xs text-muted-foreground hover:text-destructive"
+                    onClick={() => handleBulkUpdate({ assigned_date: null })}
+                  >
+                    Clear date
+                  </Button>
+                </div>
               </div>
-            </div>
-          </PopoverContent>
-        </Popover>
+            </PopoverContent>
+          </Popover>
 
-        {/* Action: Hard Deadline */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full hover:bg-primary-foreground/10" title="Set Deadline">
-              <Flag className="h-5 w-5" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="center" side="top" sideOffset={16}>
-            <div className="flex flex-col">
-              <Calendar
-                mode="single"
-                onSelect={(date) => {
-                  if (date) {
-                    const endOfDay = new Date(date);
-                    endOfDay.setHours(23, 59, 59, 999);
-                    handleBulkUpdate({ hard_deadline: endOfDay.toISOString() });
-                  }
-                }}
-              />
-              <div className="p-2 border-t border-border">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-full justify-center text-xs text-muted-foreground hover:text-destructive"
-                  onClick={() => handleBulkUpdate({ hard_deadline: null })}
-                >
-                  Clear deadline
-                </Button>
+          {/* Action: Hard Deadline */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full hover:bg-primary-foreground/10" title="Set Deadline">
+                <Flag className="h-5 w-5" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="center" side="top" sideOffset={16}>
+              <div className="flex flex-col">
+                <Calendar
+                  mode="single"
+                  onSelect={(date) => {
+                    if (date) {
+                      const endOfDay = new Date(date);
+                      endOfDay.setHours(23, 59, 59, 999);
+                      handleBulkUpdate({ hard_deadline: endOfDay.toISOString() });
+                    }
+                  }}
+                />
+                <div className="p-2 border-t border-border">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-center text-xs text-muted-foreground hover:text-destructive"
+                    onClick={() => handleBulkUpdate({ hard_deadline: null })}
+                  >
+                    Clear deadline
+                  </Button>
+                </div>
               </div>
-            </div>
-          </PopoverContent>
-        </Popover>
+            </PopoverContent>
+          </Popover>
 
-        {/* Action: Project Assignment */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full hover:bg-primary-foreground/10" title="Assign Project">
-              <FolderInput className="h-5 w-5" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="p-0 w-[200px]" align="center" side="top" sideOffset={16}>
-            <Command>
-              <CommandInput placeholder="Search project..." />
-              <CommandList>
-                <CommandEmpty>No project found.</CommandEmpty>
-                <CommandGroup>
-                  {projects.map((project) => (
-                    <CommandItem
-                      key={project.id}
-                      onSelect={() => {
-                        handleBulkUpdate({ project_ids: [project.id] });
-                      }}
-                    >
-                      {project.name}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
+          {/* Action: Project Assignment */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full hover:bg-primary-foreground/10" title="Assign Project">
+                <FolderInput className="h-5 w-5" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="p-0 w-[200px]" align="center" side="top" sideOffset={16}>
+              <Command>
+                <CommandInput placeholder="Search project..." />
+                <CommandList>
+                  <CommandEmpty>No project found.</CommandEmpty>
+                  <CommandGroup>
+                    {projects.map((project) => (
+                      <CommandItem
+                        key={project.id}
+                        onSelect={() => {
+                          handleBulkUpdate({ project_ids: [project.id] });
+                        }}
+                      >
+                        {project.name}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
 
         </div>
 

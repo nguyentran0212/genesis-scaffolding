@@ -35,7 +35,7 @@ export function CalendarView({ tasks, selectedDate }: CalendarViewProps) {
   const deadlineTasks = tasks.filter(t => t.hard_deadline);
 
   return (
-    <div className="flex flex-col h-full bg-background border rounded-xl overflow-hidden">
+    <div className="flex flex-col h-full bg-background border rounded-xl overflow-hidden min-w-[700px]">
       <div className="flex-1 overflow-y-auto min-h-0 relative scrollbar-gutter-stable no-scrollbar">
 
         {/* Header: Days of the week */}
@@ -104,88 +104,88 @@ export function CalendarView({ tasks, selectedDate }: CalendarViewProps) {
 
             {/* Grid Columns */}
             <div className="overflow-x-auto">
-            <div className="grid grid-cols-7 relative min-w-[700px]">
-              {weekDays.map((day) => {
-                const today = isToday(day);
+              <div className="grid grid-cols-7 relative">
+                {weekDays.map((day) => {
+                  const today = isToday(day);
 
-                return (
-                  <div key={day.toISOString()} className={cn(
-                    "relative border-r last:border-r-0 border-b-0 h-full",
-                    today && "bg-primary/[0.02]"
-                  )}>
-                    {/* Visual grid lines */}
-                    {HOURS.map((h) => (
-                      <div key={h} style={{ height: HOUR_HEIGHT }} className="border-b border-dashed opacity-50" />
-                    ))}
+                  return (
+                    <div key={day.toISOString()} className={cn(
+                      "relative border-r last:border-r-0 border-b-0 h-full",
+                      today && "bg-primary/[0.02]"
+                    )}>
+                      {/* Visual grid lines */}
+                      {HOURS.map((h) => (
+                        <div key={h} style={{ height: HOUR_HEIGHT }} className="border-b border-dashed opacity-50" />
+                      ))}
 
-                    {/* 1. Render Appointment Tasks */}
-                    {appointmentTasks
-                      .filter(t => isSameDay(parseISO(t.scheduled_start!), day))
-                      .map(task => {
-                        const start = parseISO(task.scheduled_start!);
-                        const startMinutes = differenceInMinutes(start, startOfDay(start));
-                        const top = (startMinutes / 60) * HOUR_HEIGHT;
-                        const height = ((task.duration_minutes || 30) / 60) * HOUR_HEIGHT;
+                      {/* 1. Render Appointment Tasks */}
+                      {appointmentTasks
+                        .filter(t => isSameDay(parseISO(t.scheduled_start!), day))
+                        .map(task => {
+                          const start = parseISO(task.scheduled_start!);
+                          const startMinutes = differenceInMinutes(start, startOfDay(start));
+                          const top = (startMinutes / 60) * HOUR_HEIGHT;
+                          const height = ((task.duration_minutes || 30) / 60) * HOUR_HEIGHT;
 
-                        return (
-                          <Link
-                            key={`appointment-${task.id}`}
-                            href={`/dashboard/tasks/${task.id}`}
-                            className={cn(
-                              "absolute left-0.5 right-0.5 p-1.5 rounded-md text-[11px] overflow-hidden border shadow-sm z-10 transition-all",
-                              "hover:brightness-95 hover:ring-1 hover:ring-primary/30 active:scale-[0.98]",
-                              task.status === 'completed' ? "bg-muted text-muted-foreground" : "bg-primary/10 border-primary/20 text-primary"
-                            )}
-                            style={{ top: `${top}px`, height: `${height}px`, minHeight: '24px' }}
-                          >
-                            <div className="font-bold truncate leading-tight">{task.title}</div>
-                            {height > 35 && (
-                              <div className="opacity-70 text-[10px]">{format(start, "HH:mm")}</div>
-                            )}
-                          </Link>
-                        );
-                      })}
+                          return (
+                            <Link
+                              key={`appointment-${task.id}`}
+                              href={`/dashboard/tasks/${task.id}`}
+                              className={cn(
+                                "absolute left-0.5 right-0.5 p-1.5 rounded-md text-[11px] overflow-hidden border shadow-sm z-10 transition-all",
+                                "hover:brightness-95 hover:ring-1 hover:ring-primary/30 active:scale-[0.98]",
+                                task.status === 'completed' ? "bg-muted text-muted-foreground" : "bg-primary/10 border-primary/20 text-primary"
+                              )}
+                              style={{ top: `${top}px`, height: `${height}px`, minHeight: '24px' }}
+                            >
+                              <div className="font-bold truncate leading-tight">{task.title}</div>
+                              {height > 35 && (
+                                <div className="opacity-70 text-[10px]">{format(start, "HH:mm")}</div>
+                              )}
+                            </Link>
+                          );
+                        })}
 
-                    {/* 2. Render Specific Real-Time Deadlines */}
-                    {deadlineTasks
-                      .filter(t => {
-                        const d = parseISO(t.hard_deadline!);
-                        // Only show in grid if it's the correct day AND NOT the generic 23:59 time
-                        return isSameDay(d, day) && format(d, 'HH:mm') !== '23:59';
-                      })
-                      .map(task => {
-                        const deadline = parseISO(task.hard_deadline!);
-                        const startMinutes = differenceInMinutes(deadline, startOfDay(deadline));
-                        const top = (startMinutes / 60) * HOUR_HEIGHT;
+                      {/* 2. Render Specific Real-Time Deadlines */}
+                      {deadlineTasks
+                        .filter(t => {
+                          const d = parseISO(t.hard_deadline!);
+                          // Only show in grid if it's the correct day AND NOT the generic 23:59 time
+                          return isSameDay(d, day) && format(d, 'HH:mm') !== '23:59';
+                        })
+                        .map(task => {
+                          const deadline = parseISO(task.hard_deadline!);
+                          const startMinutes = differenceInMinutes(deadline, startOfDay(deadline));
+                          const top = (startMinutes / 60) * HOUR_HEIGHT;
 
-                        return (
-                          <Link
-                            key={`deadline-${task.id}`}
-                            href={`/dashboard/tasks/${task.id}`}
-                            className={cn(
-                              "absolute left-1 right-1 p-1 rounded border-l-4 z-20 shadow-md transition-all flex flex-col justify-center",
-                              "bg-red-50 border-red-500 text-red-900 hover:bg-red-100"
-                            )}
-                            style={{
-                              top: `${top}px`,
-                              height: '32px', // Fixed height for deadline markers
-                              marginTop: '-16px' // Center the marker on the actual time line
-                            }}
-                          >
-                            <div className="flex items-center gap-1 font-bold text-[10px] truncate">
-                              <AlertCircle className="w-3 h-3 shrink-0 text-red-600" />
-                              <span className="truncate uppercase">Due: {task.title}</span>
-                            </div>
-                            <div className="text-[9px] opacity-70 font-medium">
-                              {format(deadline, "HH:mm")}
-                            </div>
-                          </Link>
-                        );
-                      })}
-                  </div>
-                );
-              })}
-            </div>
+                          return (
+                            <Link
+                              key={`deadline-${task.id}`}
+                              href={`/dashboard/tasks/${task.id}`}
+                              className={cn(
+                                "absolute left-1 right-1 p-1 rounded border-l-4 z-20 shadow-md transition-all flex flex-col justify-center",
+                                "bg-red-50 border-red-500 text-red-900 hover:bg-red-100"
+                              )}
+                              style={{
+                                top: `${top}px`,
+                                height: '32px', // Fixed height for deadline markers
+                                marginTop: '-16px' // Center the marker on the actual time line
+                              }}
+                            >
+                              <div className="flex items-center gap-1 font-bold text-[10px] truncate">
+                                <AlertCircle className="w-3 h-3 shrink-0 text-red-600" />
+                                <span className="truncate uppercase">Due: {task.title}</span>
+                              </div>
+                              <div className="text-[9px] opacity-70 font-medium">
+                                {format(deadline, "HH:mm")}
+                              </div>
+                            </Link>
+                          );
+                        })}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
