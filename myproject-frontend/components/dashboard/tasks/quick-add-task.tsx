@@ -146,7 +146,7 @@ export function QuickAddTask({ defaultProjectId, showToast = false }: { defaultP
           value={inputValue}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
-          placeholder="Task name... #project today"
+          placeholder="Task name... #project @date at time"
           className="pl-10 pr-32 h-11 bg-background border-dashed focus:border-solid transition-all"
           disabled={loading}
           autoFocus

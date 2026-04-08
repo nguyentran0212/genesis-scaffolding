@@ -1,3 +1,3 @@
 # User Guides
 
-Placeholder for end-user documentation. To be defined later.
+- [Quick Task Add](quick-task-add.md) — Creating tasks and calendar appointments with natural language
