@@ -8,6 +8,7 @@ The frontend is a NextJS web application using the App Router. It handles server
 
 ```
 myproject-frontend/
+├── proxy.ts                # Edge Runtime middleware (intercepts all requests)
 ├── app/                    # Next.js App Router pages and layouts
 │   ├── actions/            # Server Actions (data mutations, API calls)
 │   ├── api/[...proxy]/     # API proxy route (forwards to FastAPI)
@@ -26,7 +27,8 @@ myproject-frontend/
 │   └── ui/                 # Shadcn UI component library
 ├── lib/                    # Client-side utilities
 │   ├── api-client.ts       # Typed API client for server-side fetch
-│   ├── auth.ts             # Auth utilities
+│   ├── auth.ts             # Auth utilities (including shared token refresh)
+│   ├── session.ts          # Cookie management (Route Handler only)
 │   ├── date-utils.ts       # Date formatting helpers
 │   └── ...
 ├── types/                  # TypeScript interface definitions
@@ -99,6 +101,41 @@ export async function createTaskAction(data: TaskCreateInput) {
 All browser requests to FastAPI are routed through `app/api/[...proxy]/route.ts`. This proxy forwards requests to the FastAPI backend, ensuring credentials and API keys are never exposed to the client browser.
 
 The `apiFetch` utility in `lib/api-client.ts` is the standard way to make API calls — it handles the proxy path and authentication headers.
+
+## Edge Runtime Middleware
+
+`proxy.ts` at the project root is a Next.js middleware function that runs in the **Edge Runtime** — it intercepts every request before it reaches any page or API route. This is distinct from Route Handlers (`app/api/`) which run in Node.js.
+
+### Execution environments
+
+| Environment | Where it runs | Can use `next/headers` | Can use Node.js modules |
+|---|---|---|---|
+| Edge Runtime (middleware) | CDN edge nodes | ✗ | ✗ |
+| Route Handlers / Server Components | Node.js server | ✓ | ✓ |
+
+### What proxy.ts does
+
+- Intercepts all requests matching the matcher pattern
+- Decodes the JWT access token to check expiry
+- If access token is expired but refresh token exists, calls `POST /auth/refresh` and sets the new access token cookie directly on the response
+- Redirects unauthenticated users to `/login`
+- Clears auth cookies when entering auth paths (`/login`, `/register`)
+
+### Cookie handling in Edge vs Route Handler contexts
+
+`lib/session.ts` uses `cookies()` from `next/headers`, which only works in Route Handlers and Server Components — not in Edge Runtime. The `proxy.ts` middleware must set cookies using the standard Web API on `NextResponse`:
+
+```typescript
+// In Edge Runtime (proxy.ts):
+const response = NextResponse.next();
+response.cookies.set('access_token', newToken, { httpOnly: true, ... });
+return response;
+
+// NOT:
+// cookies().set(...)  — next/headers, not available in Edge Runtime
+```
+
+The `refreshAccessToken()` function in `lib/auth.ts` is shared between both contexts — it only performs the HTTP call and returns tokens, without persistence.
 
 ## Dashboard Layout
 

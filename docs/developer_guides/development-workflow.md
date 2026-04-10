@@ -1,5 +1,33 @@
 # Development Workflow
 
+## Development Conventions
+
+### Verify with `make` before finishing
+
+Always run the full quality check before considering a task complete:
+
+```bash
+make check-all      # lint + type-check + test (everything)
+```
+
+Or for backend-only changes:
+
+```bash
+make check-all-backend
+```
+
+This is the same command CI runs. A task is only done when these checks pass with no errors. The master branch is always error-free when a developer or AI agent starts working — keep it that way.
+
+### Do not commit during a code change session
+
+Do not run `git commit` or `git push` while making code changes. The human developer reviews and signs off the final work by committing themselves after verifying all checks pass and the changes look correct.
+
+### Use `make` over raw tool calls
+
+The Makefile is the authoritative entry point for running checks and development tasks — it is what CI uses. Prefer `make check-all` over calling `uv` or `pnpm` directly. Use the Makefile consistently so your local verification matches CI.
+
+---
+
 ## Running the Project
 
 The project can be run in three modes. All share the same codebase; only the runtime environment differs.

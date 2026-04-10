@@ -24,7 +24,24 @@ For API calls from client components, the same `apiFetch` path is used — the p
 
 ### Token Refresh
 
-When the access token expires (after 15 minutes), `apiFetch` in `lib/api-client.ts` automatically sends the refresh token to `POST /auth/refresh` and stores the new access token via `createSession()`. This happens transparently — the user is not logged out unless the refresh also fails.
+Token refresh happens in two places, for different request contexts:
+
+**1. Route Handlers (API calls)** — `lib/api-client.ts`
+
+When an API call returns HTTP 401, `apiFetch` automatically sends the refresh token to `POST /auth/refresh`. If refresh succeeds, the new access token is stored via `createSession()` and the original request is retried. This happens transparently — the user is not logged out unless the refresh also fails.
+
+**2. Edge Runtime Middleware (page loads)** — `proxy.ts`
+
+When the access token is expired at the time of a page load, the middleware (running in Edge Runtime) detects this by decoding the JWT's `exp` claim. If a refresh token exists, it calls `POST /auth/refresh` directly, sets the new access token cookie on the response, and allows the request to proceed. If refresh fails, the user is redirected to `/login`.
+
+This two-layer refresh ensures users stay authenticated even when returning to the app after the access token has expired — without needing to re-login.
+
+### Shared Refresh Logic
+
+The `refreshAccessToken()` function in `lib/auth.ts` is shared between `api-client.ts` (Route Handler context) and `proxy.ts` (Edge Runtime context). It performs the HTTP call to `POST /auth/refresh` and returns tokens, but does not persist them — each caller handles persistence according to its runtime constraints:
+
+- `api-client.ts` → uses `createSession()` (Route Handler, can use `next/headers`)
+- `proxy.ts` → sets cookies directly on `NextResponse` (Edge Runtime, uses Web APIs)
 
 ### Logout
 
@@ -36,9 +53,10 @@ The frontend manages authentication state in the shared layout or a dedicated au
 
 ## Related Modules
 
-- `myproject_frontend/lib/auth.ts` — `authenticateUser()`, `fetchUser()`, `validateCredentials()` — called by server actions
-- `myproject_frontend/lib/session.ts` — `createSession()`, `getAccessToken()`, `deleteSession()` — cookie management
-- `myproject_frontend/lib/api-client.ts` — `apiFetch()` — proxy-based API calls with automatic token refresh
+- `myproject_frontend/proxy.ts` — Edge Runtime middleware; intercepts all requests, checks auth, handles token refresh on page loads
+- `myproject_frontend/lib/auth.ts` — `authenticateUser()`, `fetchUser()`, `validateCredentials()`, `refreshAccessToken()` — auth utilities shared by server actions and middleware
+- `myproject_frontend/lib/session.ts` — `createSession()`, `getAccessToken()`, `deleteSession()` — cookie management (Route Handler only, not Edge)
+- `myproject_frontend/lib/api-client.ts` — `apiFetch()` — proxy-based API calls with automatic token refresh on 401
 - `myproject_frontend/app/actions/auth.ts` — Server actions for login, logout, register
 - `myproject_frontend/app/dashboard/layout.tsx` — Calls `getCurrentUser()` on every page load for auth checks
 

@@ -1,6 +1,27 @@
 # Conventions
 
-## Handling Type Errors
+## Design Conventions
+
+### DRY — Don't Repeat Yourself
+
+If the same logic exists in two or more places, consolidate it into one shared location and import it from there. Duplication leads to inconsistency and maintenance burden.
+
+When the same HTTP call, validation logic, or utility function appears in multiple files, refactor it into a single shared module. For example, token refresh logic (`lib/auth.ts`) is shared between `api-client.ts` (Route Handler context) and `proxy.ts` (Edge Runtime context) — the HTTP call itself is shared, while cookie persistence is handled separately by each caller.
+
+### Logical Arrangement
+
+New code must be placed according to the existing logical structure. Before making changes, read the architecture docs to understand where things belong:
+
+| Code type | Location |
+|---|---|
+| Shared utilities (fetch wrappers, helpers) | `lib/` |
+| Next.js routes (pages, layouts, API routes) | `app/` |
+| Edge Runtime middleware | `proxy.ts` (root) |
+| Server Actions | `app/actions/` |
+| React components | `components/` |
+| TypeScript types | `types/` |
+
+Placing code in the wrong location (e.g., a utility function in a page file, or middleware in an API route) creates confusion and breaks the import graph.
 
 See [Handling Type Errors](../development-workflow.md#handling-type-errors) in the development workflow guide.
 
