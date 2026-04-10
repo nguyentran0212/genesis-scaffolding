@@ -52,7 +52,7 @@ class Agent:
         )
         system_prompt = build_system_prompt(prompt_config)
         self.memory = memory or AgentMemory(
-            messages=[self._create_llm_message(role="system", content=system_prompt)]
+            messages=[self._create_llm_message(role="system", content=system_prompt)], timezone=timezone
         )
 
         self.stream = agent_config.interactive

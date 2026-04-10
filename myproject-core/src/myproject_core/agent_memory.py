@@ -17,11 +17,13 @@ class AgentMemory:
         self,
         messages: list[Any] | None = None,
         agent_clipboard: AgentClipboard | None = None,
+        timezone: str = "UTC",
     ) -> None:
         self.messages = messages or []
-        self.agent_clipboard = agent_clipboard or AgentClipboard()
+        self.agent_clipboard = agent_clipboard or AgentClipboard(timezone=timezone)
         self.history_tokens = 0
         self.clipboard_tokens = 0
+        self.timezone = timezone
 
     def append_memory(self, message: Any):
         self.messages.append(message)
@@ -32,7 +34,7 @@ class AgentMemory:
 
     def reset_memory(self):
         self.messages = []
-        self.agent_clipboard = AgentClipboard()
+        self.agent_clipboard = AgentClipboard(timezone=self.timezone)
 
     def remove_deleted_files(self, working_dir: Path = Path()) -> list[Path]:
         """Automatically remove deleted files from the clipboard

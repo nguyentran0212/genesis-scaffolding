@@ -180,3 +180,66 @@ Or consistently destructure with `const { data, index } = parsed` for all events
 ### Lesson
 
 SSE event handlers that process non-string data must account for the `_broadcast` wrapper. Any new SSE event type should be tested by forcing a re-render mid-stream (e.g., add a state setter for an unrelated piece of state in the handler) to catch these mismatches early.
+
+---
+
+## Timezone Lost Through Agent → AgentMemory → AgentClipboard Chain
+
+### Symptoms
+
+- User sets their timezone (e.g., `America/New_York`)
+- The agent correctly uses the timezone when injecting clipboard into the LLM prompt (function calls render timestamps in the correct timezone)
+- But the clipboard content sent to the browser via `chat.py` renders timestamps in UTC instead of the user's timezone
+- The user sees incorrect timestamps in the chat UI despite the agent working correctly internally
+
+### Root Cause
+
+The `timezone` parameter was not being propagated through the initialization chain:
+
+1. `Agent.__init__()` accepted `timezone` and passed it to `AgentMemory`
+2. `AgentMemory.__init__()` accepted `timezone` but did NOT pass it to `AgentClipboard` when creating the default clipboard
+3. `AgentClipboard` had no `timezone` field, so `render_to_markdown()` used UTC hardcoded
+
+When `chat.py` called `agent.memory.agent_clipboard.render_to_markdown()`, the clipboard had no knowledge of the user's timezone.
+
+### The Fix
+
+Three files were modified:
+
+**`myproject-core/src/myproject_core/agent.py`** — Pass `timezone` to `AgentMemory` constructor:
+```python
+self.memory = memory or AgentMemory(
+    messages=[self._create_llm_message(role="system", content=system_prompt)],
+    timezone=timezone  # Added
+)
+```
+
+**`myproject-core/src/myproject_core/agent_memory.py`** — Accept and forward `timezone` to `AgentClipboard`:
+```python
+def __init__(self, messages=None, agent_clipboard=None, timezone: str = "UTC") -> None:
+    self.agent_clipboard = agent_clipboard or AgentClipboard(timezone=timezone)
+    self.timezone = timezone
+```
+
+And when resetting clipboard:
+```python
+def reset_memory(self):
+    self.messages = []
+    self.agent_clipboard = AgentClipboard(timezone=self.timezone)  # Preserves timezone
+```
+
+**`myproject-core/src/myproject_core/schemas.py`** — Add `timezone` field to `AgentClipboard`:
+```python
+class AgentClipboard(BaseModel):
+    timezone: str = "UTC"  # Added
+```
+
+And in `render_to_markdown()`, use the instance's timezone instead of hardcoded UTC:
+```python
+if self.timezone:
+    timezone = self.timezone
+```
+
+### Lesson
+
+When a parameter flows through multiple layers of object construction, ensure it is explicitly propagated at each step. A timezone that is correctly used at one layer (LLM context) can be silently lost if the intermediate layers don't forward it. Always trace parameter flow from construction to final use — the symptom (wrong timezone in browser) was far removed from the cause (AgentMemory not forwarding timezone to AgentClipboard).

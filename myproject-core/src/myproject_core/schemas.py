@@ -184,6 +184,7 @@ class AgentClipboard(BaseModel):
     memory_tag_hints: dict[str, int] = {}  # tag -> count of current memories
     user_profile_content: str | None = None  # Rendered user profile, never TTL-expires
     last_turn_at: datetime | None = None  # UTC timestamp of last user turn
+    timezone: str = "UTC"
 
     def add_file_to_clipboard(self, file_path: Path, content: str):
         """Adds or updates a file in the clipboard."""
@@ -274,6 +275,10 @@ class AgentClipboard(BaseModel):
     def render_to_markdown(self, shorten: bool = False, timezone: str = "UTC") -> str:
         """Converts clipboard contents into a structured Markdown string."""
         sections = []
+
+        # Use the timezone property instead if exist
+        if self.timezone:
+            timezone = self.timezone
 
         # Render conversation timing if elapsed > 60 seconds
         if self.last_turn_at is not None:
