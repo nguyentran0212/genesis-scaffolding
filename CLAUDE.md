@@ -1,3 +1,3 @@
-@docs/architecture/scaffolding-overview.md
+@docs/architecture/architecture_overview.md
 
-@docs/developer_guides/index.md
+@docs/developer_guides/developer_guides_overview.md
