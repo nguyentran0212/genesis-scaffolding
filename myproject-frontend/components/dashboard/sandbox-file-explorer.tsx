@@ -22,9 +22,10 @@ interface SandboxFileExplorerProps {
 export function SandboxFileExplorer({ allFiles, allFolders, folder }: SandboxFileExplorerProps) {
   const [files, setFiles] = React.useState(allFiles);
   const [search, setSearch] = React.useState("");
-  const [selectedFiles, setSelectedFiles] = React.useState<SandboxFile[]>([]);
   const [showFolderPicker, setShowFolderPicker] = React.useState(false);
   const router = useRouter();
+  // Keep a stable ref to the latest table instance so async callbacks can read it
+  const tableRef = React.useRef<TableType<SandboxFile> | null>(null);
 
   React.useEffect(() => {
     setFiles(allFiles);
@@ -88,9 +89,10 @@ export function SandboxFileExplorer({ allFiles, allFolders, folder }: SandboxFil
   }, []);
 
   async function handleMoveFiles(destFolder: string) {
-    const paths = selectedFiles
-      .filter((f) => !f.is_dir)
-      .map((f) => f.relative_path);
+    const table = tableRef.current;
+    if (!table) return;
+    const selected = table.getFilteredSelectedRowModel().rows.map((r) => r.original);
+    const paths = selected.filter((f) => !f.is_dir).map((f) => f.relative_path);
     if (paths.length === 0) return;
 
     try {
@@ -102,10 +104,13 @@ export function SandboxFileExplorer({ allFiles, allFolders, folder }: SandboxFil
   }
 
   async function handleDeleteFiles() {
-    for (const file of selectedFiles) {
+    const table = tableRef.current;
+    if (!table) return;
+    const selected = table.getFilteredSelectedRowModel().rows.map((r) => r.original);
+    for (const file of selected) {
       await deleteFileAction(file.relative_path);
     }
-    toast.success(`Deleted ${selectedFiles.length} item(s)`);
+    toast.success(`Deleted ${selected.length} item(s)`);
   }
 
   return (
@@ -127,17 +132,14 @@ export function SandboxFileExplorer({ allFiles, allFolders, folder }: SandboxFil
         files={combinedRows}
         onFileDeleted={handleFileDeleted}
         renderFloatingBar={(table) => {
+          // Store table ref so async callbacks can read selection directly
+          tableRef.current = table;
           const selected = table.getFilteredSelectedRowModel().rows.map((r) => r.original);
-          // Sync to local state so we can pass to callbacks
-          if (JSON.stringify(selected.map((f) => f.relative_path)) !== JSON.stringify(selectedFiles.map((f) => f.relative_path))) {
-            setSelectedFiles(selected);
-          }
           return (
             <FileBulkActionBar
               selectedFiles={selected}
               onClear={() => {
                 table.resetRowSelection();
-                setSelectedFiles([]);
               }}
               onMove={() => setShowFolderPicker(true)}
               onDelete={handleDeleteFiles}
@@ -149,6 +151,7 @@ export function SandboxFileExplorer({ allFiles, allFolders, folder }: SandboxFil
       <FolderPickerDialog
         open={showFolderPicker}
         onOpenChange={setShowFolderPicker}
+        allFolders={allFolders}
         onSelectFolder={(destFolder) => {
           setShowFolderPicker(false);
           handleMoveFiles(destFolder).then(() => router.refresh());
