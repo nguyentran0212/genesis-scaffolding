@@ -114,11 +114,11 @@ const navGroups = [
     ]
   },
   {
-    label: "Knowledge",
+    label: "Data",
     items: [
       {
-        title: "Sandbox",
-        url: "/dashboard/sandbox",
+        title: "Files",
+        url: "/dashboard/files",
         icon: Box,
         tooltip: "Manage AI context & files"
       },

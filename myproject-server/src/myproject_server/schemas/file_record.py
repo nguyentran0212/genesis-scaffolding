@@ -1,20 +1,20 @@
-from datetime import datetime
-
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 
 
-class FileRecordRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+class SandboxFileRead(BaseModel):
+    """API response schema for file read operations.
+    Replicates the fields from SandboxFileInfo in myproject_core.schemas.
+    """
 
-    id: int
-    filename: str
-    relative_path: str  # e.g., "docs/proposals/draft.pdf"
-    folder: str  # e.g., "docs/proposals"
-    mime_type: str | None
-    size: int | None
-    created_at: datetime
+    relative_path: str
+    name: str
+    is_dir: bool = False
+    size: int | None = None
+    mime_type: str | None = None
+    mtime: float | None = None
+    created_at: str | None = None
 
 
 class FileUploadResponse(BaseModel):
     message: str
-    file: FileRecordRead
+    file: SandboxFileRead

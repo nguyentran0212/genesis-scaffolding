@@ -1,33 +1,62 @@
+import mimetypes
 import os
 import shutil
+from base64 import urlsafe_b64decode, urlsafe_b64encode
 from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
-from sqlmodel import Session, select
 
-from ..database import get_session
-from ..dependencies import get_current_active_user, get_user_inbox_path
-from ..models.file_record import FileRecord
+from ..dependencies import get_current_active_user, get_user_workdir
 from ..models.user import User
-from ..schemas.file_record import FileRecordRead, FileUploadResponse
-from ..utils.files import sync_folder_shallow
+from ..schemas.file_record import FileUploadResponse, SandboxFileRead
 
 router = APIRouter(prefix="/files", tags=["files"])
+
+
+def _encode_file_id(relative_path: str) -> str:
+    """Encode a relative path to a URL-safe base64 string."""
+    return urlsafe_b64encode(relative_path.encode()).rstrip(b"=").decode()
+
+
+def _decode_file_id(encoded: str) -> str:
+    """Decode a URL-safe base64 string back to a relative path."""
+    padded = encoded + "=" * (4 - (len(encoded) % 4 or 4))
+    return urlsafe_b64decode(padded.encode()).decode()
+
+
+def _get_sandbox_filesystem(user_workdir: Path):
+    """Create a sandbox filesystem instance for the given user workdir."""
+    from myproject_core.sandbox_filesystem import LocalSandboxFilesystem
+
+    return LocalSandboxFilesystem(user_workdir)
+
+
+def _file_info_to_read(file_info) -> SandboxFileRead:
+    """Convert a SandboxFileInfo dataclass to a SandboxFileRead Pydantic model."""
+    return SandboxFileRead(
+        relative_path=file_info.relative_path,
+        name=file_info.name,
+        is_dir=file_info.is_dir,
+        size=file_info.size,
+        mime_type=file_info.mime_type,
+        mtime=file_info.mtime,
+        created_at=file_info.created_at.isoformat() if file_info.created_at else None,
+    )
 
 
 @router.post("/upload", response_model=FileUploadResponse)
 async def upload_file(
     file: UploadFile,
     user: Annotated[User, Depends(get_current_active_user)],
-    user_path: Annotated[Path, Depends(get_user_inbox_path)],
-    session: Annotated[Session, Depends(get_session)],
+    user_workdir: Annotated[Path, Depends(get_user_workdir)],
     subfolder: str = ".",
 ):
     """Upload a file to subfolder/filename.ext
-    The subfolder exist underneath user inbox declared in user_path
-    So, the real path on disk would be user_path/subfolder/filename.ext
+
+    The subfolder exists underneath user workdir declared in user_workdir.
+    So, the real path on disk would be user_workdir/subfolder/filename.ext
     """
     if not user.id:
         raise HTTPException(status_code=403, detail="User not found")
@@ -35,213 +64,180 @@ async def upload_file(
     if not file.filename:
         raise HTTPException(status_code=400, detail="File name is missing")
 
-    # 1. Resolve and Validate Sandbox Boundary
-    # We use subfolder as a logical path
+    # Resolve and validate sandbox boundary
     logical_folder = Path(subfolder)
-    target_dir = (user_path / logical_folder).resolve()
+    target_dir = (user_workdir / logical_folder).resolve()
 
-    if not str(target_dir).startswith(str(user_path.resolve())):
+    if not str(target_dir).startswith(str(user_workdir.resolve())):
         raise HTTPException(status_code=403, detail="Traversal attempt detected")
 
     target_dir.mkdir(parents=True, exist_ok=True)
     safe_filename = os.path.basename(file.filename)
     dest_path = target_dir / safe_filename
 
-    # 2. Disk IO
+    # Write file to disk
     with dest_path.open("wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    # 3. Calculate paths for DB
-    # Turn everything relative to avoid leaking absolute path of server
-    # Relative to the global inbox for physical access
-    physical_rel_path = dest_path.relative_to(user_path)
-    # Relative to user's root for their UI/filtering
-    user_rel_path = dest_path.relative_to(user_path)
+    # Calculate relative path for response
+    relative_path = str(dest_path.relative_to(user_workdir))
+    stats = dest_path.stat()
 
-    # 4. UPSERT LOGIC: Check if file record already exists
-    statement = select(FileRecord).where(
-        FileRecord.user_id == user.id,
-        FileRecord.relative_path == str(user_rel_path),
+    from myproject_core.schemas import SandboxFileInfo
+
+    file_info = SandboxFileInfo(
+        relative_path=relative_path,
+        name=dest_path.name,
+        is_dir=False,
+        size=stats.st_size,
+        mime_type=file.content_type or mimetypes.guess_type(dest_path.name)[0] or "application/octet-stream",
+        mtime=stats.st_mtime,
     )
-    existing_record = session.exec(statement).first()
 
-    if existing_record:
-        # Update existing record
-        existing_record.size = dest_path.stat().st_size
-        existing_record.mime_type = file.content_type
-        # Optional: update a modified_at timestamp if you add one to your model
-        session.add(existing_record)
-        db_record = existing_record
-        message = "File updated successfully"
-    else:
-        # Create new record
-        db_record = FileRecord(
-            filename=safe_filename,
-            file_path=str(physical_rel_path),
-            relative_path=str(user_rel_path),
-            folder=str(user_rel_path.parent),
-            mime_type=file.content_type,
-            size=dest_path.stat().st_size,
-            user_id=user.id,
-        )
-        session.add(db_record)
-        message = "File uploaded successfully"
-
-    session.commit()
-    session.refresh(db_record)
-
-    return {"message": message, "file": db_record}
+    return FileUploadResponse(message="File uploaded successfully", file=_file_info_to_read(file_info))
 
 
-@router.get("/", response_model=list[FileRecordRead])
+@router.get("/", response_model=list[FileUploadResponse])
 async def list_files(
     user: Annotated[User, Depends(get_current_active_user)],
-    user_path: Annotated[Path, Depends(get_user_inbox_path)],
-    session: Annotated[Session, Depends(get_session)],
+    user_workdir: Annotated[Path, Depends(get_user_workdir)],
     folder: str = ".",
 ):
+    """List all files in a folder (not including subdirectories)."""
     if not user.id:
         raise HTTPException(status_code=403, detail="User not found")
 
-    sync_folder_shallow(session, user.id, user_path, folder)
+    fs = _get_sandbox_filesystem(user_workdir)
 
-    statement = select(FileRecord).where(FileRecord.user_id == user.id)
+    try:
+        entries = fs.list_directory(folder)
+    except ValueError as e:
+        raise HTTPException(status_code=403, detail=str(e)) from e
 
-    if folder:
-        # DB-level filtering: No Python loops, minimal CPU usage
-        statement = statement.where(FileRecord.folder == str(Path(folder)))
+    # Filter to only files (not directories)
+    files = [entry for entry in entries if not entry.is_dir]
 
-    results = session.exec(statement).all()
-    return results
+    return [FileUploadResponse(message="", file=_file_info_to_read(file)) for file in files]
 
 
 @router.get("/folders", response_model=list[str])
 async def list_subfolders(
     user: Annotated[User, Depends(get_current_active_user)],
-    session: Annotated[Session, Depends(get_session)],
+    user_workdir: Annotated[Path, Depends(get_user_workdir)],
     parent_folder: str = ".",
 ):
-    # Select unique folders that belong to this user
-    # We look for folders that start with the parent_folder path
-    statement = (
-        select(FileRecord.folder)
-        .where(
-            FileRecord.user_id == user.id,
-            FileRecord.folder != ".",  # usually we want to exclude the root from the 'subfolder' search
-        )
-        .distinct()
-    )
+    """List immediate subdirectories under a parent folder."""
+    fs = _get_sandbox_filesystem(user_workdir)
 
-    all_folders = session.exec(statement).all()
-
-    # Logic to return only the immediate children of parent_folder
-    # e.g., if parent is "docs", return "docs/work", but not "docs/work/2026"
-    children = set()
-    parent_path = Path(parent_folder)
-
-    for f in all_folders:
-        f_path = Path(f)
-        if parent_folder == "." or f_path.is_relative_to(parent_path):
-            # Get the part immediately after the parent
-            relative = f_path.relative_to(parent_path)
-            if relative.parts:
-                children.add(relative.parts[0])
-
-    return sorted(children)
+    try:
+        return fs.get_subdirectories(parent_folder)
+    except ValueError as e:
+        raise HTTPException(status_code=403, detail=str(e)) from e
 
 
-@router.get("/{file_id}", response_model=FileRecordRead)
+@router.get("/{file_id}", response_model=FileUploadResponse)
 async def get_file(
-    file_id: int,
+    file_id: str,
     user: Annotated[User, Depends(get_current_active_user)],
-    session: Annotated[Session, Depends(get_session)],
+    user_workdir: Annotated[Path, Depends(get_user_workdir)],
 ):
-    statement = select(FileRecord).where(FileRecord.id == file_id, FileRecord.user_id == user.id)
-    file_record = session.exec(statement).first()
+    """Get file info by encoded relative path."""
+    if not user.id:
+        raise HTTPException(status_code=403, detail="User not found")
 
-    if not file_record:
-        raise HTTPException(status_code=404, detail="File not found")
+    try:
+        relative_path = _decode_file_id(file_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid file ID encoding") from None
 
-    return file_record
+    fs = _get_sandbox_filesystem(user_workdir)
+
+    try:
+        file_info = fs.get_file_info(relative_path)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="File not found") from None
+    except ValueError as e:
+        raise HTTPException(status_code=403, detail=str(e)) from e
+
+    return FileUploadResponse(message="", file=_file_info_to_read(file_info))
 
 
 @router.get("/{file_id}/content")
 async def get_file_content(
-    file_id: int,
+    file_id: str,
     user: Annotated[User, Depends(get_current_active_user)],
-    session: Annotated[Session, Depends(get_session)],
-    user_path: Annotated[Path, Depends(get_user_inbox_path)],
+    user_workdir: Annotated[Path, Depends(get_user_workdir)],
 ):
-    statement = select(FileRecord).where(FileRecord.id == file_id, FileRecord.user_id == user.id)
-    file_record = session.exec(statement).first()
+    """Get file content as text."""
+    try:
+        relative_path = _decode_file_id(file_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid file ID encoding") from None
 
-    if not file_record:
-        raise HTTPException(status_code=404, detail="File not found")
-
-    full_path = user_path / file_record.file_path
-
-    if not full_path.exists():
-        raise HTTPException(status_code=404, detail="File not found on disk")
+    fs = _get_sandbox_filesystem(user_workdir)
 
     try:
-        content = full_path.read_text()
-        return {"content": content}
+        content = fs.read_file(relative_path)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="File not found") from None
+    except ValueError as e:
+        raise HTTPException(status_code=403, detail=str(e)) from e
+
+    try:
+        text_content = content.decode("utf-8")
+        return {"content": text_content}
     except UnicodeDecodeError:
         raise HTTPException(status_code=415, detail="File is not text-readable") from None
 
 
 @router.get("/{file_id}/download")
 async def download_file(
-    file_id: int,
+    file_id: str,
     user: Annotated[User, Depends(get_current_active_user)],
-    session: Annotated[Session, Depends(get_session)],
-    user_path: Annotated[Path, Depends(get_user_inbox_path)],
+    user_workdir: Annotated[Path, Depends(get_user_workdir)],
 ):
-    statement = select(FileRecord).where(FileRecord.id == file_id, FileRecord.user_id == user.id)
-    file_record = session.exec(statement).first()
+    """Download a file."""
+    try:
+        relative_path = _decode_file_id(file_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid file ID encoding") from None
 
-    if not file_record:
-        raise HTTPException(status_code=404, detail="File not found")
+    fs = _get_sandbox_filesystem(user_workdir)
 
-    full_path = user_path / file_record.file_path
+    try:
+        file_info = fs.get_file_info(relative_path)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="File not found") from None
+
+    full_path = user_workdir / relative_path
 
     if not full_path.exists():
         raise HTTPException(status_code=404, detail="File missing on disk")
 
-    return FileResponse(path=full_path, filename=file_record.filename, media_type=file_record.mime_type)
+    return FileResponse(
+        path=full_path,
+        filename=file_info.name,
+        media_type=file_info.mime_type or "application/octet-stream",
+    )
 
 
 @router.delete("/{file_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_file(
-    file_id: int,
+    file_id: str,
     user: Annotated[User, Depends(get_current_active_user)],
-    session: Annotated[Session, Depends(get_session)],
-    user_path: Annotated[Path, Depends(get_user_inbox_path)],
+    user_workdir: Annotated[Path, Depends(get_user_workdir)],
 ):
-    # 1. Database lookup with ownership check
-    statement = select(FileRecord).where(FileRecord.id == file_id, FileRecord.user_id == user.id)
-    file_record = session.exec(statement).first()
+    """Delete a file."""
+    try:
+        relative_path = _decode_file_id(file_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid file ID encoding") from None
 
-    if not file_record:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+    fs = _get_sandbox_filesystem(user_workdir)
 
-    # 2. Physical Cleanup
-    full_path = user_path / file_record.file_path
-    if full_path.exists():
-        try:
-            full_path.unlink()
-
-            # Optional: Clean up empty parent directories in the sandbox
-            # only if they are not the user's root directory.
-            parent_dir = full_path.parent
-            user_root = user_path.resolve()
-
-            if parent_dir != user_root and not any(parent_dir.iterdir()):
-                parent_dir.rmdir()
-        except Exception as e:
-            # Log error but proceed with DB cleanup to avoid state desync
-            print(f"Cleanup error: {e}")
-
-    # 3. Database Cleanup
-    session.delete(file_record)
-    session.commit()
+    try:
+        fs.delete_file(relative_path)
+    except FileNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found") from None
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e)) from e

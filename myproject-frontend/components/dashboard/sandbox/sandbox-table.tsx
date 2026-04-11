@@ -7,7 +7,7 @@ import { getSandboxColumns } from "./table/columns";
 
 interface SandboxTableProps {
   files: SandboxFile[];
-  onFileDeleted: (fileId: number) => void;
+  onFileDeleted: (relativePath: string) => void;
 }
 
 export function SandboxTable({ files, onFileDeleted }: SandboxTableProps) {
@@ -20,7 +20,7 @@ export function SandboxTable({ files, onFileDeleted }: SandboxTableProps) {
     <DataTable
       data={files}
       columns={columns}
-      getRowId={(row: SandboxFile) => row.id.toString()}
+      getRowId={(row: SandboxFile) => row.relative_path}
       enablePagination={true}
       defaultPageSize={20}
     />

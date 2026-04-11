@@ -1,21 +1,36 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
-import { SandboxFile } from "@/types/sandbox";
+import { SandboxFile, encodeFileId } from "@/types/sandbox";
 import { DataTableColumnHeader } from "@/components/dashboard/shared/data-table/column-header";
 import { Button } from "@/components/ui/button";
-import { FileText, FileDown, Trash2 } from "lucide-react";
+import { FileText, FileDown, Trash2, Folder } from "lucide-react";
 import Link from "next/link";
 import { deleteFileAction } from "@/app/actions/sandbox";
 import { toast } from "sonner";
 
-export const getSandboxColumns = (onFileDeleted: (fileId: number) => void): ColumnDef<SandboxFile>[] => [
+export const getSandboxColumns = (onFileDeleted: (relativePath: string) => void): ColumnDef<SandboxFile>[] => [
   {
-    accessorKey: "filename",
+    accessorKey: "name",
     header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
     cell: ({ row }) => {
       const file = row.original;
-      const isPdf = file.filename.endsWith(".pdf");
+      if (file.is_dir) {
+        return (
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-purple-50 text-purple-500">
+              <Folder className="h-4 w-4" />
+            </div>
+            <Link
+              href={`/dashboard/files?folder=${file.relative_path}`}
+              className="font-medium text-sm truncate max-w-xs hover:text-primary transition-colors"
+            >
+              {file.name}
+            </Link>
+          </div>
+        );
+      }
+      const isPdf = file.name.endsWith(".pdf");
       return (
         <div className="flex items-center gap-3">
           <div
@@ -24,10 +39,10 @@ export const getSandboxColumns = (onFileDeleted: (fileId: number) => void): Colu
             <FileText className="h-4 w-4" />
           </div>
           <Link
-            href={`/dashboard/sandbox/file/${file.id}`}
+            href={`/dashboard/files/${encodeFileId(file.relative_path)}`}
             className="font-medium text-sm truncate max-w-xs hover:text-primary transition-colors"
           >
-            {file.filename}
+            {file.name}
           </Link>
         </div>
       );
@@ -37,6 +52,14 @@ export const getSandboxColumns = (onFileDeleted: (fileId: number) => void): Colu
     accessorKey: "relative_path",
     header: ({ column }) => <DataTableColumnHeader column={column} title="Path" className="w-[300px]" />,
     cell: ({ row }) => {
+      const file = row.original;
+      if (file.is_dir) {
+        return (
+          <code className="text-xs bg-purple-50 px-2 py-1 rounded text-purple-600 font-mono">
+            {file.relative_path}
+          </code>
+        );
+      }
       const path = row.getValue("relative_path") as string;
       return (
         <code className="text-xs bg-slate-100 px-2 py-1 rounded text-slate-600 font-mono">
@@ -49,13 +72,18 @@ export const getSandboxColumns = (onFileDeleted: (fileId: number) => void): Colu
     id: "actions",
     cell: ({ row }) => {
       const file = row.original;
+      // No actions for directories
+      if (file.is_dir) {
+        return null;
+      }
+      const encodedId = encodeFileId(file.relative_path);
       return (
         <div className="flex justify-end gap-2">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => {
-              window.open(`/api/files/${file.id}/download`, "_blank");
+              window.open(`/api/files/${encodedId}/download`, "_blank");
             }}
           >
             <FileDown className="h-4 w-4" />
@@ -65,11 +93,11 @@ export const getSandboxColumns = (onFileDeleted: (fileId: number) => void): Colu
             size="icon"
             className="text-destructive hover:bg-destructive/10"
             onClick={async () => {
-              if (!confirm(`Are you sure you want to delete ${file.filename}?`)) return;
+              if (!confirm(`Are you sure you want to delete ${file.name}?`)) return;
               try {
-                await deleteFileAction(file.id);
+                await deleteFileAction(file.relative_path);
                 toast.success("File deleted");
-                onFileDeleted(file.id);
+                onFileDeleted(file.relative_path);
               } catch (err) {
                 toast.error("Failed to delete file");
               }

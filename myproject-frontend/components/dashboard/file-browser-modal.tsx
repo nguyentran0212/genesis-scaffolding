@@ -34,7 +34,7 @@ export function FileBrowserModal({ onSelect, currentValue, trigger }: FileBrowse
       const data = await getFilesAction();
       // Filter for PDF and Text/Markdown
       const filtered = data.filter(f =>
-        ALLOWED_EXTENSIONS.some(ext => f.filename.toLowerCase().endsWith(ext))
+        ALLOWED_EXTENSIONS.some(ext => f.name.toLowerCase().endsWith(ext))
       );
       setFiles(filtered);
     } catch (err) {
@@ -65,7 +65,7 @@ export function FileBrowserModal({ onSelect, currentValue, trigger }: FileBrowse
   }
 
   const filteredFiles = files.filter(f =>
-    f.filename.toLowerCase().includes(search.toLowerCase())
+    f.name.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -109,22 +109,26 @@ export function FileBrowserModal({ onSelect, currentValue, trigger }: FileBrowse
                   <div className="text-center py-10 text-muted-foreground">No matching files found.</div>
                 ) : (
                   <div className="grid gap-2">
-                    {filteredFiles.map((file) => (
-                      <button
-                        key={file.id}
-                        onClick={() => { onSelect(file); setOpen(false); }}
-                        className={`flex items-center justify-between p-3 rounded-lg border text-left transition-colors hover:bg-slate-50 ${currentValue === file.relative_path ? 'border-primary bg-primary/5' : ''}`}
-                      >
-                        <div className="flex items-center gap-3 overflow-hidden">
-                          <FileText className={`h-4 w-4 ${file.filename.endsWith('.pdf') ? 'text-red-500' : 'text-blue-500'}`} />
-                          <div className="flex flex-col overflow-hidden">
-                            <span className="text-sm font-medium truncate">{file.filename}</span>
-                            <span className="text-xs text-muted-foreground truncate">{file.folder || 'root'}/</span>
+                    {filteredFiles.map((file) => {
+                      const lastSlash = file.relative_path.lastIndexOf('/');
+                      const folderDisplay = lastSlash > 0 ? file.relative_path.substring(0, lastSlash) : 'root';
+                      return (
+                        <button
+                          key={file.relative_path}
+                          onClick={() => { onSelect(file); setOpen(false); }}
+                          className={`flex items-center justify-between p-3 rounded-lg border text-left transition-colors hover:bg-slate-50 ${currentValue === file.relative_path ? 'border-primary bg-primary/5' : ''}`}
+                        >
+                          <div className="flex items-center gap-3 overflow-hidden">
+                            <FileText className={`h-4 w-4 ${file.name.endsWith('.pdf') ? 'text-red-500' : 'text-blue-500'}`} />
+                            <div className="flex flex-col overflow-hidden">
+                              <span className="text-sm font-medium truncate">{file.name}</span>
+                              <span className="text-xs text-muted-foreground truncate">{folderDisplay}/</span>
+                            </div>
                           </div>
-                        </div>
-                        {currentValue === file.relative_path && <Check className="h-4 w-4 text-primary" />}
-                      </button>
-                    ))}
+                          {currentValue === file.relative_path && <Check className="h-4 w-4 text-primary" />}
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </ScrollArea>

@@ -1,5 +1,6 @@
 import zoneinfo
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
@@ -7,6 +8,31 @@ from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
+
+
+@dataclass
+class SandboxFileInfo:
+    """Represents a file or directory in the user's sandbox.
+    The `relative_path` field serves as the stable identifier for this file.
+
+    Attributes:
+        relative_path: The path relative to the sandbox root, used as a stable identifier.
+            e.g., "docs/notes.pdf". For the root directory itself, use ".".
+        name: The filename or directory name. e.g., "notes.pdf"
+        is_dir: True if this is a directory, False if it is a file.
+        size: File size in bytes. None for directories.
+        mime_type: MIME type guessed from filename. None for directories.
+        mtime: Last modified time as Unix timestamp.
+        created_at: Creation time as datetime object.
+    """
+
+    relative_path: str
+    name: str
+    is_dir: bool = False
+    size: int | None = None
+    mime_type: str | None = None
+    mtime: float | None = None
+    created_at: datetime | None = None
 
 
 def _format_utc_for_display(value: str | datetime, timezone_str: str) -> str:

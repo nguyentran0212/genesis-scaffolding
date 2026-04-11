@@ -1,23 +1,29 @@
 'use server';
 
 import { getAccessToken } from '@/lib/session';
-import { SandboxFile, TEXT_EXTENSIONS } from '@/types/sandbox';
+import { SandboxFile, TEXT_EXTENSIONS, encodeFileId } from '@/types/sandbox';
 import { revalidateTag } from 'next/cache';
 
 const FASTAPI_URL = process.env.FASTAPI_URL || 'http://localhost:8000';
 
 /**
  * Fetch all files in the user's sandbox
+ * @param folder Folder to list files from. Defaults to "." (root)
  */
-export async function getFilesAction(): Promise<SandboxFile[]> {
+export async function getFilesAction(folder: string = "."): Promise<SandboxFile[]> {
   const token = await getAccessToken();
-  const response = await fetch(`${FASTAPI_URL}/files/`, {
+  const url = new URL(`${FASTAPI_URL}/files/`);
+  if (folder && folder !== ".") url.searchParams.append('folder', folder);
+  const response = await fetch(url.toString(), {
     headers: { 'Authorization': `Bearer ${token}` },
-    next: { tags: ['sandbox'] } // Use tags for easy revalidation after upload
+    next: { tags: ['sandbox'] }
   });
 
   if (!response.ok) throw new Error('Failed to fetch sandbox files');
-  return response.json();
+  const results = await response.json();
+  // API returns FileUploadResponse objects: { message: string, file: SandboxFile }
+  // Extract just the file from each response
+  return results.map((r: { message: string; file: SandboxFile }) => r.file);
 }
 
 /**
@@ -33,7 +39,7 @@ export async function uploadFileAction(formData: FormData): Promise<SandboxFile>
   const response = await fetch(url.toString(), {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${token}` },
-    body: formData, // Send raw FormData (browser/Next.js handles boundary)
+    body: formData,
   });
 
   if (!response.ok) {
@@ -42,23 +48,29 @@ export async function uploadFileAction(formData: FormData): Promise<SandboxFile>
   }
 
   const result = await response.json();
-  const fileObject = result.file || result;
+  // Response is now { message: string, file: SandboxFile }
+  const fileObject = result.file;
 
-  if (!fileObject.id) {
-    console.error("Backend did not return a file ID:", result);
+  if (!fileObject.relative_path) {
+    console.error("Backend did not return a file relative_path:", result);
     throw new Error("Upload succeeded but server did not return file metadata.");
   }
-  // Refresh the sandbox data across the app
-  revalidateTag('sandbox', "max");
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (revalidateTag as any)('sandbox');
 
   return fileObject as SandboxFile;
 }
 
 
-export async function deleteFileAction(fileId: number) {
+/**
+ * Delete a file by its relative path
+ */
+export async function deleteFileAction(relativePath: string) {
   const token = await getAccessToken();
+  const encodedId = encodeFileId(relativePath);
 
-  const response = await fetch(`${FASTAPI_URL}/files/${fileId}`, {
+  const response = await fetch(`${FASTAPI_URL}/files/${encodedId}`, {
     method: 'DELETE',
     headers: { 'Authorization': `Bearer ${token}` },
   });
@@ -68,23 +80,22 @@ export async function deleteFileAction(fileId: number) {
     throw new Error(error.detail || 'Failed to delete file');
   }
 
-  revalidateTag('sandbox', "max");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (revalidateTag as any)('sandbox');
   return { success: true };
 }
+
 /**
- * Fetch a single file's metadata and content by ID
- *
- * Note: The backend may not have a GET /files/{fileId}/content endpoint yet.
- * If it doesn't exist, the file viewer will show download-only for all files.
+ * Fetch a single file's metadata and content by relative path
  */
 export async function getFileAction(
-  fileId: string | number
+  relativePath: string
 ): Promise<{ file: SandboxFile; content?: string }> {
   const token = await getAccessToken();
-  const id = typeof fileId === "string" ? parseInt(fileId, 10) : fileId;
+  const encodedId = encodeFileId(relativePath);
 
   // Fetch metadata
-  const metaResponse = await fetch(`${FASTAPI_URL}/files/${id}`, {
+  const metaResponse = await fetch(`${FASTAPI_URL}/files/${encodedId}`, {
     headers: { 'Authorization': `Bearer ${token}` },
   });
   if (!metaResponse.ok) {
@@ -93,17 +104,18 @@ export async function getFileAction(
   }
 
   // Fetch content (text files only)
-  // Note: GET /files/{fileId}/content endpoint may not exist on the backend yet.
   let content: string | undefined;
-  const meta = await metaResponse.json();
-  const ext = meta.filename.toLowerCase().slice(meta.filename.lastIndexOf('.'));
+  const metaResult = await metaResponse.json();
+  // API returns FileUploadResponse: { message: string, file: SandboxFile }
+  const meta = metaResult.file || metaResult;
+  const ext = meta.name.toLowerCase().slice(meta.name.lastIndexOf('.'));
   const isTextFile =
     meta.mime_type?.startsWith('text/') ||
     ['text/plain', 'text/markdown', 'application/json'].includes(meta.mime_type) ||
     TEXT_EXTENSIONS.has(ext);
 
   if (isTextFile) {
-    const contentResponse = await fetch(`${FASTAPI_URL}/files/${id}/content`, {
+    const contentResponse = await fetch(`${FASTAPI_URL}/files/${encodedId}/content`, {
       headers: { 'Authorization': `Bearer ${token}` },
     });
     if (contentResponse.ok) {

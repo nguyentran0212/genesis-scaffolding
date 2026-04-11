@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { SandboxFile } from "@/types/sandbox";
 
 interface SandboxMultiFilePickerProps {
-  // We change value to an array of SandboxFile objects internally
   value: SandboxFile[];
   onChange: (value: SandboxFile[]) => void;
   placeholder?: string;
@@ -16,16 +15,15 @@ interface SandboxMultiFilePickerProps {
 export function SandboxMultiFilePicker({ value = [], onChange, placeholder }: SandboxMultiFilePickerProps) {
 
   const addFile = (file: SandboxFile) => {
-    // Ensure we are working with an array
     const currentFiles = Array.isArray(value) ? value : [];
 
-    if (!currentFiles.find(f => f.id === file.id)) {
+    if (!currentFiles.find(f => f.relative_path === file.relative_path)) {
       onChange([...currentFiles, file]);
     }
   };
 
-  const removeFile = (idToRemove: number) => {
-    onChange(value.filter(f => f.id !== idToRemove));
+  const removeFile = (relativePathToRemove: string) => {
+    onChange(value.filter(f => f.relative_path !== relativePathToRemove));
   };
 
   return (
@@ -36,7 +34,7 @@ export function SandboxMultiFilePicker({ value = [], onChange, placeholder }: Sa
           return (
 
             <Badge
-              key={file.id}
+              key={file.relative_path}
               variant="secondary"
               className="pl-2 pr-1 py-1 gap-2 border-primary/20 bg-primary/5"
             >
@@ -47,8 +45,8 @@ export function SandboxMultiFilePicker({ value = [], onChange, placeholder }: Sa
                 </span>
               </div>
               <button
-                type="button" // Prevent form submission
-                onClick={() => removeFile(file.id)}
+                type="button"
+                onClick={() => removeFile(file.relative_path)}
                 className="hover:bg-primary/10 rounded-full p-0.5"
               >
                 <X className="h-3 w-3" />
@@ -60,7 +58,6 @@ export function SandboxMultiFilePicker({ value = [], onChange, placeholder }: Sa
       </div>
 
       <FileBrowserModal
-        // We need to update the Modal to return the whole object, not just path
         onSelect={addFile}
         trigger={
           <Button type="button" variant="outline" size="sm" className="w-full border-dashed">

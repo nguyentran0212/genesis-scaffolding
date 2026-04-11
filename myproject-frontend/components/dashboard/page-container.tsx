@@ -70,7 +70,7 @@ const PageBody = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivEl
         ref={ref}
         className={cn(
           // Standard padding and vertical spacing
-          "flex flex-col p-4 md:p-6 lg:p-10",
+          "flex flex-col gap-4 p-4 md:p-6 lg:p-10",
           className
         )}
         {...props}

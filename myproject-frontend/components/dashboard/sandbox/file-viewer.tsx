@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { SandboxFile, TEXT_EXTENSIONS } from "@/types/sandbox";
+import { SandboxFile, TEXT_EXTENSIONS, encodeFileId } from "@/types/sandbox";
 import { getFileAction } from "@/app/actions/sandbox";
 import { FileText, FileDown, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 interface FileViewerProps {
-  fileId: string | number;
+  relativePath: string;
 }
 
 const IMAGE_EXTS = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"]);
@@ -23,21 +23,23 @@ function getFileType(filename: string): "text" | "image" | "pdf" | "unsupported"
   return "unsupported";
 }
 
-export function FileViewer({ fileId }: FileViewerProps) {
+export function FileViewer({ relativePath }: FileViewerProps) {
   const [data, setData] = React.useState<{ file: SandboxFile; content?: string } | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     setLoading(true);
-    getFileAction(fileId)
+    getFileAction(relativePath)
       .then(setData)
       .catch((err) => {
         setError(err.message || "Failed to load file");
         toast.error("Failed to load file");
       })
       .finally(() => setLoading(false));
-  }, [fileId]);
+  }, [relativePath]);
+
+  const encodedId = encodeFileId(relativePath);
 
   if (loading) {
     return (
@@ -51,7 +53,7 @@ export function FileViewer({ fileId }: FileViewerProps) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
         <p className="text-muted-foreground">{error || "File not found"}</p>
-        <Button onClick={() => window.open(`/api/files/${fileId}/download`, "_blank")}>
+        <Button onClick={() => window.open(`/api/files/${encodedId}/download`, "_blank")}>
           <FileDown className="h-4 w-4 mr-2" /> Download
         </Button>
       </div>
@@ -59,7 +61,7 @@ export function FileViewer({ fileId }: FileViewerProps) {
   }
 
   const { file, content } = data;
-  const fileType = getFileType(file.filename);
+  const fileType = getFileType(file.name);
 
   return (
     <div className="space-y-4">
@@ -70,13 +72,13 @@ export function FileViewer({ fileId }: FileViewerProps) {
             <FileText className="h-5 w-5" />
           </div>
           <div>
-            <h2 className="font-semibold">{file.filename}</h2>
+            <h2 className="font-semibold">{file.name}</h2>
             <p className="text-sm text-muted-foreground">
-              {file.relative_path} · {(file.size / 1024).toFixed(1)} KB
+              {file.relative_path} · {((file.size || 0) / 1024).toFixed(1)} KB
             </p>
           </div>
         </div>
-        <Button onClick={() => window.open(`/api/files/${fileId}/download`, "_blank")}>
+        <Button onClick={() => window.open(`/api/files/${encodedId}/download`, "_blank")}>
           <FileDown className="h-4 w-4 mr-2" /> Download
         </Button>
       </div>
@@ -84,7 +86,7 @@ export function FileViewer({ fileId }: FileViewerProps) {
       {/* Content */}
       <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
         {fileType === "text" && content !== undefined && (
-          file.filename.toLowerCase().endsWith(".md") ? (
+          file.name.toLowerCase().endsWith(".md") ? (
             <div className="p-6 prose prose-sm max-w-none">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
             </div>
@@ -97,7 +99,7 @@ export function FileViewer({ fileId }: FileViewerProps) {
         {fileType === "text" && content === undefined && (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
             <p className="text-muted-foreground">Preview not available for this file.</p>
-            <Button onClick={() => window.open(`/api/files/${fileId}/download`, "_blank")}>
+            <Button onClick={() => window.open(`/api/files/${encodedId}/download`, "_blank")}>
               <FileDown className="h-4 w-4 mr-2" /> Download to view
             </Button>
           </div>
@@ -105,8 +107,8 @@ export function FileViewer({ fileId }: FileViewerProps) {
         {fileType === "image" && (
           <div className="p-4 flex justify-center">
             <img
-              src={`/api/files/${fileId}/download`}
-              alt={file.filename}
+              src={`/api/files/${encodedId}/download`}
+              alt={file.name}
               className="max-w-full h-auto rounded-lg"
             />
           </div>
@@ -114,7 +116,7 @@ export function FileViewer({ fileId }: FileViewerProps) {
         {fileType === "pdf" && (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
             <p className="text-muted-foreground">PDF preview not available in browser.</p>
-            <Button onClick={() => window.open(`/api/files/${fileId}/download`, "_blank")}>
+            <Button onClick={() => window.open(`/api/files/${encodedId}/download`, "_blank")}>
               <FileDown className="h-4 w-4 mr-2" /> Download to view
             </Button>
           </div>
@@ -122,7 +124,7 @@ export function FileViewer({ fileId }: FileViewerProps) {
         {fileType === "unsupported" && (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
             <p className="text-muted-foreground">Preview not available for this file type.</p>
-            <Button onClick={() => window.open(`/api/files/${fileId}/download`, "_blank")}>
+            <Button onClick={() => window.open(`/api/files/${encodedId}/download`, "_blank")}>
               <FileDown className="h-4 w-4 mr-2" /> Download
             </Button>
           </div>
