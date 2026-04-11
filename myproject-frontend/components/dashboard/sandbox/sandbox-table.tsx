@@ -12,7 +12,7 @@ interface SandboxTableProps {
 
 export function SandboxTable({ files, onFileDeleted }: SandboxTableProps) {
   const columns = React.useMemo(
-    () => getSandboxColumns(onFileDeleted),
+    () => getSandboxColumns({ onFileDeleted }),
     [onFileDeleted]
   );
 
