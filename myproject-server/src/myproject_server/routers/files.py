@@ -60,7 +60,8 @@ async def upload_file(
 
     # 4. UPSERT LOGIC: Check if file record already exists
     statement = select(FileRecord).where(
-        FileRecord.user_id == user.id, FileRecord.relative_path == str(user_rel_path),
+        FileRecord.user_id == user.id,
+        FileRecord.relative_path == str(user_rel_path),
     )
     existing_record = session.exec(statement).first()
 
@@ -112,6 +113,81 @@ async def list_files(
 
     results = session.exec(statement).all()
     return results
+
+
+@router.get("/folders", response_model=list[str])
+async def list_subfolders(
+    user: Annotated[User, Depends(get_current_active_user)],
+    session: Annotated[Session, Depends(get_session)],
+    parent_folder: str = ".",
+):
+    # Select unique folders that belong to this user
+    # We look for folders that start with the parent_folder path
+    statement = (
+        select(FileRecord.folder)
+        .where(
+            FileRecord.user_id == user.id,
+            FileRecord.folder != ".",  # usually we want to exclude the root from the 'subfolder' search
+        )
+        .distinct()
+    )
+
+    all_folders = session.exec(statement).all()
+
+    # Logic to return only the immediate children of parent_folder
+    # e.g., if parent is "docs", return "docs/work", but not "docs/work/2026"
+    children = set()
+    parent_path = Path(parent_folder)
+
+    for f in all_folders:
+        f_path = Path(f)
+        if parent_folder == "." or f_path.is_relative_to(parent_path):
+            # Get the part immediately after the parent
+            relative = f_path.relative_to(parent_path)
+            if relative.parts:
+                children.add(relative.parts[0])
+
+    return sorted(children)
+
+
+@router.get("/{file_id}", response_model=FileRecordRead)
+async def get_file(
+    file_id: int,
+    user: Annotated[User, Depends(get_current_active_user)],
+    session: Annotated[Session, Depends(get_session)],
+):
+    statement = select(FileRecord).where(FileRecord.id == file_id, FileRecord.user_id == user.id)
+    file_record = session.exec(statement).first()
+
+    if not file_record:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    return file_record
+
+
+@router.get("/{file_id}/content")
+async def get_file_content(
+    file_id: int,
+    user: Annotated[User, Depends(get_current_active_user)],
+    session: Annotated[Session, Depends(get_session)],
+    user_path: Annotated[Path, Depends(get_user_inbox_path)],
+):
+    statement = select(FileRecord).where(FileRecord.id == file_id, FileRecord.user_id == user.id)
+    file_record = session.exec(statement).first()
+
+    if not file_record:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    full_path = user_path / file_record.file_path
+
+    if not full_path.exists():
+        raise HTTPException(status_code=404, detail="File not found on disk")
+
+    try:
+        content = full_path.read_text()
+        return {"content": content}
+    except UnicodeDecodeError:
+        raise HTTPException(status_code=415, detail="File is not text-readable") from None
 
 
 @router.get("/{file_id}/download")
@@ -169,39 +245,3 @@ async def delete_file(
     # 3. Database Cleanup
     session.delete(file_record)
     session.commit()
-
-
-
-@router.get("/folders", response_model=list[str])
-async def list_subfolders(
-    user: Annotated[User, Depends(get_current_active_user)],
-    session: Annotated[Session, Depends(get_session)],
-    parent_folder: str = ".",
-):
-    # Select unique folders that belong to this user
-    # We look for folders that start with the parent_folder path
-    statement = (
-        select(FileRecord.folder)
-        .where(
-            FileRecord.user_id == user.id,
-            FileRecord.folder != ".",  # usually we want to exclude the root from the 'subfolder' search
-        )
-        .distinct()
-    )
-
-    all_folders = session.exec(statement).all()
-
-    # Logic to return only the immediate children of parent_folder
-    # e.g., if parent is "docs", return "docs/work", but not "docs/work/2026"
-    children = set()
-    parent_path = Path(parent_folder)
-
-    for f in all_folders:
-        f_path = Path(f)
-        if parent_folder == "." or f_path.is_relative_to(parent_path):
-            # Get the part immediately after the parent
-            relative = f_path.relative_to(parent_path)
-            if relative.parts:
-                children.add(relative.parts[0])
-
-    return sorted(children)

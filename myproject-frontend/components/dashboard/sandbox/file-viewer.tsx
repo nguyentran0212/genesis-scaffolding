@@ -6,6 +6,8 @@ import { getFileAction } from "@/app/actions/sandbox";
 import { FileText, FileDown, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface FileViewerProps {
   fileId: string | number;
@@ -82,9 +84,15 @@ export function FileViewer({ fileId }: FileViewerProps) {
       {/* Content */}
       <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
         {fileType === "text" && content !== undefined && (
-          <pre className="p-4 text-sm font-mono overflow-x-auto whitespace-pre-wrap break-words">
-            {content}
-          </pre>
+          file.filename.toLowerCase().endsWith(".md") ? (
+            <div className="p-6 prose prose-sm max-w-none">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+            </div>
+          ) : (
+            <pre className="p-4 text-sm font-mono overflow-x-auto whitespace-pre-wrap break-words">
+              {content}
+            </pre>
+          )
         )}
         {fileType === "text" && content === undefined && (
           <div className="flex flex-col items-center justify-center py-20 gap-4">

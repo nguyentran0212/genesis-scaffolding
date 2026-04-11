@@ -107,7 +107,8 @@ export async function getFileAction(
       headers: { 'Authorization': `Bearer ${token}` },
     });
     if (contentResponse.ok) {
-      content = await contentResponse.text();
+      const data = await contentResponse.json();
+      content = data.content;
     }
   }
 
