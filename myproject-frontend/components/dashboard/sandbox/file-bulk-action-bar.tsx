@@ -4,7 +4,6 @@ import * as React from "react";
 import { FolderInput, Trash2, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
 
 interface FileBulkActionBarProps {
   selectedFiles: { relative_path: string; name: string; is_dir: boolean }[];
