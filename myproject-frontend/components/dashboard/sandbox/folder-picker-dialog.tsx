@@ -90,9 +90,8 @@ export function FolderPickerDialog({ open, onOpenChange, onSelectFolder, current
               <span>Sandbox root</span>
             </button>
 
-            {/* Option: each subfolder */}
             {visibleFolders.map((folder) => {
-              const isCurrentOrChild = folder === currentFolder || folder.startsWith(currentFolder ? currentFolder + "/" : "");
+              const isCurrentOrChild = currentFolder != null && (folder === currentFolder || folder.startsWith(currentFolder + "/"));
               if (isCurrentOrChild) return null;
               const folderName = folder.split("/").pop() || folder;
               return (

@@ -103,7 +103,7 @@ export function SandboxFileExplorer({ allFiles, allFolders, folder }: SandboxFil
     }
   }
 
-  async function handleDeleteFiles() {
+  const handleDeleteFiles = React.useCallback(async () => {
     const table = tableRef.current;
     if (!table) return;
     const selected = table.getFilteredSelectedRowModel().rows.map((r) => r.original);
@@ -111,7 +111,24 @@ export function SandboxFileExplorer({ allFiles, allFolders, folder }: SandboxFil
       await deleteFileAction(file.relative_path);
     }
     toast.success(`Deleted ${selected.length} item(s)`);
-  }
+  }, []);
+
+  // useCallback so the function reference is stable across renders.
+  // The tableRef is synced via useEffect to avoid calling setState during render.
+  const renderFloatingBar = React.useCallback((table: TableType<SandboxFile>) => {
+    tableRef.current = table;
+    const selected = table.getFilteredSelectedRowModel().rows.map((r) => r.original);
+    return (
+      <FileBulkActionBar
+        selectedFiles={selected}
+        onClear={() => {
+          table.resetRowSelection();
+        }}
+        onMove={() => setShowFolderPicker(true)}
+        onDelete={handleDeleteFiles}
+      />
+    );
+  }, [handleDeleteFiles]);
 
   return (
     <div className="space-y-4">
@@ -131,21 +148,7 @@ export function SandboxFileExplorer({ allFiles, allFolders, folder }: SandboxFil
       <SandboxTable
         files={combinedRows}
         onFileDeleted={handleFileDeleted}
-        renderFloatingBar={(table) => {
-          // Store table ref so async callbacks can read selection directly
-          tableRef.current = table;
-          const selected = table.getFilteredSelectedRowModel().rows.map((r) => r.original);
-          return (
-            <FileBulkActionBar
-              selectedFiles={selected}
-              onClear={() => {
-                table.resetRowSelection();
-              }}
-              onMove={() => setShowFolderPicker(true)}
-              onDelete={handleDeleteFiles}
-            />
-          );
-        }}
+        renderFloatingBar={renderFloatingBar}
       />
 
       <FolderPickerDialog

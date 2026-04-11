@@ -96,7 +96,9 @@ async def upload_file(
         name=dest_path.name,
         is_dir=False,
         size=stats.st_size,
-        mime_type=file.content_type or mimetypes.guess_type(dest_path.name)[0] or "application/octet-stream",
+        mime_type=file.content_type
+        or mimetypes.guess_type(dest_path.name)[0]
+        or "application/octet-stream",
         mtime=stats.st_mtime,
     )
 
