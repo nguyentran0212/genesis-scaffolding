@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { SandboxFile } from "@/types/sandbox";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
@@ -23,6 +24,7 @@ export function SandboxFileExplorer({ allFiles, allFolders, folder }: SandboxFil
   const [search, setSearch] = React.useState("");
   const [selectedFiles, setSelectedFiles] = React.useState<SandboxFile[]>([]);
   const [showFolderPicker, setShowFolderPicker] = React.useState(false);
+  const router = useRouter();
 
   React.useEffect(() => {
     setFiles(allFiles);
@@ -149,7 +151,7 @@ export function SandboxFileExplorer({ allFiles, allFolders, folder }: SandboxFil
         onOpenChange={setShowFolderPicker}
         onSelectFolder={(destFolder) => {
           setShowFolderPicker(false);
-          handleMoveFiles(destFolder);
+          handleMoveFiles(destFolder).then(() => router.refresh());
         }}
         currentFolder={folder}
       />
