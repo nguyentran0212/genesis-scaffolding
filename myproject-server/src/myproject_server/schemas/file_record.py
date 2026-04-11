@@ -18,3 +18,14 @@ class SandboxFileRead(BaseModel):
 class FileUploadResponse(BaseModel):
     message: str
     file: SandboxFileRead
+
+
+class FileMoveRequest(BaseModel):
+    source_paths: list[str]  # List of relative paths to move
+    destination_folder: str  # Target folder (relative path, "." for root)
+
+
+class FileMoveResponse(BaseModel):
+    message: str
+    moved_files: list[SandboxFileRead]
+    errors: list[str]  # Partial success — collect errors per file
