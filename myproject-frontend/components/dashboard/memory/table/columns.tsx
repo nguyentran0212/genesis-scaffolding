@@ -5,8 +5,9 @@ import { EventLog, TopicalMemory } from "@/types/memory";
 import { Badge } from "@/components/ui/badge";
 import { DataTableColumnHeader } from "@/components/dashboard/shared/data-table/column-header";
 import Link from "next/link";
-import { FileText, Lightbulb, Edit2 } from "lucide-react";
+import { FileText, Lightbulb, Edit2, Trash2 } from "lucide-react";
 import { format } from "date-fns";
+import { MemoryDeleteDialog } from "@/components/dashboard/memory/memory-delete-dialog";
 
 const dateSortingFn = (rowA: any, rowB: any, columnId: string) => {
   const a = rowA.getValue(columnId) as string | null;
@@ -132,15 +133,27 @@ export const getMemoryColumns = (): ColumnDef<EventLog | TopicalMemory>[] => [
     id: "actions",
     cell: ({ row }) => {
       const original = row.original;
-      const type = original && "event_time" in original ? "event" : "topic";
+      const isEvent = original && "event_time" in original;
+      const type = isEvent ? "event" : "topic";
       const href = `/dashboard/memory/${original.id}/edit?type=${type}`;
       return (
-        <Link
-          href={href}
-          className="opacity-0 group-hover:opacity-100 transition-opacity"
-        >
-          <Edit2 className="h-4 w-4 text-muted-foreground hover:text-primary" />
-        </Link>
+        <div className="flex items-center gap-2">
+          <MemoryDeleteDialog
+            id={original.id}
+            memoryType={type}
+            subject={original.subject ?? undefined}
+          >
+            <button className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-destructive/10">
+              <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+            </button>
+          </MemoryDeleteDialog>
+          <Link
+            href={href}
+            className="opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            <Edit2 className="h-4 w-4 text-muted-foreground hover:text-primary" />
+          </Link>
+        </div>
       );
     },
   },
