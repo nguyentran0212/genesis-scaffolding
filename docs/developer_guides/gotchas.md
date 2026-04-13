@@ -297,3 +297,67 @@ This lets the sandbox:
 
 `Path.absolute()` is NOT equivalent to "normalized absolute path". It preserves `..` components that `is_relative_to()` cannot detect. Always use `os.path.normpath(os.path.abspath(...))` when normalizing user-supplied relative paths before boundary checks.
 
+---
+
+## LaTeX Delimiter Mismatch: LLMs Output `\(...\)`, remark-math Expects `$...$`
+
+### Symptoms
+
+- Math expressions in chat messages render as raw text: `\(x^2\)` instead of a formatted equation
+- The LaTeX source appears verbatim in the message bubble rather than being rendered
+
+### Root Cause
+
+LLMs (including our configured models) output math using standard LaTeX delimiters:
+
+- Inline: `\(` and `\)`
+- Block: `\[` and `\]`
+
+The frontend uses `remark-math` to parse math expressions. However, `remark-math` follows the KaTeX / markdown-math convention:
+
+- Inline: `$...$`
+- Block: `$$...$$`
+
+Additionally, the backslash in the LLM output is treated as an escape character by the markdown parser. When the content reaches `ReactMarkdown`, the string `\(` is parsed as just `(` (the backslash was consumed as an escape). This means even a naive search-and-replace before parsing won't work reliably without accounting for how markdown handles backslashes.
+
+### The Fix
+
+Pre-process all markdown content **before** passing it to `ReactMarkdown` to convert LaTeX delimiters to markdown-math delimiters:
+
+```typescript
+// components/ui/markdown-text.tsx
+const preprocessLaTeX = (content: string): string => {
+  let result = content.replace(/\\\\\(/g, '$').replace(/\\\\\)/g, '$');
+  result = result.replace(/\\\\\[/g, '$$').replace(/\\\\\]/g, '$$');
+  return result;
+};
+```
+
+Note the four-backslash sequence `\\\\(` in the regex. This is necessary because:
+
+1. In a JavaScript string literal, `\\` represents a single backslash `\`
+2. So `\\\\` in the string literal becomes `\\` in the actual string
+3. In regex, `\\` matches a literal backslash
+4. Therefore `\\\\(` in the string literal (regex: `\\(`) matches the two-character sequence `\` followed by `(`
+
+After pre-processing, pass the result to `ReactMarkdown` with `remarkMath` and `rehypeKatex` plugins:
+
+```tsx
+<ReactMarkdown
+  remarkPlugins={[remarkGfm, remarkMath]}
+  rehypePlugins={[rehypeKatex]}
+>
+  {preprocessLaTeX(content)}
+</ReactMarkdown>
+```
+
+Also ensure `katex.min.css` is imported in `app/globals.css`:
+
+```css
+@import "katex/dist/katex.min.css";
+```
+
+### Lesson
+
+When integrating LLM output into markdown renderers, the LLM's output format and the renderer's expected format may differ in subtle ways (delimiters, escape sequences). A pre-processing step that normalizes the input to what the renderer expects is more robust than trying to configure the renderer to accept non-standard formats. Test with actual LLM output, not hand-crafted strings, to catch these mismatches early.
+

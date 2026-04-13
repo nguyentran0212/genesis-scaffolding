@@ -1,9 +1,8 @@
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { Card } from '@/components/ui/card';
 import { Loader2, CheckCircle2, Wrench } from 'lucide-react';
 import { ChatMessage } from '@/types/chat';
+import { MarkdownText } from '@/components/ui/markdown-text';
 import React, { memo } from 'react';
 
 const safeString = (val: any): string => {
@@ -19,17 +18,13 @@ const safeString = (val: any): string => {
 export const MessageBubble = memo(({ message }: { message: ChatMessage }) => {
   if (message.role === 'user') {
     return (
-      <div className="flex justify-end mb-8">
-        <div className="bg-[#2f2f2f] text-white px-5 py-3 rounded-[24px] max-w-[85%] shadow-sm
-          prose prose-invert max-w-none
-          leading-[1.6]
-          prose-p:mb-4 prose-p:last:mb-0
-          prose-headings:font-semibold prose-headings:text-white
-          prose-strong:font-bold prose-strong:text-white
-          prose-a:text-blue-300 prose-a:underline">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-            {safeString(message.content)}
-          </ReactMarkdown>
+      <div className="flex justify-end">
+        <div className="user-message-bubble bg-[#2f2f2f] text-white px-5 py-3 rounded-[24px] max-w-[85%] shadow-sm overflow-hidden">
+          <MarkdownText
+            content={message.content}
+            inverted={true}
+            proseClassName="leading-[1.6] prose-p:mb-4 prose-p:last:mb-0"
+          />
         </div>
       </div>
     );
@@ -57,7 +52,7 @@ export const MessageBubble = memo(({ message }: { message: ChatMessage }) => {
 
   // Assistant Message
   return (
-    <div className="flex justify-start mb-10 w-full group">
+    <div className="flex justify-start w-full group">
       <div className="max-w-full w-full space-y-4">
 
         {/* Reasoning (Keep this subtle) */}
@@ -70,9 +65,10 @@ export const MessageBubble = memo(({ message }: { message: ChatMessage }) => {
               </AccordionTrigger>
               <AccordionContent className="pb-4 pt-2 px-4 bg-muted/20 rounded-xl border-l-2 border-blue-500/20">
                 <div className="prose prose-sm dark:prose-invert italic text-muted-foreground/80">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {message.reasoning_content}
-                  </ReactMarkdown>
+                  <MarkdownText
+                    content={message.reasoning_content}
+                    proseClassName="prose-sm dark:prose-invert italic"
+                  />
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -81,15 +77,13 @@ export const MessageBubble = memo(({ message }: { message: ChatMessage }) => {
 
         {/* Content: High quality typography */}
         {message.content && (
-          <div className="prose prose-neutral dark:prose-invert max-w-none 
-            leading-[1.6]
-            prose-p:mb-4 prose-p:last:mb-0
-            prose-headings:text-foreground prose-headings:font-semibold
-            prose-strong:font-bold">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {safeString(message.content)}
-            </ReactMarkdown>
-          </div>
+          <MarkdownText
+            content={message.content}
+            proseClassName="prose-neutral dark:prose-invert max-w-none leading-[1.6]
+              prose-p:mb-4 prose-p:last:mb-0
+              prose-headings:text-foreground prose-headings:font-semibold
+              prose-strong:font-bold"
+          />
         )}
 
         {message.tool_calls && message.tool_calls.length > 0 && (
@@ -119,3 +113,5 @@ export const MessageBubble = memo(({ message }: { message: ChatMessage }) => {
     next.message.tool_calls?.[next.message.tool_calls.length - 1]?.status
   );
 });
+
+MessageBubble.displayName = 'MessageBubble';
