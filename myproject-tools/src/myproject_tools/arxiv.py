@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+from ddgs import DDGS
 
 from .base import BaseTool
 from .pdf import convert_pdf_to_markdown
@@ -242,7 +243,7 @@ def get_paper_details(
         return None
 
 
-def search_papers(
+def search_papers_arxiv(
     query: str,
     max_results: int = 10,
     sort_by: str = "relevance",
@@ -266,6 +267,61 @@ def search_papers(
 
         paper_ids = _parse_arxiv_search_page(html_content.decode("utf-8"), max_results)
     except Exception:
+        return []
+
+    results = []
+    for paper_id in paper_ids:
+        details = get_paper_details(
+            paper_id=paper_id,
+            download_dir=download_dir,
+            download_pdf=download_pdf,
+            download_source=download_source,
+        )
+        if details:
+            results.append(
+                {
+                    "id": details.get("short_id"),
+                    "title": details.get("title"),
+                    "summary": details.get("summary"),
+                    "authors": details.get("authors"),
+                    "pdf_path": details.get("pdf_path"),
+                    "md_path": details.get("md_path"),
+                }
+            )
+
+    return results
+
+
+def search_papers_ddgs(
+    query: str,
+    max_results: int = 10,
+    sort_by: str = "relevance",
+    download_dir: Path | None = None,
+    download_pdf: bool = False,
+    download_source: bool = False,
+) -> list[dict]:
+    """Search arXiv papers using DuckDuckGo, then fetch details for each.
+
+    Uses ddgs (DuckDuckGo) to find arXiv paper URLs, extracts IDs, then calls
+    get_paper_details per paper. Bypasses the arXiv export API entirely.
+    """
+    search_query = f"{query} site:arxiv.org"
+
+    try:
+        with DDGS() as ddgs:
+            results_ddgs = ddgs.text(
+                search_query, region="wt-wt", safesearch="moderate", max_results=max_results
+            )
+            # Extract paper IDs from arXiv URLs in search results
+            paper_ids = []
+            for r in results_ddgs:
+                url = r.get("href", "")
+                if "arxiv.org/abs/" in url:
+                    paper_id = extract_arxiv_id(url)
+                    if paper_id and paper_id not in paper_ids:
+                        paper_ids.append(paper_id)
+    except Exception as e:
+        print(f"DDGS search error: {e}")
         return []
 
     results = []
@@ -336,7 +392,7 @@ class ArxivSearchTool(BaseTool):
 
         # At this point, the provided path exist, sit within the working directory, and is a valid directory
         results = await asyncio.to_thread(
-            search_papers,
+            search_papers_arxiv,
             query=query,
             max_results=max_results,
             download_dir=valid_download_dir,
@@ -465,8 +521,8 @@ def main():
     paper_detail = get_paper_details(paper_id=paper_id)
     print(paper_detail)
 
-    print("\n--- Testing search_papers_with_downloads ---")
-    search_results = search_papers(
+    print("\n--- Testing search_papers (HTML) ---")
+    search_results = search_papers_arxiv(
         "quantum computing",
         max_results=3,
         download_dir=Path("./inbox"),
@@ -474,6 +530,17 @@ def main():
     )
     print(f"Found {len(search_results)} results")
     for r in search_results:
+        print(f"  {r['id']}: {r['title'][:60]}... | md_path={r['md_path']}")
+
+    print("\n--- Testing search_papers_ddgs ---")
+    search_results_ddgs = search_papers_ddgs(
+        "quantum computing",
+        max_results=3,
+        download_dir=Path("./inbox"),
+        download_pdf=True,
+    )
+    print(f"Found {len(search_results_ddgs)} results")
+    for r in search_results_ddgs:
         print(f"  {r['id']}: {r['title'][:60]}... | md_path={r['md_path']}")
 
 
