@@ -43,12 +43,15 @@ Tools that access the filesystem must validate paths against the sandbox:
 
 ```python
 self._validate_path(
-    working_directory,    # Sandbox root
-    path_str,             # Path provided by the agent
-    must_exist=True,      # Check file exists
-    should_be_dir=False,  # Must be a directory
-    should_be_file=False, # Must be a file
+    working_directory,       # Sandbox root
+    path_str,                # Path provided by the agent
+    must_exist=True,         # Raise if path does not exist
+    should_be_dir=False,     # Raise if path exists but is not a directory
+    should_be_file=False,    # Raise if path exists but is not a file
+    create_if_missing=False, # Create directory if should_be_dir=True and path missing
 )
 ```
 
 This blocks `../etc/passwd` traversal attacks. It raises `ValueError` if the path escapes the sandbox — the agent loop catches this and returns it as an error `ToolResult`.
+
+**Order of checks:** security validation → auto-create directory (if requested) → existence check → type checks.

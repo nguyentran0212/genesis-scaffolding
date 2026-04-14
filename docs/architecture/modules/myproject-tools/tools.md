@@ -36,6 +36,8 @@ The multi-channel design means a single tool call can: return text to the LLM, a
 
 All file paths are resolved relative to the sandbox working directory. The sandbox boundary is enforced by `_validate_path()` — tools must call it before any file operation. Path traversal attacks (`../etc/passwd`) are blocked by checking the resolved path stays within the sandbox root.
 
+`_validate_path()` supports `create_if_missing=True` to auto-create directories when needed (e.g., download directories for web tools). This only applies when `should_be_dir=True`.
+
 ## Tool Categories
 
 Built-in tools (~30 total) across 5 categories:

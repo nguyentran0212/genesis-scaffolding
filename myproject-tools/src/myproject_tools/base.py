@@ -33,6 +33,7 @@ class BaseTool(ABC):
         must_exist: bool = True,
         should_be_dir: bool = False,
         should_be_file: bool = False,
+        create_if_missing: bool = False,
     ) -> Path:
         """Internal utility to ensure a path is safe and valid.
         Returns a resolved Path object or raises ValueError with a message for the agent.
@@ -44,7 +45,11 @@ class BaseTool(ABC):
         if not full_path.is_relative_to(working_directory.resolve()):
             raise ValueError(f"Access denied: '{path_str}' is outside the allowed working directory.")
 
-        # 2. Existence check
+        # 2. Auto-create directory if requested and should be a directory
+        if should_be_dir and create_if_missing and not full_path.exists():
+            full_path.mkdir(parents=True, exist_ok=True)
+
+        # 3. Existence check
         if must_exist and not full_path.exists():
             raise ValueError(f"Path does not exist: '{path_str}'")
 

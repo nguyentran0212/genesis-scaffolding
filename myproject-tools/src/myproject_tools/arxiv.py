@@ -386,6 +386,7 @@ class ArxivSearchTool(BaseTool):
                 download_dir,
                 must_exist=True,
                 should_be_dir=True,
+                create_if_missing=True,
             )
         except ValueError as e:
             return ToolResult(tool_response=str(e), status="error")
@@ -464,6 +465,7 @@ class ArxivPaperDetailTool(BaseTool):
                 download_dir,
                 must_exist=True,
                 should_be_dir=True,
+                create_if_missing=True,
             )
         except ValueError as e:
             return ToolResult(tool_response=str(e), status="error")
