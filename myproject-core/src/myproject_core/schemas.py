@@ -165,7 +165,7 @@ class AgentClipboardFile(BaseModel):
     current_file_content: str
     previous_file_content: str | None = None
     # How many turns left until the file is removed from clipboard
-    ttl: int = 10
+    ttl: int
     # These flags make it easier to filter and parse
     is_new: bool = False  # Has the file just been added in this turn?
     is_edited: bool = False  # Has the file been modified in this turn?
@@ -179,7 +179,7 @@ class AgentClipboardToolResult(BaseModel):
     # Results of tool call returned by the tools defined in myproject-tools
     tool_call_results: list[str]
     # How many turns left until the tool call result is removed from clipboard
-    ttl: int = 10
+    ttl: int
 
 
 class AgentClipboardTodoItem(BaseModel):
@@ -212,11 +212,13 @@ class AgentClipboard(BaseModel):
     last_turn_at: datetime | None = None  # UTC timestamp of last user turn
     timezone: str = "UTC"
 
-    def add_file_to_clipboard(self, file_path: Path, content: str):
+    def add_file_to_clipboard(self, file_path: Path, content: str, ttl: int):
         """Adds or updates a file in the clipboard."""
         if str(file_path) not in self.accessed_files.keys():
             # If the file does not exist in the clipboard, then add it
-            new_file = AgentClipboardFile(file_path=file_path, current_file_content=content, is_new=True)
+            new_file = AgentClipboardFile(
+                file_path=file_path, current_file_content=content, is_new=True, ttl=ttl
+            )
             self.accessed_files[str(file_path)] = new_file
         else:
             # If the file is already in the clipboard, add a new version of the content
@@ -226,12 +228,12 @@ class AgentClipboard(BaseModel):
             old_file.is_new = False
             old_file.is_edited = True
 
-    def add_tool_result_to_clipboard(self, tool_name: str, tool_call_id: str, tool_call_results: list[str]):
+    def add_tool_result_to_clipboard(
+        self, tool_name: str, tool_call_id: str, tool_call_results: list[str], ttl: int
+    ):
         """Add results of tool call to the clipboard"""
         new_tool_result = AgentClipboardToolResult(
-            tool_name=tool_name,
-            tool_call_id=tool_call_id,
-            tool_call_results=tool_call_results,
+            tool_name=tool_name, tool_call_id=tool_call_id, tool_call_results=tool_call_results, ttl=ttl
         )
         self.tool_results[tool_call_id] = new_tool_result
 
@@ -302,6 +304,7 @@ class AgentClipboard(BaseModel):
         """Converts clipboard contents into a structured Markdown string."""
         sections = []
 
+        print(self)
         # Use the timezone property instead if exist
         if self.timezone:
             timezone = self.timezone

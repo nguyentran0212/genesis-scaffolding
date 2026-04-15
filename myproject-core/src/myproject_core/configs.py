@@ -62,6 +62,7 @@ class ServerConfig(BaseModel):
         """Combine default cors_origins with extra origins from env var."""
         extra = [o.strip() for o in self.cors_origins_extra.split(",") if o.strip()]
         return self.cors_origins + extra
+
     jwt_secret_key: str = Field(default_factory=lambda: secrets.token_hex(32))
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 600
@@ -84,6 +85,10 @@ class DatabaseConfig(BaseModel):
         return f"sqlite:///{self.db_directory.absolute() / self.db_name}"
 
 
+class AgentLoopConfig(BaseModel):
+    clipboard_item_ttl: int = 100
+
+
 class Config(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="myproject__",
@@ -103,20 +108,28 @@ class Config(BaseSettings):
     # Optional: pointer to which model nickname to use by default
     default_model: str = "default"
 
+    # Configuration of various types of file paths
     path: PathConfigs = Field(default_factory=PathConfigs)
+
+    # Server-specific configurations
     server: ServerConfig = Field(default_factory=ServerConfig)
 
+    # Database configurations
     # system-wide database
     db: DatabaseConfig = Field(default_factory=DatabaseConfig)
     # user-specific database
     user_db: DatabaseConfig = Field(default_factory=lambda: DatabaseConfig(db_name="user_private.db"))
     # user-specific memory database
-    memory_db: DatabaseConfig = Field(default_factory=lambda: DatabaseConfig(db_name="memory/user_memory.db"))
+    memory_db: DatabaseConfig = Field(
+        default_factory=lambda: DatabaseConfig(db_name="memory/user_memory.db")
+    )
+
+    # Agent configurations
+    agent_loop_config: AgentLoopConfig = Field(default_factory=AgentLoopConfig)
 
     @model_validator(mode="after")
     def validate_llm_references(self) -> "Config":
-        """Ensures all models point to valid providers and the default_model exists.
-        """
+        """Ensures all models point to valid providers and the default_model exists."""
         # 1. Check if all models reference an existing provider
         for model_nickname, model_cfg in self.models.items():
             if model_cfg.provider not in self.providers:

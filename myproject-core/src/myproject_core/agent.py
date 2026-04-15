@@ -31,6 +31,7 @@ class Agent:
         reasoning_chunk_callbacks: list[StreamCallback] | None = None,
         user_db_url: str | None = None,
         memory_db_url: str | None = None,
+        clipboard_item_ttl: int = 50,
     ) -> None:
         self.agent_config = agent_config
         if not agent_config.provider_config:
@@ -52,7 +53,9 @@ class Agent:
         )
         system_prompt = build_system_prompt(prompt_config)
         self.memory = memory or AgentMemory(
-            messages=[self._create_llm_message(role="system", content=system_prompt)], timezone=timezone
+            messages=[self._create_llm_message(role="system", content=system_prompt)],
+            timezone=timezone,
+            clipboard_item_ttl=clipboard_item_ttl,
         )
 
         self.stream = agent_config.interactive

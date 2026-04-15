@@ -14,8 +14,8 @@ from .schemas import AgentConfig, LLMModelConfig, LLMProvider
 
 class AgentRegistry:
     def __init__(self, settings: Config):
-        self.agent_search_paths = settings.path.agent_search_paths
         self.settings = settings
+        self.agent_search_paths = settings.path.agent_search_paths
         # Store CONFIGS (blueprints), not INSTANCES
         self.blueprints: dict[str, AgentConfig] = {}
         self.load_all()
@@ -126,8 +126,7 @@ class AgentRegistry:
         self.load_all()
 
     def edit_agent(self, agent_id: str, updated_data: dict[str, Any]) -> str:
-        """Update an existing agent’s metadata and/or system prompt.
-        """
+        """Update an existing agent’s metadata and/or system prompt."""
         write_dir = self.settings.path.agent_search_paths[-1]
         file_path = write_dir / f"{agent_id}.md"
 
@@ -189,6 +188,8 @@ class AgentRegistry:
         # We deepcopy to ensure we don't mutate the original blueprint
         instance_config = blueprint.model_copy(deep=True, update=overrides)
 
+        clipboard_item_ttl = self.settings.agent_loop_config.clipboard_item_ttl
+
         return Agent(
             agent_config=instance_config,
             working_directory=working_directory,
@@ -196,6 +197,7 @@ class AgentRegistry:
             timezone=self.settings.timezone,
             user_db_url=self.settings.user_db.connection_string,  # injecting user's database connection string
             memory_db_url=self.settings.memory_db.connection_string,  # injecting user's memory database connection string
+            clipboard_item_ttl=clipboard_item_ttl,
         )
 
     def get_all_agent_types(self):

@@ -18,12 +18,14 @@ class AgentMemory:
         messages: list[Any] | None = None,
         agent_clipboard: AgentClipboard | None = None,
         timezone: str = "UTC",
+        clipboard_item_ttl: int = 50,
     ) -> None:
         self.messages = messages or []
         self.agent_clipboard = agent_clipboard or AgentClipboard(timezone=timezone)
         self.history_tokens = 0
         self.clipboard_tokens = 0
         self.timezone = timezone
+        self.clipboard_item_ttl = clipboard_item_ttl
 
     def append_memory(self, message: Any):
         self.messages.append(message)
@@ -71,7 +73,9 @@ class AgentMemory:
 
     def add_file_to_clipboard(self, file_path: Path, content: str):
         """Adds or updates a file in the clipboard."""
-        self.agent_clipboard.add_file_to_clipboard(file_path=file_path, content=content)
+        self.agent_clipboard.add_file_to_clipboard(
+            file_path=file_path, content=content, ttl=self.clipboard_item_ttl
+        )
 
     def add_tool_results_to_clipboard(self, tool_name: str, tool_call_id: str, results: list[str]):
         """Adds tool results to clipboard"""
@@ -79,6 +83,7 @@ class AgentMemory:
             tool_name=tool_name,
             tool_call_id=tool_call_id,
             tool_call_results=results,
+            ttl=self.clipboard_item_ttl,
         )
 
     def remove_file_from_clipboard(self, file_path: Path) -> bool:
