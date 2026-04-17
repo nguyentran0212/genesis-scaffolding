@@ -1,11 +1,12 @@
+import React from "react";
 import { getJournalAction } from "@/app/actions/productivity";
 import { PageContainer, PageBody } from "@/components/dashboard/page-container";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
-import ReactMarkdown from "react-markdown";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { JournalDetailActions } from "@/components/dashboard/journals/journal-detail-actions";
+import { JournalContentEditor } from "@/components/dashboard/journals/journal-content-editor";
 
 export default async function JournalDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -27,8 +28,8 @@ export default async function JournalDetailPage({ params }: { params: Promise<{ 
             </div>
           </header>
 
-          <div className="prose prose-slate dark:prose-invert max-w-none lg:prose-lg pb-24">
-            <ReactMarkdown>{entry.content}</ReactMarkdown>
+          <div className="pb-24">
+            <JournalContentEditor journalId={entry.id.toString()} initialContent={entry.content} />
           </div>
         </article>
       </PageBody>

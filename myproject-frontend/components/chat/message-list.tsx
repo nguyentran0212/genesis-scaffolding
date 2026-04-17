@@ -2,9 +2,10 @@
 import React, { useEffect, useRef, useState, memo } from 'react';
 import { MessageBubble } from './message-bubble';
 import { ChatMessage } from '@/types/chat';
-import { Copy, Check, Pencil, X } from 'lucide-react';
+import { Copy, Check, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useChat } from './chat-context';
+import { InlineEditForm } from '@/components/ui/inline-edit-form';
 
 export const MessageList = memo(({ messages }: { messages: ChatMessage[] }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -16,19 +17,6 @@ export const MessageList = memo(({ messages }: { messages: ChatMessage[] }) => {
   const { sendMessage, isRunning } = useChat();
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editText, setEditText] = useState('');
-
-  const handleEditKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-      e.preventDefault();
-      const inputIndex = getInputIndex(editingIndex!, messages);
-      setEditingIndex(null);
-      sendMessage(editText, inputIndex);
-    }
-    if (e.key === 'Escape') {
-      setEditingIndex(null);
-      setEditText('');
-    }
-  };
 
   const getInputIndex = (msgIndex: number, messages: ChatMessage[]): number => {
     const userIndices: number[] = [];
@@ -92,7 +80,6 @@ export const MessageList = memo(({ messages }: { messages: ChatMessage[] }) => {
         if (!target.closest('.group')) {
           setActiveMessageIndex(null);
         }
-        console.log("debug", "called onOnClick on empty space")
       }}
       className="flex-1 min-h-0 overflow-y-auto w-full"
     >
@@ -107,56 +94,24 @@ export const MessageList = memo(({ messages }: { messages: ChatMessage[] }) => {
             )}
             onMouseEnter={() => {
               if (activeMessageIndex !== i) setActiveMessageIndex(i);
-              console.log("debug", "called onMouseEnter() on message " + i)
             }}
             onMouseLeave={() => {
               if (activeMessageIndex === i) setActiveMessageIndex(null);
-              console.log("debug", "called onMouseLeave() on message " + i)
-            }}
-            onClick={(e) => {
-              e.stopPropagation();
-              setActiveMessageIndex(activeMessageIndex === i ? null : i);
-              console.log("debug", "called onClick() on message " + i)
             }}
           >
             {editingIndex === i ? (
-              <div className="flex flex-col gap-2 w-full">
-                <textarea
-                  value={editText}
-                  onChange={(e) => setEditText(e.target.value)}
-                  onKeyDown={handleEditKeyDown}
-                  className="w-full min-h-[80px] px-3 py-2 text-sm border rounded-md bg-background resize-y"
-                  autoFocus
-                />
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span>Ctrl+Enter to confirm</span>
-                  <span className="text-muted-foreground/40">|</span>
-                  <span>Esc to cancel</span>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      setEditingIndex(null);
-                      setEditText('');
-                    }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-background border rounded-md text-muted-foreground hover:bg-muted/50"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                    Cancel
-                  </button>
-                  <button
-                    onClick={async () => {
-                      const inputIndex = getInputIndex(i, messages);
-                      setEditingIndex(null);
-                      await sendMessage(editText, inputIndex);
-                    }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
-                  >
-                    <Check className="w-3.5 h-3.5" />
-                    Confirm
-                  </button>
-                </div>
-              </div>
+              <InlineEditForm
+                value={editText}
+                onConfirm={async (newValue) => {
+                  const inputIndex = getInputIndex(i, messages);
+                  await sendMessage(newValue, inputIndex);
+                  setEditingIndex(null);
+                }}
+                onCancel={() => {
+                  setEditingIndex(null);
+                  setEditText('');
+                }}
+              />
             ) : (
               <MessageBubble message={msg} />
             )}
