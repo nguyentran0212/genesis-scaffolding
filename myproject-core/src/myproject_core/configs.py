@@ -2,7 +2,7 @@ import secrets
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel, Field, computed_field, model_validator
+from pydantic import BaseModel, Field, computed_field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from .schemas import LLMModelConfig, LLMProvider
@@ -126,6 +126,16 @@ class Config(BaseSettings):
 
     # Agent configurations
     agent_loop_config: AgentLoopConfig = Field(default_factory=AgentLoopConfig)
+
+    log_level: str = "WARNING"
+
+    @field_validator("log_level")
+    @classmethod
+    def validate_log_level(cls, v: str) -> str:
+        valid_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+        if v.upper() not in valid_levels:
+            return "WARNING"
+        return v.upper()
 
     @model_validator(mode="after")
     def validate_llm_references(self) -> "Config":

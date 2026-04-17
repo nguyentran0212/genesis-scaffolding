@@ -98,7 +98,7 @@ build: build-backend build-frontend ## Full production build validation
 ### Run project in dev mode (bare metal)
 
 dev-backend: ### Run FastAPI backend in dev mode
-	$(UV) fastapi dev $(FASTAPI_MAIN) --reload-dir $(FASTAPI_DIR)
+	MYPROJECT__LOG_LEVEL=DEBUG $(UV) fastapi dev $(FASTAPI_MAIN) --reload-dir $(FASTAPI_DIR)
 
 dev-frontend: ### Run frontend in dev mode
 	$(PNPM) dev
