@@ -12,8 +12,7 @@ export const MessageList = memo(({ messages }: { messages: ChatMessage[] }) => {
   const userScrolledUpRef = useRef(false);
   const lastMessageCountRef = useRef(messages.length);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
-  const [hoveredMessageIndex, setHoveredMessageIndex] = useState<number | null>(null);
-  const [tappedMessageIndex, setTappedMessageIndex] = useState<number | null>(null);
+  const [activeMessageIndex, setActiveMessageIndex] = useState<number | null>(null);
   const { sendMessage, isRunning } = useChat();
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editText, setEditText] = useState('');
@@ -87,6 +86,14 @@ export const MessageList = memo(({ messages }: { messages: ChatMessage[] }) => {
     <div
       ref={containerRef}
       onScroll={handleScroll}
+      onClick={(e) => {
+        // Only deselect if clicking empty space (not a message)
+        const target = e.target as HTMLElement;
+        if (!target.closest('.group')) {
+          setActiveMessageIndex(null);
+        }
+        console.log("debug", "called onOnClick on empty space")
+      }}
       className="flex-1 min-h-0 overflow-y-auto w-full"
     >
       {/* Content wrapper */}
@@ -96,14 +103,20 @@ export const MessageList = memo(({ messages }: { messages: ChatMessage[] }) => {
             key={i}
             className={cn(
               'group relative transition-all duration-200 p-2',
-              hoveredMessageIndex === i && 'ring-2 ring-primary/30 rounded-lg'
+              activeMessageIndex === i && 'ring-2 ring-primary/30 rounded-lg'
             )}
-            onMouseEnter={() => setHoveredMessageIndex(i)}
-            onMouseLeave={() => setHoveredMessageIndex(null)}
-            onClick={() => {
-              if (hoveredMessageIndex !== i && tappedMessageIndex !== i) {
-                setTappedMessageIndex(i);
-              }
+            onMouseEnter={() => {
+              if (activeMessageIndex !== i) setActiveMessageIndex(i);
+              console.log("debug", "called onMouseEnter() on message " + i)
+            }}
+            onMouseLeave={() => {
+              if (activeMessageIndex === i) setActiveMessageIndex(null);
+              console.log("debug", "called onMouseLeave() on message " + i)
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setActiveMessageIndex(activeMessageIndex === i ? null : i);
+              console.log("debug", "called onClick() on message " + i)
             }}
           >
             {editingIndex === i ? (
@@ -155,7 +168,7 @@ export const MessageList = memo(({ messages }: { messages: ChatMessage[] }) => {
               }}
               className={cn(
                 "absolute top-2 right-2 transition-opacity flex items-center gap-1.5 px-2 py-1.5 text-xs bg-background border rounded-md shadow-sm text-muted-foreground hover:text-foreground hover:bg-muted/50",
-                (hoveredMessageIndex === i || tappedMessageIndex === i) ? 'opacity-100' : 'opacity-0'
+                activeMessageIndex === i ? 'opacity-100' : 'opacity-0'
               )}
               title="Copy as Markdown"
             >
@@ -180,7 +193,7 @@ export const MessageList = memo(({ messages }: { messages: ChatMessage[] }) => {
                 }}
                 className={cn(
                   "absolute top-2 right-24 transition-opacity flex items-center gap-1.5 px-2 py-1.5 text-xs bg-background border rounded-md shadow-sm text-muted-foreground hover:text-foreground hover:bg-muted/50",
-                  (hoveredMessageIndex === i || tappedMessageIndex === i) ? 'opacity-100' : 'opacity-0'
+                  activeMessageIndex === i ? 'opacity-100' : 'opacity-0'
                 )}
                 title="Edit message"
               >
