@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import re
 from pathlib import Path
 from typing import Any
@@ -9,6 +10,8 @@ from myproject_core.agent.agent import Agent
 from ..configs import Config, get_config
 from ..schemas import AgentConfig, LLMModelConfig, LLMProvider
 from .agent_memory import AgentMemory
+
+logger = logging.getLogger(__name__)
 
 
 class AgentRegistry:
@@ -21,8 +24,10 @@ class AgentRegistry:
 
     def load_all(self):
         """Scans directory and stores the blueprints."""
+        logger.info("Loading agent blueprints\n- agent_search_paths: %s", self.agent_search_paths)
         for agent_dir in self.agent_search_paths:
             if not agent_dir.exists():
+                logger.debug("Skipping non-existent directory: %s", agent_dir)
                 continue  # Continue to avoid non-existent directories
 
             for md_file in agent_dir.glob("*.md"):
@@ -39,7 +44,7 @@ class AgentRegistry:
                     # Store the name from the file stem or manifest
                     self.blueprints[md_file.stem] = config
                 except Exception as e:
-                    print(f"Error loading {md_file.name}: {e}")
+                    logger.error("Error loading %s: %s", md_file.name, e, exc_info=True)
                     continue  # Continue so that it does not break init step if user accidentally write a bad agent
 
     def add_agent(self, agent_data: dict) -> str:

@@ -27,7 +27,7 @@ class PathConfigs(BaseModel):
     @computed_field
     @property
     def agent_search_paths(self) -> list[Path]:
-        return [PACKAGE_ROOT / "agents" / "builtin_agents", self.internal_state_dir / "agents"]
+        return [PACKAGE_ROOT / "agent" / "builtin_agents", self.internal_state_dir / "agents"]
 
     @computed_field
     @property

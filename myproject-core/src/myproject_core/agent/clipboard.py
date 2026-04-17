@@ -190,7 +190,6 @@ class AgentClipboard(BaseModel):
         """Converts clipboard contents into a structured Markdown string."""
         sections = []
 
-        print(self)
         # Use the timezone property instead if exist
         if self.timezone:
             timezone = self.timezone
